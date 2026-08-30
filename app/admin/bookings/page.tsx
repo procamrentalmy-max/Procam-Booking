@@ -37,7 +37,7 @@ export default async function BookingsPage() {
             <form action={forceConfirmBookingAction} className="mt-2">
               <input type="hidden" name="id" value={b.id} />
               <button type="submit" className={primaryButtonClass}>
-                Force Confirm (testing — no Stripe yet)
+                Force Confirm (bypass Stripe — dev/testing only)
               </button>
             </form>
           )}

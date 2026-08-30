@@ -118,6 +118,7 @@ export type CustomerRow = {
   name: string;
   phone: string;
   email: string;
+  stripe_customer_id: string | null;
   created_at: string;
 };
 

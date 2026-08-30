@@ -7,11 +7,11 @@ import { assertValidBookingTransition } from "@/lib/state-machine/booking";
 import type { BookingStatus } from "@/lib/db/types";
 
 /**
- * Stripe isn't wired up yet (Phase 7), so there's no real payment event to
- * flip a booking out of PENDING_PAYMENT. This is a stand-in for that
- * webhook so the rest of the flow (pickup, condition checks, reception,
- * inspection) can be built and tested against real CONFIRMED bookings.
- * Remove once the Stripe webhook handler exists.
+ * Bypasses Stripe entirely and confirms a booking directly — for local/dev
+ * testing when there's no public HTTPS endpoint for Stripe to reach (the
+ * webhook needs one; see app/api/webhooks/stripe/route.ts and the Stripe
+ * CLI's `stripe listen --forward-to` for local forwarding instead of this).
+ * Real bookings should always be confirmed by the webhook, not this.
  */
 export async function forceConfirmBookingAction(formData: FormData) {
   const id = z.string().uuid().parse(formData.get("id"));

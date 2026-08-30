@@ -160,6 +160,7 @@ create table customers (
   name text not null,
   phone text not null,
   email text not null,
+  stripe_customer_id text unique,
   created_at timestamptz not null default now()
 );
 create index idx_customers_phone on customers(phone);

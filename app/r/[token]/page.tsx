@@ -1,9 +1,9 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
 const STATUS_MESSAGES: Record<string, string> = {
-  PENDING_PAYMENT:
-    "Payment isn't wired up in this build yet — an admin can move this booking to Confirmed manually for testing.",
+  PENDING_PAYMENT: "Payment hasn't been completed yet.",
   CONFIRMED: "You're all set. Show this page at reception to pick up your camera.",
   READY_FOR_PICKUP: "Your camera is ready. Show this page at reception to pick it up.",
   ACTIVE: "Your rental is in progress. Enjoy!",
@@ -47,6 +47,15 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
       <p className="rounded-xl border border-zinc-200 p-4 text-center text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
         {STATUS_MESSAGES[booking.status] ?? ""}
       </p>
+
+      {booking.status === "PENDING_PAYMENT" && (
+        <Link
+          href={`/r/${token}/pay`}
+          className="flex h-12 items-center justify-center rounded-full bg-black text-sm font-semibold text-white dark:bg-white dark:text-black"
+        >
+          Complete Payment
+        </Link>
+      )}
 
       <div className="space-y-2 rounded-xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">
         <Row label="Property" value={partner?.name ?? "—"} />

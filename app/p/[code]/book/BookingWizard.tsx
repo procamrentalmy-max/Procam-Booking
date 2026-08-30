@@ -85,7 +85,7 @@ export function BookingWizard({
         rentalPackageId: packageId,
         referralCode,
       });
-      router.push(`/r/${result.secureToken}`);
+      router.push(`/r/${result.secureToken}/pay`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
       setLoading(false);
@@ -199,7 +199,7 @@ export function BookingWizard({
             disabled={loading || !agreed}
             className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
           >
-            {loading ? "Reserving…" : "Reserve Camera"}
+            {loading ? "Reserving…" : "Continue to Payment"}
           </button>
         </div>
       )}
