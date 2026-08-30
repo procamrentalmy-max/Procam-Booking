@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getNotificationProvider } from "@/lib/notifications";
 import { generateOtpCode, hashOtpCode, otpCodeMatches, OTP_TTL_MINUTES, OTP_MAX_ATTEMPTS } from "@/lib/otp";
-import { createPendingBooking, NoCameraAvailableError } from "@/lib/booking/create";
+import { createPendingBooking, NoCameraAvailableError, InvalidStartTimeError } from "@/lib/booking/create";
 import { bookingDashboardUrl } from "@/lib/urls";
 
 const startSchema = z.object({
@@ -97,6 +97,7 @@ const createBookingSchema = z.object({
   partnerId: z.string().uuid(),
   rentalPackageId: z.string().uuid(),
   referralCode: z.string().nullable(),
+  startTime: z.string().min(1),
 });
 
 export async function createBookingAction(input: {
@@ -105,6 +106,7 @@ export async function createBookingAction(input: {
   partnerId: string;
   rentalPackageId: string;
   referralCode: string | null;
+  startTime: string;
 }) {
   const parsed = createBookingSchema.parse(input);
   const supabase = createServiceRoleClient();
@@ -119,17 +121,21 @@ export async function createBookingAction(input: {
     throw new Error("Identity verification is required before booking.");
   }
 
+  const startTime = new Date(parsed.startTime);
+  if (Number.isNaN(startTime.getTime())) throw new Error("Please choose a valid date and time.");
+
   try {
     const booking = await createPendingBooking({
       customerId: parsed.customerId,
       partnerId: parsed.partnerId,
       rentalPackageId: parsed.rentalPackageId,
+      startTime,
       source: "PARTNER_QR",
       referralCode: parsed.referralCode,
     });
     return { secureToken: booking.secure_token as string, dashboardUrl: bookingDashboardUrl(booking.secure_token) };
   } catch (err) {
-    if (err instanceof NoCameraAvailableError) throw new Error(err.message);
+    if (err instanceof NoCameraAvailableError || err instanceof InvalidStartTimeError) throw new Error(err.message);
     throw err;
   }
 }

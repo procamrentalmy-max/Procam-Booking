@@ -4,7 +4,6 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 
 const STATUS_MESSAGES: Record<string, string> = {
   PENDING_PAYMENT: "Payment hasn't been completed yet.",
-  CONFIRMED: "You're all set. Show this page at reception to pick up your camera.",
   READY_FOR_PICKUP: "Your camera is ready. Show this page at reception to pick it up.",
   ACTIVE: "Your rental is in progress. Enjoy!",
   RETURN_STARTED: "Please hand the camera pouch to reception now.",
@@ -30,6 +29,13 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
 
   if (!booking) notFound();
 
+  const startTime = new Date(booking.start_time);
+  const pickupIsAvailableNow = booking.status === "READY_FOR_PICKUP" || (booking.status === "CONFIRMED" && startTime <= new Date());
+  const confirmedMessage =
+    booking.status === "CONFIRMED" && !pickupIsAvailableNow
+      ? `You're all set. Come back at ${startTime.toLocaleString()} to pick up your camera at reception.`
+      : "You're all set. Show this page at reception to pick up your camera.";
+
   const [{ data: partner }, { data: pkg }, { data: camera }, { data: kit }] = await Promise.all([
     supabase.from("partners").select("name,address").eq("id", booking.partner_id).single(),
     supabase.from("rental_packages").select("name").eq("id", booking.rental_package_id).single(),
@@ -45,7 +51,7 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
       </div>
 
       <p className="rounded-xl border border-zinc-200 p-4 text-center text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
-        {STATUS_MESSAGES[booking.status] ?? ""}
+        {booking.status === "CONFIRMED" ? confirmedMessage : (STATUS_MESSAGES[booking.status] ?? "")}
       </p>
 
       {booking.status === "PENDING_PAYMENT" && (
@@ -57,7 +63,7 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
         </Link>
       )}
 
-      {booking.status === "READY_FOR_PICKUP" && (
+      {pickupIsAvailableNow && (
         <Link
           href={`/r/${token}/pickup`}
           className="flex h-12 items-center justify-center rounded-full bg-black text-sm font-semibold text-white dark:bg-white dark:text-black"

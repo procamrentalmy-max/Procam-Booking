@@ -14,6 +14,14 @@ type RentalPackage = {
 
 type Step = "details" | "otp" | "confirm";
 
+function toDateInputValue(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function toTimeInputValue(d: Date): string {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 export function BookingWizard({
   partnerId,
   referralCode,
@@ -28,6 +36,9 @@ export function BookingWizard({
   const router = useRouter();
   const [step, setStep] = useState<Step>("details");
   const [packageId, setPackageId] = useState(initialPackageId ?? packages[0]?.id ?? "");
+  const [startNow, setStartNow] = useState(true);
+  const [date, setDate] = useState(() => toDateInputValue(new Date()));
+  const [time, setTime] = useState(() => toTimeInputValue(new Date()));
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -40,10 +51,21 @@ export function BookingWizard({
 
   const selectedPackage = packages.find((p) => p.id === packageId);
 
+  /** Computed fresh at submit time — "now" shouldn't freeze at whatever moment the toggle was clicked. */
+  function resolveStartTime(): Date {
+    if (startNow) return new Date();
+    const combined = new Date(`${date}T${time}`);
+    return Number.isNaN(combined.getTime()) ? new Date() : combined;
+  }
+
   async function handleDetailsSubmit() {
     setError(null);
     if (!packageId) {
       setError("Select a rental package.");
+      return;
+    }
+    if (!startNow && resolveStartTime().getTime() < Date.now() - 60_000) {
+      setError("Please choose a time in the future.");
       return;
     }
     setLoading(true);
@@ -84,6 +106,7 @@ export function BookingWizard({
         partnerId,
         rentalPackageId: packageId,
         referralCode,
+        startTime: resolveStartTime().toISOString(),
       });
       router.push(`/r/${result.secureToken}/pay`);
     } catch (err) {
@@ -127,6 +150,51 @@ export function BookingWizard({
                 <span className="font-semibold">RM{pkg.price_myr}</span>
               </label>
             ))}
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setStartNow(true)}
+                className={`flex-1 rounded-full border py-2.5 text-sm font-medium ${
+                  startNow
+                    ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                    : "border-zinc-300 dark:border-zinc-700"
+                }`}
+              >
+                Start Now
+              </button>
+              <button
+                type="button"
+                onClick={() => setStartNow(false)}
+                className={`flex-1 rounded-full border py-2.5 text-sm font-medium ${
+                  !startNow
+                    ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                    : "border-zinc-300 dark:border-zinc-700"
+                }`}
+              >
+                Choose a Time
+              </button>
+            </div>
+
+            {!startNow && (
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={date}
+                  min={toDateInputValue(new Date())}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
+                />
+                <input
+                  type="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
+                />
+              </div>
+            )}
           </div>
 
           <input
@@ -184,6 +252,9 @@ export function BookingWizard({
         <div className="space-y-4">
           <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
             <p className="font-medium">{selectedPackage.name}</p>
+            <p className="text-sm text-zinc-500">
+              Pickup: {startNow ? "Now" : resolveStartTime().toLocaleString()}
+            </p>
             <p className="text-sm text-zinc-500">Rental fee: RM{selectedPackage.price_myr}</p>
             <p className="text-sm text-zinc-500">Refundable security deposit: RM{selectedPackage.deposit_myr}</p>
           </div>

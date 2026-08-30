@@ -8,7 +8,7 @@ export default async function PickupPage({ params }: { params: Promise<{ token: 
 
   const { data: booking } = await supabase.from("bookings").select("status").eq("secure_token", token).maybeSingle();
   if (!booking) notFound();
-  if (booking.status !== "READY_FOR_PICKUP") redirect(`/r/${token}`);
+  if (booking.status !== "READY_FOR_PICKUP" && booking.status !== "CONFIRMED") redirect(`/r/${token}`);
 
   return <PreRentalCheckForm token={token} />;
 }

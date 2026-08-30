@@ -15,7 +15,7 @@ export default async function PartnerLandingPage({ params }: { params: Promise<{
 
   if (!partner || partner.status !== "ACTIVE") notFound();
 
-  const [{ data: packages }, availableCount] = await Promise.all([
+  const [{ data: packages }, availableNowCount] = await Promise.all([
     supabase
       .from("rental_packages")
       .select("id,name,price_myr,deposit_myr,duration_minutes")
@@ -29,38 +29,42 @@ export default async function PartnerLandingPage({ params }: { params: Promise<{
       <div className="text-center">
         <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">ProCam</h1>
         <p className="mt-1 text-sm text-zinc-500">Action camera rental at {partner.name}</p>
+        {/*
+          Advisory only, not a hard gate: a camera busy right now can still
+          have a free slot later today, and the booking wizard lets you pick
+          any time. The real availability check happens when you actually
+          request a slot (createPendingBooking) — this is just a hint.
+        */}
+        <p className="mt-2 text-xs text-zinc-400">
+          {availableNowCount > 0
+            ? `${availableNowCount} camera${availableNowCount === 1 ? "" : "s"} available right now`
+            : "All cameras are out right now — you can still book a later time today"}
+        </p>
       </div>
 
-      {availableCount === 0 ? (
-        <p className="rounded-xl border border-zinc-200 p-4 text-center text-sm text-zinc-500 dark:border-zinc-800">
-          Sorry, all cameras are rented out right now. Please check back later or ask reception when the next one is
-          expected back.
-        </p>
-      ) : (
-        <div className="space-y-3">
-          {(packages ?? []).map((pkg) => (
-            <div
-              key={pkg.id}
-              className="flex items-center justify-between rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
-            >
-              <div>
-                <p className="font-medium">{pkg.name}</p>
-                <p className="text-sm text-zinc-500">RM{pkg.deposit_myr} refundable deposit</p>
-              </div>
-              <div className="text-right">
-                <p className="font-semibold">RM{pkg.price_myr}</p>
-              </div>
-            </div>
-          ))}
-
-          <Link
-            href={`/p/${partner.referral_code}/book`}
-            className="flex h-14 items-center justify-center rounded-full bg-black text-base font-semibold text-white dark:bg-white dark:text-black"
+      <div className="space-y-3">
+        {(packages ?? []).map((pkg) => (
+          <div
+            key={pkg.id}
+            className="flex items-center justify-between rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
           >
-            Book Now
-          </Link>
-        </div>
-      )}
+            <div>
+              <p className="font-medium">{pkg.name}</p>
+              <p className="text-sm text-zinc-500">RM{pkg.deposit_myr} refundable deposit</p>
+            </div>
+            <div className="text-right">
+              <p className="font-semibold">RM{pkg.price_myr}</p>
+            </div>
+          </div>
+        ))}
+
+        <Link
+          href={`/p/${partner.referral_code}/book`}
+          className="flex h-14 items-center justify-center rounded-full bg-black text-base font-semibold text-white dark:bg-white dark:text-black"
+        >
+          Book Now
+        </Link>
+      </div>
     </div>
   );
 }

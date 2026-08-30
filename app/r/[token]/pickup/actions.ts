@@ -4,8 +4,9 @@ import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { uploadConditionPhoto, conditionPhotoPath } from "@/lib/storage";
 import { assertValidBookingTransition } from "@/lib/state-machine/booking";
+import { promoteBookingToReadyForPickup } from "@/lib/booking/confirm";
 import { logAudit } from "@/lib/audit";
-import type { BookingStatus, ConditionPhotoType } from "@/lib/db/types";
+import type { ConditionPhotoType } from "@/lib/db/types";
 
 const PHOTO_FIELDS = ["screen_on", "lens_a", "lens_b", "kit_full"] as const;
 const PHOTO_TYPE_MAP: Record<(typeof PHOTO_FIELDS)[number], ConditionPhotoType> = {
@@ -49,12 +50,16 @@ export async function submitPreRentalConditionCheckAction(formData: FormData) {
     .eq("secure_token", token)
     .maybeSingle();
   if (!booking) throw new Error("Booking not found.");
-  // This is the only completion guard: booking.status only leaves
-  // READY_FOR_PICKUP once this whole function finishes successfully, so a
-  // retry after a partial failure below (e.g. one photo upload fails) is
-  // safe — the upserts on booking_id+type / condition_check_id+photo_type
-  // just overwrite the same rows rather than colliding with them.
-  if (booking.status !== "READY_FOR_PICKUP") {
+  // CONFIRMED is allowed too: a booking scheduled ahead only gets its
+  // camera catch-up-promoted to READY_FOR_PICKUP by the housekeeping cron
+  // as its start time approaches (see lib/booking/confirm.ts), which can
+  // lag a guest showing up early. Reception can still physically hand over
+  // the pouch (they look the booking up by code, not by camera status —
+  // see app/reception/pickup/actions.ts), so the customer shouldn't be
+  // blocked from their own condition check either.
+  if (booking.status === "CONFIRMED") {
+    await promoteBookingToReadyForPickup(booking.id);
+  } else if (booking.status !== "READY_FOR_PICKUP") {
     throw new Error("This booking isn't ready for pickup.");
   }
 
@@ -98,7 +103,9 @@ export async function submitPreRentalConditionCheckAction(formData: FormData) {
   const pickupTime = new Date();
   const newEndTime = pkg ? new Date(pickupTime.getTime() + pkg.duration_minutes * 60_000) : null;
 
-  assertValidBookingTransition(booking.status as BookingStatus, "ACTIVE");
+  // By this point the booking is guaranteed READY_FOR_PICKUP — either it
+  // already was, or the promotion above just put it there.
+  assertValidBookingTransition("READY_FOR_PICKUP", "ACTIVE");
 
   const { error: bookingError } = await supabase
     .from("bookings")

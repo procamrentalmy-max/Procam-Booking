@@ -1,37 +1,64 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import type { BookingRow, BookingSource } from "@/lib/db/types";
+import { isImminent } from "@/lib/state-machine/booking";
+import type { BookingRow, BookingSource, CameraStatus } from "@/lib/db/types";
 
 export class NoCameraAvailableError extends Error {
   constructor() {
-    super("No camera is available at this property right now.");
+    super("No camera is available at that property for the selected time.");
     this.name = "NoCameraAvailableError";
   }
 }
+
+export class InvalidStartTimeError extends Error {
+  constructor() {
+    super("Please choose a start time in the future.");
+    this.name = "InvalidStartTimeError";
+  }
+}
+
+/** Cameras/kits in these states are out of rotation regardless of what time slot is requested. */
+const OUT_OF_ROTATION_CAMERA_STATUSES: CameraStatus[] = ["MAINTENANCE", "LOST", "RETIRED"];
+const OUT_OF_ROTATION_KIT_STATUSES = ["MAINTENANCE", "RETIRED"];
 
 function generateSecureToken(): string {
   return randomBytes(32).toString("base64url");
 }
 
 /**
- * Creates a PENDING_PAYMENT booking with a camera+kit atomically assigned.
+ * Creates a PENDING_PAYMENT booking with a camera+kit atomically assigned
+ * for an arbitrary requested start time (now, or scheduled ahead).
  *
- * "Atomic" here doesn't mean a single database transaction — it means the
- * booking INSERT is what actually decides the winner under concurrency,
- * because the EXCLUDE constraints on bookings(camera_id, ...) and
- * bookings(kit_id, ...) reject an overlapping insert outright (Postgres
- * error 23P01). We just try candidate camera/kit pairs until one insert
- * succeeds; there's no separate "reserve" step to race.
+ * Candidate cameras are everything at the property not permanently out of
+ * rotation (MAINTENANCE/LOST/RETIRED) — NOT just cameras currently sitting
+ * in AVAILABLE. A camera mid-rental right now can still be booked for next
+ * Tuesday. The actual conflict check is the EXCLUDE constraints on
+ * bookings(camera_id, ...) and bookings(kit_id, ...): we try candidate
+ * pairs and let a losing INSERT (23P01) mean "try the next one" — there's
+ * no separate reservation step to race.
+ *
+ * The camera's own `status` only gets flipped to RESERVED here if the
+ * requested start is imminent (see lib/state-machine/booking.ts) — a
+ * booking scheduled days out shouldn't make its camera look claimed to
+ * every other customer or staff dashboard in the meantime. A scheduled
+ * housekeeping job (app/api/cron/housekeeping) promotes it as the time
+ * actually approaches.
  */
 export async function createPendingBooking(params: {
   customerId: string;
   partnerId: string;
   rentalPackageId: string;
+  startTime: Date;
   source: BookingSource;
   referralCode: string | null;
 }): Promise<BookingRow> {
   const supabase = createServiceRoleClient();
+
+  // A minute of slack for form-submission latency, not a real grace period.
+  if (params.startTime.getTime() < Date.now() - 60_000) {
+    throw new InvalidStartTimeError();
+  }
 
   const { data: pkg } = await supabase
     .from("rental_packages")
@@ -47,14 +74,15 @@ export async function createPendingBooking(params: {
     .single();
   if (!partner || partner.status !== "ACTIVE") throw new Error("This property is not currently active.");
 
-  const [{ data: cameras }, { data: kits }] = await Promise.all([
-    supabase.from("cameras").select("id").eq("partner_id", params.partnerId).eq("status", "AVAILABLE"),
-    supabase.from("kits").select("id").eq("partner_id", params.partnerId).eq("status", "AVAILABLE"),
+  const [{ data: allCameras }, { data: allKits }] = await Promise.all([
+    supabase.from("cameras").select("id,status").eq("partner_id", params.partnerId),
+    supabase.from("kits").select("id,status").eq("partner_id", params.partnerId),
   ]);
-  if (!cameras?.length || !kits?.length) throw new NoCameraAvailableError();
+  const cameras = (allCameras ?? []).filter((c) => !OUT_OF_ROTATION_CAMERA_STATUSES.includes(c.status));
+  const kits = (allKits ?? []).filter((k) => !OUT_OF_ROTATION_KIT_STATUSES.includes(k.status));
+  if (!cameras.length || !kits.length) throw new NoCameraAvailableError();
 
-  const startTime = new Date();
-  const endTime = new Date(startTime.getTime() + pkg.duration_minutes * 60_000);
+  const endTime = new Date(params.startTime.getTime() + pkg.duration_minutes * 60_000);
 
   for (const camera of cameras) {
     for (const kit of kits) {
@@ -68,7 +96,7 @@ export async function createPendingBooking(params: {
           camera_id: camera.id,
           kit_id: kit.id,
           status: "PENDING_PAYMENT",
-          start_time: startTime.toISOString(),
+          start_time: params.startTime.toISOString(),
           end_time: endTime.toISOString(),
           source: params.source,
           referral_code: params.referralCode,
@@ -77,26 +105,28 @@ export async function createPendingBooking(params: {
         .single();
 
       if (error) {
-        // 23P01 = exclusion_violation: another request grabbed this camera
-        // or kit in the gap between our SELECT and this INSERT. Try the
-        // next candidate pair instead of failing the whole booking attempt.
+        // 23P01 = exclusion_violation: this camera or kit already has a
+        // booking overlapping the requested window. Try the next candidate
+        // pair instead of failing the whole attempt.
         if (error.code === "23P01") continue;
         throw new Error(error.message);
       }
 
-      const { error: transitionError } = await supabase.rpc("system_transition_camera_status", {
-        p_camera_id: camera.id,
-        p_to_status: "RESERVED",
-        p_actor_type: "CUSTOMER",
-        p_booking_id: booking.id,
-        p_event_type: "BOOKING_CREATED",
-      });
+      if (isImminent(params.startTime)) {
+        const { error: transitionError } = await supabase.rpc("system_transition_camera_status", {
+          p_camera_id: camera.id,
+          p_to_status: "RESERVED",
+          p_actor_type: "CUSTOMER",
+          p_booking_id: booking.id,
+          p_event_type: "BOOKING_CREATED",
+        });
 
-      if (transitionError) {
-        // Don't leave a booking holding a camera that's still shown as
-        // AVAILABLE everywhere else — undo and surface the failure.
-        await supabase.from("bookings").delete().eq("id", booking.id);
-        throw new Error(transitionError.message);
+        if (transitionError) {
+          // Don't leave a booking holding a camera that still shows as
+          // AVAILABLE everywhere else — undo and surface the failure.
+          await supabase.from("bookings").delete().eq("id", booking.id);
+          throw new Error(transitionError.message);
+        }
       }
 
       return booking;

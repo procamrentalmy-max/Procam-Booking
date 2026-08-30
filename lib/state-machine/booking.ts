@@ -43,3 +43,17 @@ export function isTerminal(status: BookingStatus): boolean {
 
 /** How long a booking may sit in PENDING_PAYMENT before it auto-expires. */
 export const PENDING_PAYMENT_TIMEOUT_MINUTES = 10;
+
+/**
+ * How close to its scheduled start_time a booking has to be before its
+ * camera gets flagged RESERVED/READY_FOR_PICKUP. Bookings further out than
+ * this stay at CONFIRMED with their camera untouched — otherwise a camera
+ * booked for next Tuesday would show as "reserved" (and be hidden from
+ * other customers' availability search) starting the moment it was paid
+ * for, not when it's actually needed.
+ */
+export const IMMINENT_START_THRESHOLD_MINUTES = 15;
+
+export function isImminent(startTime: Date, now: Date = new Date()): boolean {
+  return startTime.getTime() - now.getTime() <= IMMINENT_START_THRESHOLD_MINUTES * 60_000;
+}
