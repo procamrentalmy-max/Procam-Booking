@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 const SECTIONS = [
+  { href: "/admin/bookings", label: "Bookings", note: "All bookings, testing helpers" },
   { href: "/admin/partners", label: "Partners", note: "Properties, commission rates, QR codes" },
   { href: "/admin/rental-packages", label: "Rental Packages", note: "Durations, pricing, deposits" },
   { href: "/admin/cameras", label: "Cameras", note: "Fleet status by property" },

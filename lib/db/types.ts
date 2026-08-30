@@ -125,6 +125,9 @@ export type IdentityVerificationRow = {
   id: string;
   customer_id: string;
   method: IdentityVerificationMethod;
+  otp_code_hash: string | null;
+  otp_expires_at: string | null;
+  otp_attempts: number;
   id_document_photo_path: string | null;
   otp_verified_at: string | null;
   status: IdentityVerificationStatus;
@@ -386,6 +389,18 @@ export interface Database {
         Args: {
           p_camera_id: string;
           p_to_status: CameraStatus;
+          p_event_type?: string | null;
+          p_booking_id?: string | null;
+          p_metadata?: Record<string, unknown>;
+        };
+        Returns: CameraRow;
+      };
+      system_transition_camera_status: {
+        Args: {
+          p_camera_id: string;
+          p_to_status: CameraStatus;
+          p_actor_type: ActorType;
+          p_actor_id?: string | null;
           p_event_type?: string | null;
           p_booking_id?: string | null;
           p_metadata?: Record<string, unknown>;

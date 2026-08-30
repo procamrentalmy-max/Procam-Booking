@@ -169,6 +169,9 @@ create table identity_verifications (
   id uuid primary key default gen_random_uuid(),
   customer_id uuid not null references customers(id) on delete cascade,
   method identity_verification_method not null,
+  otp_code_hash text,
+  otp_expires_at timestamptz,
+  otp_attempts int not null default 0,
   id_document_photo_path text,
   otp_verified_at timestamptz,
   status identity_verification_status not null default 'PENDING',
@@ -291,6 +294,16 @@ alter table bookings
   add constraint no_overlapping_camera_bookings
   exclude using gist (
     camera_id with =,
+    tsrange(start_time, end_time) with &&
+  )
+  where (status not in ('CANCELLED', 'EXPIRED', 'COMPLETED'));
+
+-- Same guarantee for kits — the numbered pouch is a tracked asset too
+-- (spec section 8) and must not be double-booked any more than the camera.
+alter table bookings
+  add constraint no_overlapping_kit_bookings
+  exclude using gist (
+    kit_id with =,
     tsrange(start_time, end_time) with &&
   )
   where (status not in ('CANCELLED', 'EXPIRED', 'COMPLETED'));
