@@ -19,7 +19,7 @@
 
 export type PartnerStatus = "ACTIVE" | "INACTIVE";
 export type StaffRole = "PROCAM_STAFF" | "ADMIN";
-export type IdentityVerificationMethod = "EMAIL_OTP" | "SMS_OTP";
+export type IdentityVerificationMethod = "WHATSAPP_OTP" | "SMS_OTP";
 export type IdentityVerificationStatus = "PENDING" | "VERIFIED" | "FAILED";
 
 export type CameraStatus =

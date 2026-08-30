@@ -36,7 +36,7 @@ export async function startVerificationAction(input: { name: string; phone: stri
     .from("identity_verifications")
     .insert({
       customer_id: customerId,
-      method: "EMAIL_OTP",
+      method: "WHATSAPP_OTP",
       otp_code_hash: hashOtpCode(code),
       otp_expires_at: new Date(Date.now() + OTP_TTL_MINUTES * 60_000).toISOString(),
       status: "PENDING",
@@ -45,10 +45,10 @@ export async function startVerificationAction(input: { name: string; phone: stri
     .single();
   if (verificationError || !verification) throw new Error("Could not start verification. Please try again.");
 
-  await getNotificationProvider().sendEmail({
-    to: parsed.email,
-    subject: "Your ProCam verification code",
-    text: `Your ProCam verification code is ${code}. It expires in ${OTP_TTL_MINUTES} minutes.`,
+  await getNotificationProvider().sendWhatsApp({
+    to: parsed.phone,
+    templateName: process.env.WHATSAPP_OTP_TEMPLATE_NAME ?? "otp_code",
+    templateParams: [code],
   });
 
   return { customerId: customerId as string, verificationId: verification.id as string };

@@ -19,7 +19,7 @@ plan this project follows.
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in Supabase/Stripe/Resend keys
+cp .env.example .env.local   # fill in Supabase/Stripe/WhatsApp keys
 npm run dev
 ```
 

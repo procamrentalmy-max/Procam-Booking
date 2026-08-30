@@ -96,7 +96,7 @@ export function BookingWizard({
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
       <h1 className="text-center text-xl font-semibold text-black dark:text-zinc-50">
         {step === "details" && "Your Details"}
-        {step === "otp" && "Verify Your Email"}
+        {step === "otp" && "Verify Your Phone"}
         {step === "confirm" && "Confirm Booking"}
       </h1>
 
@@ -136,7 +136,7 @@ export function BookingWizard({
             className="w-full rounded-lg border border-zinc-300 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
           />
           <input
-            placeholder="Phone number"
+            placeholder="Phone number, with country code, e.g. +60123456789"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             className="w-full rounded-lg border border-zinc-300 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
@@ -161,7 +161,7 @@ export function BookingWizard({
 
       {step === "otp" && (
         <div className="space-y-4">
-          <p className="text-center text-sm text-zinc-500">We sent a 6-digit code to {email}.</p>
+          <p className="text-center text-sm text-zinc-500">We sent a 6-digit code to your WhatsApp, {phone}.</p>
           <input
             inputMode="numeric"
             maxLength={6}

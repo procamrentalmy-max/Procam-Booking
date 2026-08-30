@@ -26,7 +26,7 @@ create extension if not exists btree_gist;
 create type partner_status as enum ('ACTIVE', 'INACTIVE');
 create type staff_role as enum ('PROCAM_STAFF', 'ADMIN');
 
-create type identity_verification_method as enum ('EMAIL_OTP', 'SMS_OTP');
+create type identity_verification_method as enum ('WHATSAPP_OTP', 'SMS_OTP');
 create type identity_verification_status as enum ('PENDING', 'VERIFIED', 'FAILED');
 
 create type camera_status as enum (

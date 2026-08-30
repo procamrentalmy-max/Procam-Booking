@@ -1,12 +1,12 @@
 import "server-only";
-import type { NotificationProvider, SendEmailParams } from "./provider";
+import type { NotificationProvider, SendWhatsAppParams } from "./provider";
 
-/** Dev fallback used whenever RESEND_API_KEY isn't set — logs instead of sending. */
+/** Dev fallback used whenever WHATSAPP_ACCESS_TOKEN isn't set — logs instead of sending. */
 export class ConsoleNotificationProvider implements NotificationProvider {
-  async sendEmail({ to, subject, text }: SendEmailParams): Promise<void> {
-    console.log(`[notifications] (no RESEND_API_KEY, logging instead of sending)
+  async sendWhatsApp({ to, templateName, templateParams }: SendWhatsAppParams): Promise<void> {
+    console.log(`[notifications] (no WHATSAPP_ACCESS_TOKEN, logging instead of sending)
   to: ${to}
-  subject: ${subject}
-  ${text}`);
+  template: ${templateName}
+  params: ${templateParams.join(", ")}`);
   }
 }
