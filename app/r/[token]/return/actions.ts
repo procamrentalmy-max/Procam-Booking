@@ -17,7 +17,7 @@ const PHOTO_TYPE_MAP: Record<(typeof PHOTO_FIELDS)[number], ConditionPhotoType> 
 
 /**
  * Completes the return condition check (spec section 14). Moves the
- * booking ACTIVE -> RETURN_STARTED — camera status does NOT change here.
+ * booking ACTIVE -> RETURN_STARTED — asset status does NOT change here.
  * It only becomes RETURNED_AWAITING_INSPECTION once reception physically
  * confirms receipt (app/reception/return/actions.ts); the deposit stays
  * held throughout, regardless of what the customer declares here.
@@ -40,7 +40,7 @@ export async function submitReturnConditionCheckAction(formData: FormData) {
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("id,status,camera_id")
+    .select("id,status,asset_id")
     .eq("secure_token", token)
     .maybeSingle();
   if (!booking) throw new Error("Booking not found.");
@@ -51,7 +51,7 @@ export async function submitReturnConditionCheckAction(formData: FormData) {
     .upsert(
       {
         booking_id: booking.id,
-        camera_id: booking.camera_id,
+        asset_id: booking.asset_id,
         type: "RETURN",
         ack_powers_on: true,
         ack_no_damage: !damageReported,

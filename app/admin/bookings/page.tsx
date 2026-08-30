@@ -6,18 +6,18 @@ export default async function BookingsPage() {
   const supabase = await createServerSupabaseClient();
   const { data: bookings } = await supabase
     .from("bookings")
-    .select("id,human_id,status,start_time,end_time,customer_id,partner_id,camera_id")
+    .select("id,human_id,status,start_time,end_time,customer_id,partner_id,asset_id")
     .order("created_at", { ascending: false });
 
-  const [{ data: customers }, { data: partners }, { data: cameras }] = await Promise.all([
+  const [{ data: customers }, { data: partners }, { data: assets }] = await Promise.all([
     supabase.from("customers").select("id,name,email"),
     supabase.from("partners").select("id,name"),
-    supabase.from("cameras").select("id,human_id"),
+    supabase.from("rental_assets").select("id,human_id"),
   ]);
 
   const customerById = new Map((customers ?? []).map((c) => [c.id, c]));
   const partnerById = new Map((partners ?? []).map((p) => [p.id, p]));
-  const cameraById = new Map((cameras ?? []).map((c) => [c.id, c]));
+  const assetById = new Map((assets ?? []).map((a) => [a.id, a]));
 
   return (
     <div className="space-y-3 pt-4">
@@ -28,7 +28,7 @@ export default async function BookingsPage() {
           </p>
           <p className="text-sm text-zinc-500">
             {customerById.get(b.customer_id)?.name ?? "Unknown customer"} at{" "}
-            {partnerById.get(b.partner_id)?.name ?? "Unknown property"} — {cameraById.get(b.camera_id)?.human_id}
+            {partnerById.get(b.partner_id)?.name ?? "Unknown property"} — {assetById.get(b.asset_id)?.human_id}
           </p>
           <p className="text-xs text-zinc-400">
             {new Date(b.start_time).toLocaleString()} → {new Date(b.end_time).toLocaleString()}

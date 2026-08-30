@@ -20,9 +20,9 @@ export default async function StaffDashboard() {
   const [
     { data: upcomingBookings },
     { data: returnsAwaitingInspection },
-    { data: chargingCameras },
-    { data: maintenanceCameras },
-    { data: availableCameras },
+    { data: chargingAssets },
+    { data: maintenanceAssets },
+    { data: availableAssets },
     { data: batteries },
   ] = await Promise.all([
     supabase
@@ -31,10 +31,10 @@ export default async function StaffDashboard() {
       .in("status", ["CONFIRMED", "READY_FOR_PICKUP", "ACTIVE"])
       .order("start_time", { ascending: true })
       .limit(10),
-    supabase.from("cameras").select("id,human_id,partner_id").eq("status", "RETURNED_AWAITING_INSPECTION"),
-    supabase.from("cameras").select("human_id").eq("status", "CHARGING"),
-    supabase.from("cameras").select("human_id,notes").eq("status", "MAINTENANCE"),
-    supabase.from("cameras").select("human_id").eq("status", "AVAILABLE"),
+    supabase.from("rental_assets").select("id,human_id,partner_id").eq("status", "RETURNED_AWAITING_INSPECTION"),
+    supabase.from("rental_assets").select("human_id").eq("status", "CHARGING"),
+    supabase.from("rental_assets").select("human_id,notes").eq("status", "MAINTENANCE"),
+    supabase.from("rental_assets").select("human_id").eq("status", "AVAILABLE"),
     supabase.from("batteries").select("human_id,status").order("status"),
   ]);
 
@@ -57,10 +57,10 @@ export default async function StaffDashboard() {
       <Section title="Returns Waiting for Inspection">
         {returnsAwaitingInspection?.length ? (
           <ul className="space-y-1 text-sm">
-            {returnsAwaitingInspection.map((c) => (
-              <li key={c.human_id}>
-                <Link href={`/staff/inspections/${c.id}`} className="underline underline-offset-2">
-                  {c.human_id}
+            {returnsAwaitingInspection.map((a) => (
+              <li key={a.human_id}>
+                <Link href={`/staff/inspections/${a.id}`} className="underline underline-offset-2">
+                  {a.human_id}
                 </Link>
               </li>
             ))}
@@ -70,11 +70,11 @@ export default async function StaffDashboard() {
         )}
       </Section>
 
-      <Section title="Cameras Needing Charge">
-        {chargingCameras?.length ? (
+      <Section title="Equipment Needing Charge">
+        {chargingAssets?.length ? (
           <ul className="space-y-1 text-sm">
-            {chargingCameras.map((c) => (
-              <li key={c.human_id}>{c.human_id}</li>
+            {chargingAssets.map((a) => (
+              <li key={a.human_id}>{a.human_id}</li>
             ))}
           </ul>
         ) : (
@@ -83,12 +83,12 @@ export default async function StaffDashboard() {
       </Section>
 
       <Section title="Maintenance">
-        {maintenanceCameras?.length ? (
+        {maintenanceAssets?.length ? (
           <ul className="space-y-1 text-sm">
-            {maintenanceCameras.map((c) => (
-              <li key={c.human_id}>
-                {c.human_id}
-                {c.notes ? ` — ${c.notes}` : ""}
+            {maintenanceAssets.map((a) => (
+              <li key={a.human_id}>
+                {a.human_id}
+                {a.notes ? ` — ${a.notes}` : ""}
               </li>
             ))}
           </ul>
@@ -97,11 +97,11 @@ export default async function StaffDashboard() {
         )}
       </Section>
 
-      <Section title="Cameras Available by Property">
-        {availableCameras?.length ? (
+      <Section title="Equipment Available by Property">
+        {availableAssets?.length ? (
           <ul className="space-y-1 text-sm">
-            {availableCameras.map((c) => (
-              <li key={c.human_id}>{c.human_id}</li>
+            {availableAssets.map((a) => (
+              <li key={a.human_id}>{a.human_id}</li>
             ))}
           </ul>
         ) : (

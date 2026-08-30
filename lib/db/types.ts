@@ -22,7 +22,8 @@ export type StaffRole = "PROCAM_STAFF" | "ADMIN";
 export type IdentityVerificationMethod = "WHATSAPP_OTP" | "SMS_OTP";
 export type IdentityVerificationStatus = "PENDING" | "VERIFIED" | "FAILED";
 
-export type CameraStatus =
+/** Lifecycle status shared by every rental product's physical inventory (camera, SeaLife housing, ...). */
+export type AssetStatus =
   | "AVAILABLE"
   | "RESERVED"
   | "READY_FOR_PICKUP"
@@ -73,8 +74,8 @@ export type DamageCategory =
 export type DamageCaseStatus = "OPEN" | "UNDER_REVIEW" | "RESOLVED";
 export type DepositAction = "NONE" | "CAPTURED" | "PARTIALLY_CAPTURED";
 
-export type MaintainableAssetType = "CAMERA" | "BATTERY";
-export type TrackedAssetType = "CAMERA" | "BATTERY" | "KIT";
+export type MaintainableAssetType = "RENTAL_ASSET" | "BATTERY";
+export type TrackedAssetType = "RENTAL_ASSET" | "BATTERY" | "KIT";
 export type ActorType = "CUSTOMER" | "RECEPTION" | "STAFF" | "ADMIN" | "SYSTEM";
 export type NotificationChannel = "EMAIL" | "WHATSAPP" | "SMS";
 export type NotificationStatus = "PENDING" | "SENT" | "FAILED";
@@ -147,13 +148,13 @@ export type RentalPackageRow = {
   updated_at: string;
 };
 
-export type CameraRow = {
+export type RentalAssetRow = {
   id: string;
   human_id: string;
   model: string;
   serial_number: string;
   partner_id: string | null;
-  status: CameraStatus;
+  status: AssetStatus;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -190,7 +191,7 @@ export type BookingRow = {
   customer_id: string;
   partner_id: string;
   rental_package_id: string;
-  camera_id: string;
+  asset_id: string;
   kit_id: string;
   battery_id: string | null;
   status: BookingStatus;
@@ -241,7 +242,7 @@ export type DepositAuthorizationRow = {
 export type ConditionCheckRow = {
   id: string;
   booking_id: string;
-  camera_id: string;
+  asset_id: string;
   type: ConditionCheckType;
   performed_at: string;
   ack_powers_on: boolean;
@@ -263,7 +264,7 @@ export type ConditionPhotoRow = {
 export type InspectionRow = {
   id: string;
   booking_id: string;
-  camera_id: string;
+  asset_id: string;
   inspector_staff_id: string;
   result: InspectionResult;
   checklist: Record<string, unknown>;
@@ -296,7 +297,7 @@ export type DamageCasePhotoRow = {
 export type MaintenanceRow = {
   id: string;
   asset_type: MaintainableAssetType;
-  camera_id: string | null;
+  asset_id: string | null;
   battery_id: string | null;
   description: string;
   started_at: string;
@@ -365,7 +366,7 @@ export interface Database {
       customers: TableDef<CustomerRow>;
       identity_verifications: TableDef<IdentityVerificationRow>;
       rental_packages: TableDef<RentalPackageRow>;
-      cameras: TableDef<CameraRow>;
+      rental_assets: TableDef<RentalAssetRow>;
       kits: TableDef<KitRow>;
       kit_items: TableDef<KitItemRow>;
       batteries: TableDef<BatteryRow>;
@@ -386,27 +387,27 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
-      transition_camera_status: {
+      transition_asset_status: {
         Args: {
-          p_camera_id: string;
-          p_to_status: CameraStatus;
+          p_asset_id: string;
+          p_to_status: AssetStatus;
           p_event_type?: string | null;
           p_booking_id?: string | null;
           p_metadata?: Record<string, unknown>;
         };
-        Returns: CameraRow;
+        Returns: RentalAssetRow;
       };
-      system_transition_camera_status: {
+      system_transition_asset_status: {
         Args: {
-          p_camera_id: string;
-          p_to_status: CameraStatus;
+          p_asset_id: string;
+          p_to_status: AssetStatus;
           p_actor_type: ActorType;
           p_actor_id?: string | null;
           p_event_type?: string | null;
           p_booking_id?: string | null;
           p_metadata?: Record<string, unknown>;
         };
-        Returns: CameraRow;
+        Returns: RentalAssetRow;
       };
     };
     Enums: Record<string, never>;

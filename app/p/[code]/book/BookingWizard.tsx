@@ -261,7 +261,7 @@ export function BookingWizard({
 
           <label className="flex items-start gap-2 text-sm text-zinc-600 dark:text-zinc-400">
             <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-1" />
-            I agree to the ProCam rental terms, including responsibility for the camera and accessories until
+            I agree to the ProCam rental terms, including responsibility for the equipment and accessories until
             returned and inspected.
           </label>
 

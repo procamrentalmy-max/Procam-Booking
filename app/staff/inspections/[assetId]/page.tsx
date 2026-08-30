@@ -3,21 +3,21 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getConditionPhotoSignedUrl } from "@/lib/storage";
 import { InspectionForm } from "./InspectionForm";
 
-export default async function InspectionDetailPage({ params }: { params: Promise<{ cameraId: string }> }) {
-  const { cameraId } = await params;
+export default async function InspectionDetailPage({ params }: { params: Promise<{ assetId: string }> }) {
+  const { assetId } = await params;
   const supabase = await createServerSupabaseClient();
 
-  const { data: camera } = await supabase
-    .from("cameras")
+  const { data: asset } = await supabase
+    .from("rental_assets")
     .select("id,human_id,status")
-    .eq("id", cameraId)
+    .eq("id", assetId)
     .maybeSingle();
-  if (!camera || camera.status !== "RETURNED_AWAITING_INSPECTION") notFound();
+  if (!asset || asset.status !== "RETURNED_AWAITING_INSPECTION") notFound();
 
   const { data: booking } = await supabase
     .from("bookings")
     .select("id,human_id")
-    .eq("camera_id", cameraId)
+    .eq("asset_id", assetId)
     .eq("status", "AWAITING_INSPECTION")
     .order("created_at", { ascending: false })
     .limit(1)
@@ -45,8 +45,8 @@ export default async function InspectionDetailPage({ params }: { params: Promise
 
   return (
     <InspectionForm
-      cameraId={camera.id}
-      cameraHumanId={camera.human_id}
+      assetId={asset.id}
+      assetHumanId={asset.human_id}
       bookingId={booking.id}
       bookingHumanId={booking.human_id}
       photos={signedUrls}

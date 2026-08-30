@@ -18,7 +18,7 @@ const PHOTO_TYPE_MAP: Record<(typeof PHOTO_FIELDS)[number], ConditionPhotoType> 
 
 /**
  * Completes the pre-rental condition check (spec section 10). This is the
- * one place a booking moves READY_FOR_PICKUP -> ACTIVE and a camera moves
+ * one place a booking moves READY_FOR_PICKUP -> ACTIVE and its asset moves
  * READY_FOR_PICKUP -> RENTED — customers can't skip straight here without
  * a valid booking at the right status, and can't submit without all four
  * required photos and all three acknowledgements.
@@ -46,15 +46,15 @@ export async function submitPreRentalConditionCheckAction(formData: FormData) {
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("id,status,camera_id,rental_package_id")
+    .select("id,status,asset_id,rental_package_id")
     .eq("secure_token", token)
     .maybeSingle();
   if (!booking) throw new Error("Booking not found.");
   // CONFIRMED is allowed too: a booking scheduled ahead only gets its
-  // camera catch-up-promoted to READY_FOR_PICKUP by the housekeeping cron
+  // asset catch-up-promoted to READY_FOR_PICKUP by the housekeeping cron
   // as its start time approaches (see lib/booking/confirm.ts), which can
   // lag a guest showing up early. Reception can still physically hand over
-  // the pouch (they look the booking up by code, not by camera status —
+  // the pouch (they look the booking up by code, not by asset status —
   // see app/reception/pickup/actions.ts), so the customer shouldn't be
   // blocked from their own condition check either.
   if (booking.status === "CONFIRMED") {
@@ -68,7 +68,7 @@ export async function submitPreRentalConditionCheckAction(formData: FormData) {
     .upsert(
       {
         booking_id: booking.id,
-        camera_id: booking.camera_id,
+        asset_id: booking.asset_id,
         type: "PRE_RENTAL",
         ack_powers_on: true,
         ack_no_damage: true,
@@ -126,12 +126,12 @@ export async function submitPreRentalConditionCheckAction(formData: FormData) {
     after: { status: "ACTIVE" },
   });
 
-  const { error: cameraError } = await supabase.rpc("system_transition_camera_status", {
-    p_camera_id: booking.camera_id,
+  const { error: assetError } = await supabase.rpc("system_transition_asset_status", {
+    p_asset_id: booking.asset_id,
     p_to_status: "RENTED",
     p_actor_type: "CUSTOMER",
     p_booking_id: booking.id,
     p_event_type: "PRE_RENTAL_CHECK_COMPLETED",
   });
-  if (cameraError) throw new Error(cameraError.message);
+  if (assetError) throw new Error(assetError.message);
 }

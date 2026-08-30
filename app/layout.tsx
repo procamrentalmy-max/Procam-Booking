@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "ProCam",
-  description: "Action camera rental for hotel and hostel guests.",
+  description: "Action camera and underwater equipment rental for hotel and hostel guests.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

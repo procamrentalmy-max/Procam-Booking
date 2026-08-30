@@ -29,7 +29,7 @@ create type staff_role as enum ('PROCAM_STAFF', 'ADMIN');
 create type identity_verification_method as enum ('WHATSAPP_OTP', 'SMS_OTP');
 create type identity_verification_status as enum ('PENDING', 'VERIFIED', 'FAILED');
 
-create type camera_status as enum (
+create type asset_status as enum (
   'AVAILABLE', 'RESERVED', 'READY_FOR_PICKUP', 'RENTED',
   'RETURNED_AWAITING_INSPECTION', 'INSPECTION', 'CLEANING', 'CHARGING',
   'MAINTENANCE', 'LOST', 'RETIRED'
@@ -69,8 +69,8 @@ create type damage_category as enum (
 create type damage_case_status as enum ('OPEN', 'UNDER_REVIEW', 'RESOLVED');
 create type deposit_action as enum ('NONE', 'CAPTURED', 'PARTIALLY_CAPTURED');
 
-create type maintainable_asset_type as enum ('CAMERA', 'BATTERY');
-create type tracked_asset_type as enum ('CAMERA', 'BATTERY', 'KIT');
+create type maintainable_asset_type as enum ('RENTAL_ASSET', 'BATTERY');
+create type tracked_asset_type as enum ('RENTAL_ASSET', 'BATTERY', 'KIT');
 
 create type actor_type as enum ('CUSTOMER', 'RECEPTION', 'STAFF', 'ADMIN', 'SYSTEM');
 
@@ -99,7 +99,7 @@ $$;
 
 create sequence partners_human_id_seq;
 create sequence customers_human_id_seq;
-create sequence cameras_human_id_seq;
+create sequence rental_assets_human_id_seq;
 create sequence kits_human_id_seq;
 create sequence batteries_human_id_seq;
 create sequence bookings_human_id_seq;
@@ -199,23 +199,23 @@ create trigger trg_rental_packages_updated_at before update on rental_packages
   for each row execute function set_updated_at();
 
 -- ============================================================================
--- PHYSICAL ASSETS: cameras, kits, batteries
+-- PHYSICAL ASSETS: rental_assets, kits, batteries
 -- ============================================================================
 
-create table cameras (
+create table rental_assets (
   id uuid primary key default gen_random_uuid(),
-  human_id text not null unique default next_human_id('cameras_human_id_seq', 'CAM', 3),
+  human_id text not null unique default next_human_id('rental_assets_human_id_seq', 'CAM', 3),
   model text not null,
   serial_number text not null unique,
   partner_id uuid references partners(id) on delete set null,
-  status camera_status not null default 'MAINTENANCE',
+  status asset_status not null default 'MAINTENANCE',
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index idx_cameras_partner on cameras(partner_id);
-create index idx_cameras_status on cameras(status);
-create trigger trg_cameras_updated_at before update on cameras
+create index idx_rental_assets_partner on rental_assets(partner_id);
+create index idx_rental_assets_status on rental_assets(status);
+create trigger trg_rental_assets_updated_at before update on rental_assets
   for each row execute function set_updated_at();
 
 create table kits (
@@ -262,7 +262,7 @@ create table bookings (
   customer_id uuid not null references customers(id),
   partner_id uuid not null references partners(id),
   rental_package_id uuid not null references rental_packages(id),
-  camera_id uuid not null references cameras(id),
+  asset_id uuid not null references rental_assets(id),
   kit_id uuid not null references kits(id),
   battery_id uuid references batteries(id),
 
@@ -283,24 +283,24 @@ create table bookings (
 );
 create index idx_bookings_customer on bookings(customer_id);
 create index idx_bookings_partner on bookings(partner_id);
-create index idx_bookings_camera on bookings(camera_id);
+create index idx_bookings_asset on bookings(asset_id);
 create index idx_bookings_status on bookings(status);
 create index idx_bookings_secure_token on bookings(secure_token);
 create trigger trg_bookings_updated_at before update on bookings
   for each row execute function set_updated_at();
 
--- The core correctness guarantee: a camera cannot have two overlapping
+-- The core correctness guarantee: a rental asset cannot have two overlapping
 -- non-terminal bookings. Enforced by Postgres itself, not application code.
 alter table bookings
-  add constraint no_overlapping_camera_bookings
+  add constraint no_overlapping_asset_bookings
   exclude using gist (
-    camera_id with =,
+    asset_id with =,
     tsrange(start_time, end_time) with &&
   )
   where (status not in ('CANCELLED', 'EXPIRED', 'COMPLETED'));
 
 -- Same guarantee for kits — the numbered pouch is a tracked asset too
--- (spec section 8) and must not be double-booked any more than the camera.
+-- (spec section 8) and must not be double-booked any more than the rental asset itself.
 alter table bookings
   add constraint no_overlapping_kit_bookings
   exclude using gist (
@@ -365,7 +365,7 @@ create unique index idx_deposit_auth_provider_ref on deposit_authorizations(prov
 create table condition_checks (
   id uuid primary key default gen_random_uuid(),
   booking_id uuid not null references bookings(id),
-  camera_id uuid not null references cameras(id),
+  asset_id uuid not null references rental_assets(id),
   type condition_check_type not null,
   performed_at timestamptz not null default now(),
   ack_powers_on boolean not null default false,
@@ -395,7 +395,7 @@ create unique index idx_condition_photos_check_type on condition_photos(conditio
 create table inspections (
   id uuid primary key default gen_random_uuid(),
   booking_id uuid not null references bookings(id),
-  camera_id uuid not null references cameras(id),
+  asset_id uuid not null references rental_assets(id),
   inspector_staff_id uuid not null references staff_users(id),
   result inspection_result not null,
   checklist jsonb not null default '{}'::jsonb,
@@ -403,7 +403,7 @@ create table inspections (
   created_at timestamptz not null default now()
 );
 create index idx_inspections_booking on inspections(booking_id);
-create index idx_inspections_camera on inspections(camera_id);
+create index idx_inspections_asset on inspections(asset_id);
 
 create table damage_cases (
   id uuid primary key default gen_random_uuid(),
@@ -438,18 +438,18 @@ create index idx_damage_case_photos_case on damage_case_photos(damage_case_id);
 create table maintenance (
   id uuid primary key default gen_random_uuid(),
   asset_type maintainable_asset_type not null,
-  camera_id uuid references cameras(id),
+  asset_id uuid references rental_assets(id),
   battery_id uuid references batteries(id),
   description text not null,
   started_at timestamptz not null default now(),
   completed_at timestamptz,
   staff_id uuid not null references staff_users(id),
   check (
-    (asset_type = 'CAMERA' and camera_id is not null and battery_id is null) or
-    (asset_type = 'BATTERY' and battery_id is not null and camera_id is null)
+    (asset_type = 'RENTAL_ASSET' and asset_id is not null and battery_id is null) or
+    (asset_type = 'BATTERY' and battery_id is not null and asset_id is null)
   )
 );
-create index idx_maintenance_camera on maintenance(camera_id);
+create index idx_maintenance_asset on maintenance(asset_id);
 create index idx_maintenance_battery on maintenance(battery_id);
 
 -- ============================================================================
@@ -569,7 +569,7 @@ alter table staff_users enable row level security;
 alter table customers enable row level security;
 alter table identity_verifications enable row level security;
 alter table rental_packages enable row level security;
-alter table cameras enable row level security;
+alter table rental_assets enable row level security;
 alter table kits enable row level security;
 alter table kit_items enable row level security;
 alter table batteries enable row level security;
@@ -595,7 +595,7 @@ create policy admin_all_staff_users on staff_users for all using (is_admin()) wi
 create policy admin_all_customers on customers for all using (is_admin()) with check (is_admin());
 create policy admin_all_identity_verifications on identity_verifications for all using (is_admin()) with check (is_admin());
 create policy admin_all_rental_packages on rental_packages for all using (is_admin()) with check (is_admin());
-create policy admin_all_cameras on cameras for all using (is_admin()) with check (is_admin());
+create policy admin_all_rental_assets on rental_assets for all using (is_admin()) with check (is_admin());
 create policy admin_all_kits on kits for all using (is_admin()) with check (is_admin());
 create policy admin_all_kit_items on kit_items for all using (is_admin()) with check (is_admin());
 create policy admin_all_batteries on batteries for all using (is_admin()) with check (is_admin());
@@ -621,7 +621,7 @@ create policy admin_all_notifications on notifications for all using (is_admin()
 create policy staff_read_partners on partners for select using (is_procam_staff());
 create policy staff_read_customers on customers for select using (is_procam_staff());
 create policy staff_read_rental_packages on rental_packages for select using (is_procam_staff());
-create policy staff_all_cameras on cameras for all using (is_procam_staff()) with check (is_procam_staff());
+create policy staff_all_rental_assets on rental_assets for all using (is_procam_staff()) with check (is_procam_staff());
 create policy staff_all_kits on kits for all using (is_procam_staff()) with check (is_procam_staff());
 create policy staff_all_kit_items on kit_items for all using (is_procam_staff()) with check (is_procam_staff());
 create policy staff_all_batteries on batteries for all using (is_procam_staff()) with check (is_procam_staff());
@@ -645,7 +645,7 @@ create policy staff_read_notifications on notifications for select using (is_pro
 -- the UI, actually unreachable through the database.
 create policy reception_read_own_bookings on bookings for select
   using (partner_id = current_reception_partner_id());
-create policy reception_read_own_cameras on cameras for select
+create policy reception_read_own_rental_assets on rental_assets for select
   using (partner_id = current_reception_partner_id());
 create policy reception_read_own_kits on kits for select
   using (partner_id = current_reception_partner_id());

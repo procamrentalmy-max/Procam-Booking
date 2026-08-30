@@ -15,7 +15,7 @@ import type { BookingStatus } from "@/lib/db/types";
  * Real bookings should always be confirmed by the webhook, not this.
  *
  * Uses the RLS-scoped client deliberately, not the service role: the
- * admin_all_bookings / staff-gated transition_camera_status RPC policies
+ * admin_all_bookings / staff-gated transition_asset_status RPC policies
  * are what actually stop a non-admin from calling this — there's no
  * separate role check in this function itself.
  */
@@ -23,7 +23,7 @@ export async function forceConfirmBookingAction(formData: FormData) {
   const id = z.string().uuid().parse(formData.get("id"));
   const supabase = await createServerSupabaseClient();
 
-  const { data: booking } = await supabase.from("bookings").select("status,camera_id").eq("id", id).single();
+  const { data: booking } = await supabase.from("bookings").select("status,asset_id").eq("id", id).single();
   if (!booking) throw new Error("Booking not found.");
 
   // Same two-step as lib/booking/confirm.ts — the state machine doesn't
@@ -43,13 +43,13 @@ export async function forceConfirmBookingAction(formData: FormData) {
     after: { status: "READY_FOR_PICKUP" },
   });
 
-  const { error: cameraError } = await supabase.rpc("transition_camera_status", {
-    p_camera_id: booking.camera_id,
+  const { error: assetError } = await supabase.rpc("transition_asset_status", {
+    p_asset_id: booking.asset_id,
     p_to_status: "READY_FOR_PICKUP",
     p_booking_id: id,
     p_event_type: "ADMIN_TEST_CONFIRM",
   });
-  if (cameraError) throw new Error(cameraError.message);
+  if (assetError) throw new Error(assetError.message);
 
   revalidatePath("/admin/bookings");
 }

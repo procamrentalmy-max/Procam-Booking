@@ -41,16 +41,16 @@ const PHOTO_LABELS: Record<(typeof PHOTO_TYPES)[number], string> = {
 };
 
 export function InspectionForm({
-  cameraId,
-  cameraHumanId,
+  assetId,
+  assetHumanId,
   bookingId,
   bookingHumanId,
   photos,
   damageReported,
   damageDescription,
 }: {
-  cameraId: string;
-  cameraHumanId: string;
+  assetId: string;
+  assetHumanId: string;
   bookingId: string;
   bookingHumanId: string;
   photos: Record<string, string>;
@@ -70,7 +70,7 @@ export function InspectionForm({
 
   function buildBaseFormData() {
     const fd = new FormData();
-    fd.set("cameraId", cameraId);
+    fd.set("assetId", assetId);
     fd.set("bookingId", bookingId);
     fd.set("checklist", JSON.stringify(checklist));
     fd.set("notes", notes);
@@ -109,7 +109,7 @@ export function InspectionForm({
   return (
     <div className="space-y-6 pt-4 pb-10">
       <h1 className="text-lg font-semibold">
-        Inspect {cameraHumanId} — Booking {bookingHumanId}
+        Inspect {assetHumanId} — Booking {bookingHumanId}
       </h1>
 
       {damageReported && (

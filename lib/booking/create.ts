@@ -2,12 +2,12 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { isImminent } from "@/lib/state-machine/booking";
-import type { BookingRow, BookingSource, CameraStatus } from "@/lib/db/types";
+import type { BookingRow, BookingSource, AssetStatus } from "@/lib/db/types";
 
-export class NoCameraAvailableError extends Error {
+export class NoAssetAvailableError extends Error {
   constructor() {
-    super("No camera is available at that property for the selected time.");
-    this.name = "NoCameraAvailableError";
+    super("No equipment is available at that property for the selected time.");
+    this.name = "NoAssetAvailableError";
   }
 }
 
@@ -18,8 +18,8 @@ export class InvalidStartTimeError extends Error {
   }
 }
 
-/** Cameras/kits in these states are out of rotation regardless of what time slot is requested. */
-const OUT_OF_ROTATION_CAMERA_STATUSES: CameraStatus[] = ["MAINTENANCE", "LOST", "RETIRED"];
+/** Assets/kits in these states are out of rotation regardless of what time slot is requested. */
+const OUT_OF_ROTATION_ASSET_STATUSES: AssetStatus[] = ["MAINTENANCE", "LOST", "RETIRED"];
 const OUT_OF_ROTATION_KIT_STATUSES = ["MAINTENANCE", "RETIRED"];
 
 function generateSecureToken(): string {
@@ -27,20 +27,20 @@ function generateSecureToken(): string {
 }
 
 /**
- * Creates a PENDING_PAYMENT booking with a camera+kit atomically assigned
- * for an arbitrary requested start time (now, or scheduled ahead).
+ * Creates a PENDING_PAYMENT booking with a rental asset+kit atomically
+ * assigned for an arbitrary requested start time (now, or scheduled ahead).
  *
- * Candidate cameras are everything at the property not permanently out of
- * rotation (MAINTENANCE/LOST/RETIRED) — NOT just cameras currently sitting
- * in AVAILABLE. A camera mid-rental right now can still be booked for next
+ * Candidate assets are everything at the property not permanently out of
+ * rotation (MAINTENANCE/LOST/RETIRED) — NOT just assets currently sitting
+ * in AVAILABLE. An asset mid-rental right now can still be booked for next
  * Tuesday. The actual conflict check is the EXCLUDE constraints on
- * bookings(camera_id, ...) and bookings(kit_id, ...): we try candidate
+ * bookings(asset_id, ...) and bookings(kit_id, ...): we try candidate
  * pairs and let a losing INSERT (23P01) mean "try the next one" — there's
  * no separate reservation step to race.
  *
- * The camera's own `status` only gets flipped to RESERVED here if the
+ * The asset's own `status` only gets flipped to RESERVED here if the
  * requested start is imminent (see lib/state-machine/booking.ts) — a
- * booking scheduled days out shouldn't make its camera look claimed to
+ * booking scheduled days out shouldn't make its asset look claimed to
  * every other customer or staff dashboard in the meantime. A scheduled
  * housekeeping job (app/api/cron/housekeeping) promotes it as the time
  * actually approaches.
@@ -74,17 +74,17 @@ export async function createPendingBooking(params: {
     .single();
   if (!partner || partner.status !== "ACTIVE") throw new Error("This property is not currently active.");
 
-  const [{ data: allCameras }, { data: allKits }] = await Promise.all([
-    supabase.from("cameras").select("id,status").eq("partner_id", params.partnerId),
+  const [{ data: allAssets }, { data: allKits }] = await Promise.all([
+    supabase.from("rental_assets").select("id,status").eq("partner_id", params.partnerId),
     supabase.from("kits").select("id,status").eq("partner_id", params.partnerId),
   ]);
-  const cameras = (allCameras ?? []).filter((c) => !OUT_OF_ROTATION_CAMERA_STATUSES.includes(c.status));
+  const assets = (allAssets ?? []).filter((a) => !OUT_OF_ROTATION_ASSET_STATUSES.includes(a.status));
   const kits = (allKits ?? []).filter((k) => !OUT_OF_ROTATION_KIT_STATUSES.includes(k.status));
-  if (!cameras.length || !kits.length) throw new NoCameraAvailableError();
+  if (!assets.length || !kits.length) throw new NoAssetAvailableError();
 
   const endTime = new Date(params.startTime.getTime() + pkg.duration_minutes * 60_000);
 
-  for (const camera of cameras) {
+  for (const asset of assets) {
     for (const kit of kits) {
       const { data: booking, error } = await supabase
         .from("bookings")
@@ -93,7 +93,7 @@ export async function createPendingBooking(params: {
           customer_id: params.customerId,
           partner_id: params.partnerId,
           rental_package_id: params.rentalPackageId,
-          camera_id: camera.id,
+          asset_id: asset.id,
           kit_id: kit.id,
           status: "PENDING_PAYMENT",
           start_time: params.startTime.toISOString(),
@@ -105,7 +105,7 @@ export async function createPendingBooking(params: {
         .single();
 
       if (error) {
-        // 23P01 = exclusion_violation: this camera or kit already has a
+        // 23P01 = exclusion_violation: this asset or kit already has a
         // booking overlapping the requested window. Try the next candidate
         // pair instead of failing the whole attempt.
         if (error.code === "23P01") continue;
@@ -113,8 +113,8 @@ export async function createPendingBooking(params: {
       }
 
       if (isImminent(params.startTime)) {
-        const { error: transitionError } = await supabase.rpc("system_transition_camera_status", {
-          p_camera_id: camera.id,
+        const { error: transitionError } = await supabase.rpc("system_transition_asset_status", {
+          p_asset_id: asset.id,
           p_to_status: "RESERVED",
           p_actor_type: "CUSTOMER",
           p_booking_id: booking.id,
@@ -122,7 +122,7 @@ export async function createPendingBooking(params: {
         });
 
         if (transitionError) {
-          // Don't leave a booking holding a camera that still shows as
+          // Don't leave a booking holding an asset that still shows as
           // AVAILABLE everywhere else — undo and surface the failure.
           await supabase.from("bookings").delete().eq("id", booking.id);
           throw new Error(transitionError.message);
@@ -133,5 +133,5 @@ export async function createPendingBooking(params: {
     }
   }
 
-  throw new NoCameraAvailableError();
+  throw new NoAssetAvailableError();
 }

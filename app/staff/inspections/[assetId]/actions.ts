@@ -10,7 +10,7 @@ import { logAudit } from "@/lib/audit";
 import type { BookingStatus, DamageCategory } from "@/lib/db/types";
 
 const baseSchema = z.object({
-  cameraId: z.string().uuid(),
+  assetId: z.string().uuid(),
   bookingId: z.string().uuid(),
   checklist: z.string(), // JSON-encoded Record<string, boolean>
   notes: z.string().optional(),
@@ -19,7 +19,7 @@ const baseSchema = z.object({
 /**
  * PASS: releases the deposit hold, accrues the partner's commission on the
  * rental fee only (never on the deposit — spec section 2/22), and moves the
- * camera back into the fleet via CLEANING -> CHARGING -> AVAILABLE. Staff
+ * asset back into the fleet via CLEANING -> CHARGING -> AVAILABLE. Staff
  * can never do the DAMAGE side of this without an admin later — but PASS
  * itself is a normal staff decision, no admin step required.
  */
@@ -28,7 +28,7 @@ export async function passInspectionAction(formData: FormData) {
   if (!hasStaffAccess(ctx)) throw new Error("Not authorized.");
 
   const parsed = baseSchema.parse({
-    cameraId: formData.get("cameraId"),
+    assetId: formData.get("assetId"),
     bookingId: formData.get("bookingId"),
     checklist: formData.get("checklist"),
     notes: formData.get("notes"),
@@ -46,7 +46,7 @@ export async function passInspectionAction(formData: FormData) {
 
   const { error: inspectionError } = await supabase.from("inspections").insert({
     booking_id: parsed.bookingId,
-    camera_id: parsed.cameraId,
+    asset_id: parsed.assetId,
     inspector_staff_id: ctx.staffId,
     result: "PASS",
     checklist: JSON.parse(parsed.checklist),
@@ -54,14 +54,14 @@ export async function passInspectionAction(formData: FormData) {
   });
   if (inspectionError) throw new Error(inspectionError.message);
 
-  await supabase.rpc("transition_camera_status", {
-    p_camera_id: parsed.cameraId,
+  await supabase.rpc("transition_asset_status", {
+    p_asset_id: parsed.assetId,
     p_to_status: "INSPECTION",
     p_booking_id: parsed.bookingId,
     p_event_type: "STAFF_INSPECTION",
   });
-  const { error: cleaningError } = await supabase.rpc("transition_camera_status", {
-    p_camera_id: parsed.cameraId,
+  const { error: cleaningError } = await supabase.rpc("transition_asset_status", {
+    p_asset_id: parsed.assetId,
     p_to_status: "CLEANING",
     p_booking_id: parsed.bookingId,
     p_event_type: "PASS",
@@ -140,7 +140,7 @@ const damageSchema = baseSchema.extend({
 });
 
 /**
- * DAMAGE: camera goes to MAINTENANCE (never back to the fleet without a
+ * DAMAGE: asset goes to MAINTENANCE (never back to the fleet without a
  * staff member separately clearing it) and the booking to DAMAGE_REVIEW.
  * The deposit is untouched here — only an admin can capture or release it,
  * from the admin damage-case screen (not built in this pass).
@@ -150,7 +150,7 @@ export async function reportDamageAction(formData: FormData) {
   if (!hasStaffAccess(ctx)) throw new Error("Not authorized.");
 
   const parsed = damageSchema.parse({
-    cameraId: formData.get("cameraId"),
+    assetId: formData.get("assetId"),
     bookingId: formData.get("bookingId"),
     checklist: formData.get("checklist"),
     notes: formData.get("notes"),
@@ -168,7 +168,7 @@ export async function reportDamageAction(formData: FormData) {
     .from("inspections")
     .insert({
       booking_id: parsed.bookingId,
-      camera_id: parsed.cameraId,
+      asset_id: parsed.assetId,
       inspector_staff_id: ctx.staffId,
       result: "DAMAGE",
       checklist: JSON.parse(parsed.checklist),
@@ -187,19 +187,19 @@ export async function reportDamageAction(formData: FormData) {
   });
   if (damageError) throw new Error(damageError.message);
 
-  await supabase.rpc("transition_camera_status", {
-    p_camera_id: parsed.cameraId,
+  await supabase.rpc("transition_asset_status", {
+    p_asset_id: parsed.assetId,
     p_to_status: "INSPECTION",
     p_booking_id: parsed.bookingId,
     p_event_type: "STAFF_INSPECTION",
   });
-  const { error: cameraError } = await supabase.rpc("transition_camera_status", {
-    p_camera_id: parsed.cameraId,
+  const { error: assetError } = await supabase.rpc("transition_asset_status", {
+    p_asset_id: parsed.assetId,
     p_to_status: "MAINTENANCE",
     p_booking_id: parsed.bookingId,
     p_event_type: "DAMAGE",
   });
-  if (cameraError) throw new Error(cameraError.message);
+  if (assetError) throw new Error(assetError.message);
 
   const { error: bookingError } = await supabase
     .from("bookings")

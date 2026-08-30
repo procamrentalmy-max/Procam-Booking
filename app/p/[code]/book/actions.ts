@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getNotificationProvider } from "@/lib/notifications";
 import { generateOtpCode, hashOtpCode, otpCodeMatches, OTP_TTL_MINUTES, OTP_MAX_ATTEMPTS } from "@/lib/otp";
-import { createPendingBooking, NoCameraAvailableError, InvalidStartTimeError } from "@/lib/booking/create";
+import { createPendingBooking, NoAssetAvailableError, InvalidStartTimeError } from "@/lib/booking/create";
 import { bookingDashboardUrl } from "@/lib/urls";
 
 const startSchema = z.object({
@@ -135,7 +135,7 @@ export async function createBookingAction(input: {
     });
     return { secureToken: booking.secure_token as string, dashboardUrl: bookingDashboardUrl(booking.secure_token) };
   } catch (err) {
-    if (err instanceof NoCameraAvailableError || err instanceof InvalidStartTimeError) throw new Error(err.message);
+    if (err instanceof NoAssetAvailableError || err instanceof InvalidStartTimeError) throw new Error(err.message);
     throw err;
   }
 }

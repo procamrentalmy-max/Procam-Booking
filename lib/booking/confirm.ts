@@ -2,7 +2,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { assertValidBookingTransition, isImminent } from "@/lib/state-machine/booking";
 import { logAudit } from "@/lib/audit";
-import type { BookingStatus, CameraStatus } from "@/lib/db/types";
+import type { BookingStatus, AssetStatus } from "@/lib/db/types";
 
 /**
  * Called once both the rental fee has succeeded and the deposit hold is in
@@ -18,7 +18,7 @@ export async function confirmBookingAfterPayment(bookingId: string): Promise<voi
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("status,camera_id,start_time")
+    .select("status,asset_id,start_time")
     .eq("id", bookingId)
     .single();
   if (!booking) throw new Error(`Booking ${bookingId} not found`);
@@ -45,30 +45,30 @@ export async function confirmBookingAfterPayment(bookingId: string): Promise<voi
 }
 
 /**
- * Moves a CONFIRMED booking's camera the rest of the way to
+ * Moves a CONFIRMED booking's asset the rest of the way to
  * READY_FOR_PICKUP, catching it up through RESERVED first if it hasn't
  * been touched yet (e.g. it wasn't imminent at booking-creation time, but
- * is by the time payment/housekeeping gets to it). A camera stuck in some
+ * is by the time payment/housekeeping gets to it). An asset stuck in some
  * other status (still RENTED from an overrunning prior booking) means a
  * real scheduling conflict — this surfaces that as an error rather than
- * silently pretending the camera is ready.
+ * silently pretending the asset is ready.
  */
 export async function promoteBookingToReadyForPickup(bookingId: string): Promise<void> {
   const supabase = createServiceRoleClient();
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("status,camera_id")
+    .select("status,asset_id")
     .eq("id", bookingId)
     .single();
   if (!booking || booking.status !== "CONFIRMED") return;
 
-  const { data: camera } = await supabase.from("cameras").select("status").eq("id", booking.camera_id).single();
-  if (!camera) throw new Error(`Camera ${booking.camera_id} not found`);
+  const { data: asset } = await supabase.from("rental_assets").select("status").eq("id", booking.asset_id).single();
+  if (!asset) throw new Error(`Rental asset ${booking.asset_id} not found`);
 
-  if ((camera.status as CameraStatus) === "AVAILABLE") {
-    const { error } = await supabase.rpc("system_transition_camera_status", {
-      p_camera_id: booking.camera_id,
+  if ((asset.status as AssetStatus) === "AVAILABLE") {
+    const { error } = await supabase.rpc("system_transition_asset_status", {
+      p_asset_id: booking.asset_id,
       p_to_status: "RESERVED",
       p_actor_type: "SYSTEM",
       p_booking_id: bookingId,
@@ -77,15 +77,15 @@ export async function promoteBookingToReadyForPickup(bookingId: string): Promise
     if (error) throw new Error(error.message);
   }
 
-  if ((camera.status as CameraStatus) !== "READY_FOR_PICKUP") {
-    const { error: cameraError } = await supabase.rpc("system_transition_camera_status", {
-      p_camera_id: booking.camera_id,
+  if ((asset.status as AssetStatus) !== "READY_FOR_PICKUP") {
+    const { error: assetError } = await supabase.rpc("system_transition_asset_status", {
+      p_asset_id: booking.asset_id,
       p_to_status: "READY_FOR_PICKUP",
       p_actor_type: "SYSTEM",
       p_booking_id: bookingId,
       p_event_type: "PAYMENT_CONFIRMED",
     });
-    if (cameraError) throw new Error(cameraError.message);
+    if (assetError) throw new Error(assetError.message);
   }
 
   assertValidBookingTransition("CONFIRMED", "READY_FOR_PICKUP");

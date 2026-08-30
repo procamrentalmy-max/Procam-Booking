@@ -9,7 +9,7 @@ import type { BookingStatus } from "@/lib/db/types";
 
 export type ReturnLookupResult =
   | { valid: false }
-  | { valid: true; bookingId: string; customerName: string; cameraHumanId: string; kitHumanId: string };
+  | { valid: true; bookingId: string; customerName: string; assetHumanId: string; kitHumanId: string };
 
 export async function lookupBookingForReturnAction(humanId: string): Promise<ReturnLookupResult> {
   const ctx = await getAuthContext();
@@ -21,15 +21,15 @@ export async function lookupBookingForReturnAction(humanId: string): Promise<Ret
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("id,status,customer_id,camera_id,kit_id")
+    .select("id,status,customer_id,asset_id,kit_id")
     .eq("human_id", humanId.trim().toUpperCase())
     .maybeSingle();
 
   if (!booking || booking.status !== "RETURN_STARTED") return { valid: false };
 
-  const [{ data: customer }, { data: camera }, { data: kit }] = await Promise.all([
+  const [{ data: customer }, { data: asset }, { data: kit }] = await Promise.all([
     supabase.from("customers").select("name").eq("id", booking.customer_id).single(),
-    supabase.from("cameras").select("human_id").eq("id", booking.camera_id).single(),
+    supabase.from("rental_assets").select("human_id").eq("id", booking.asset_id).single(),
     supabase.from("kits").select("human_id").eq("id", booking.kit_id).single(),
   ]);
 
@@ -37,13 +37,13 @@ export async function lookupBookingForReturnAction(humanId: string): Promise<Ret
     valid: true,
     bookingId: booking.id,
     customerName: customer?.name ?? "Unknown",
-    cameraHumanId: camera?.human_id ?? "—",
+    assetHumanId: asset?.human_id ?? "—",
     kitHumanId: kit?.human_id ?? "—",
   };
 }
 
 /**
- * The only place a camera moves RENTED -> RETURNED_AWAITING_INSPECTION.
+ * The only place an asset moves RENTED -> RETURNED_AWAITING_INSPECTION.
  * Deposit stays held regardless — reception can't release it, and nothing
  * here touches deposit_authorizations.
  */
@@ -58,7 +58,7 @@ export async function markReturnReceivedAction(bookingId: string): Promise<void>
   const rlsClient = await createServerSupabaseClient();
   const { data: booking } = await rlsClient
     .from("bookings")
-    .select("id,status,camera_id")
+    .select("id,status,asset_id")
     .eq("id", bookingId)
     .maybeSingle();
   if (!booking) throw new Error("Booking not found.");
@@ -81,13 +81,13 @@ export async function markReturnReceivedAction(bookingId: string): Promise<void>
     after: { status: "AWAITING_INSPECTION" },
   });
 
-  const { error: cameraError } = await supabase.rpc("system_transition_camera_status", {
-    p_camera_id: booking.camera_id,
+  const { error: assetError } = await supabase.rpc("system_transition_asset_status", {
+    p_asset_id: booking.asset_id,
     p_to_status: "RETURNED_AWAITING_INSPECTION",
     p_actor_type: "RECEPTION",
     p_actor_id: ctx.partnerUserId,
     p_booking_id: bookingId,
     p_event_type: "RECEIVED_BY_RECEPTION",
   });
-  if (cameraError) throw new Error(cameraError.message);
+  if (assetError) throw new Error(assetError.message);
 }

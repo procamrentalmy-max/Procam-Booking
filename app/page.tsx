@@ -5,7 +5,7 @@ export default function Home() {
         ProCam
       </h1>
       <p className="max-w-sm text-sm text-zinc-600 dark:text-zinc-400">
-        Scan the QR code at your hotel reception to rent an action camera.
+        Scan the QR code at your hotel reception to rent an action camera or underwater phone housing.
       </p>
     </div>
   );

@@ -8,11 +8,11 @@ import { logAudit } from "@/lib/audit";
  * Two time-driven jobs that don't belong on any request path:
  *
  * 1. Expire PENDING_PAYMENT bookings older than PENDING_PAYMENT_TIMEOUT_MINUTES
- *    and free the camera they were holding — otherwise an abandoned
+ *    and free the asset they were holding — otherwise an abandoned
  *    checkout griefs a property's whole fleet indefinitely.
  * 2. Promote CONFIRMED bookings whose scheduled start_time has arrived to
  *    READY_FOR_PICKUP (see lib/booking/confirm.ts) — bookings made well
- *    ahead of time stop at CONFIRMED and don't touch their camera's status
+ *    ahead of time stop at CONFIRMED and don't touch their asset's status
  *    until this catches up with them.
  *
  * Schedule this with Vercel Cron (vercel.json) or any external scheduler
@@ -32,7 +32,7 @@ export async function GET(req: Request) {
   const staleCutoff = new Date(Date.now() - PENDING_PAYMENT_TIMEOUT_MINUTES * 60_000).toISOString();
   const { data: staleBookings } = await supabase
     .from("bookings")
-    .select("id,camera_id")
+    .select("id,asset_id")
     .eq("status", "PENDING_PAYMENT")
     .lt("created_at", staleCutoff);
 
@@ -50,10 +50,10 @@ export async function GET(req: Request) {
         after: { status: "EXPIRED" },
       });
 
-      const { data: camera } = await supabase.from("cameras").select("status").eq("id", booking.camera_id).single();
-      if (camera?.status === "RESERVED") {
-        await supabase.rpc("system_transition_camera_status", {
-          p_camera_id: booking.camera_id,
+      const { data: asset } = await supabase.from("rental_assets").select("status").eq("id", booking.asset_id).single();
+      if (asset?.status === "RESERVED") {
+        await supabase.rpc("system_transition_asset_status", {
+          p_asset_id: booking.asset_id,
           p_to_status: "AVAILABLE",
           p_actor_type: "SYSTEM",
           p_booking_id: booking.id,

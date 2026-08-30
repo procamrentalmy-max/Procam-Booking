@@ -8,7 +8,7 @@ import { confirmBookingAfterPayment } from "@/lib/booking/confirm";
 /**
  * Orchestrates the two-charge flow (spec section 6):
  *   rental fee succeeds -> place the deposit hold on the same card
- *   -> deposit hold placed -> booking CONFIRMED, camera READY_FOR_PICKUP
+ *   -> deposit hold placed -> booking CONFIRMED, asset READY_FOR_PICKUP
  *
  * Known gap: if the deposit charge is declined right after a successful
  * rental-fee charge, this just logs it — the booking is left in

@@ -12,7 +12,7 @@ insert into rental_packages (name, duration_minutes, price_myr, deposit_myr, lat
   ('Day Pass (10 Hours)', 600, 79.00, 300.00, 20.00, true),
   ('24 Hours', 1440, 99.00, 300.00, 20.00, true);
 
-insert into cameras (id, model, serial_number, partner_id, status, notes) values
+insert into rental_assets (id, model, serial_number, partner_id, status, notes) values
   ('10000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-AP-0001', '00000000-0000-0000-0000-000000000001', 'AVAILABLE', null),
   ('10000000-0000-0000-0000-000000000002', 'Insta360 Ace Pro', 'SN-AP-0002', '00000000-0000-0000-0000-000000000001', 'AVAILABLE', null),
   ('10000000-0000-0000-0000-000000000003', 'Insta360 Ace Pro', 'SN-AP-0003', '00000000-0000-0000-0000-000000000002', 'AVAILABLE', null),

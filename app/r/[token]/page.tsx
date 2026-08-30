@@ -4,11 +4,11 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 
 const STATUS_MESSAGES: Record<string, string> = {
   PENDING_PAYMENT: "Payment hasn't been completed yet.",
-  READY_FOR_PICKUP: "Your camera is ready. Show this page at reception to pick it up.",
+  READY_FOR_PICKUP: "Your equipment is ready. Show this page at reception to pick it up.",
   ACTIVE: "Your rental is in progress. Enjoy!",
-  RETURN_STARTED: "Please hand the camera pouch to reception now.",
-  AWAITING_INSPECTION: "Thanks for returning your camera. Your deposit is held until ProCam staff inspect it.",
-  INSPECTION: "Your camera is being inspected now.",
+  RETURN_STARTED: "Please hand the pouch to reception now.",
+  AWAITING_INSPECTION: "Thanks for returning your equipment. Your deposit is held until ProCam staff inspect it.",
+  INSPECTION: "Your equipment is being inspected now.",
   DAMAGE_REVIEW: "An issue was found during inspection. Our team will be in touch about your deposit.",
   COMPLETED: "This rental is complete. Thanks for renting with ProCam!",
   CANCELLED: "This booking was cancelled.",
@@ -22,7 +22,7 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
   const { data: booking } = await supabase
     .from("bookings")
     .select(
-      "human_id,status,start_time,end_time,partner_id,rental_package_id,camera_id,kit_id"
+      "human_id,status,start_time,end_time,partner_id,rental_package_id,asset_id,kit_id"
     )
     .eq("secure_token", token)
     .maybeSingle();
@@ -33,13 +33,13 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
   const pickupIsAvailableNow = booking.status === "READY_FOR_PICKUP" || (booking.status === "CONFIRMED" && startTime <= new Date());
   const confirmedMessage =
     booking.status === "CONFIRMED" && !pickupIsAvailableNow
-      ? `You're all set. Come back at ${startTime.toLocaleString()} to pick up your camera at reception.`
-      : "You're all set. Show this page at reception to pick up your camera.";
+      ? `You're all set. Come back at ${startTime.toLocaleString()} to pick up your equipment at reception.`
+      : "You're all set. Show this page at reception to pick up your equipment.";
 
-  const [{ data: partner }, { data: pkg }, { data: camera }, { data: kit }] = await Promise.all([
+  const [{ data: partner }, { data: pkg }, { data: asset }, { data: kit }] = await Promise.all([
     supabase.from("partners").select("name,address").eq("id", booking.partner_id).single(),
     supabase.from("rental_packages").select("name").eq("id", booking.rental_package_id).single(),
-    supabase.from("cameras").select("human_id").eq("id", booking.camera_id).single(),
+    supabase.from("rental_assets").select("human_id").eq("id", booking.asset_id).single(),
     supabase.from("kits").select("human_id").eq("id", booking.kit_id).single(),
   ]);
 
@@ -84,7 +84,7 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
       <div className="space-y-2 rounded-xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">
         <Row label="Property" value={partner?.name ?? "—"} />
         <Row label="Package" value={pkg?.name ?? "—"} />
-        <Row label="Camera" value={camera?.human_id ?? "—"} />
+        <Row label="Equipment" value={asset?.human_id ?? "—"} />
         <Row label="Kit" value={kit?.human_id ?? "—"} />
         <Row label="Start" value={new Date(booking.start_time).toLocaleString()} />
         <Row label="Return by" value={new Date(booking.end_time).toLocaleString()} />

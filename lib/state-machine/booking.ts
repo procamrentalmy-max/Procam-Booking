@@ -3,8 +3,8 @@ import type { BookingStatus } from "@/lib/db/types";
 /**
  * Allowed booking status transitions (plan section 3).
  *
- * Kept distinct from camera status: a booking in DAMAGE_REVIEW says nothing
- * about whether its camera is AVAILABLE, MAINTENANCE, etc. — those are two
+ * Kept distinct from asset status: a booking in DAMAGE_REVIEW says nothing
+ * about whether its asset is AVAILABLE, MAINTENANCE, etc. — those are two
  * separate questions with two separate state machines.
  */
 export const BOOKING_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
@@ -34,7 +34,7 @@ export function assertValidBookingTransition(from: BookingStatus, to: BookingSta
   }
 }
 
-/** A camera/deposit hold is live for any status except these terminal ones. */
+/** An asset/deposit hold is live for any status except these terminal ones. */
 export const TERMINAL_BOOKING_STATUSES: BookingStatus[] = ["CANCELLED", "EXPIRED", "COMPLETED"];
 
 export function isTerminal(status: BookingStatus): boolean {
@@ -46,8 +46,8 @@ export const PENDING_PAYMENT_TIMEOUT_MINUTES = 10;
 
 /**
  * How close to its scheduled start_time a booking has to be before its
- * camera gets flagged RESERVED/READY_FOR_PICKUP. Bookings further out than
- * this stay at CONFIRMED with their camera untouched — otherwise a camera
+ * asset gets flagged RESERVED/READY_FOR_PICKUP. Bookings further out than
+ * this stay at CONFIRMED with their asset untouched — otherwise an asset
  * booked for next Tuesday would show as "reserved" (and be hidden from
  * other customers' availability search) starting the moment it was paid
  * for, not when it's actually needed.

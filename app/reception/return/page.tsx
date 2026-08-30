@@ -66,7 +66,7 @@ export default function ReceptionReturnPage() {
           <p className="text-center text-sm text-zinc-500">Customer: {result.customerName}</p>
           <div className="rounded-xl bg-zinc-100 p-4 text-center dark:bg-zinc-900">
             <p className="text-xs uppercase tracking-wide text-zinc-400">Receive</p>
-            <p className="text-2xl font-bold">{result.cameraHumanId}</p>
+            <p className="text-2xl font-bold">{result.assetHumanId}</p>
             <p className="text-lg">{result.kitHumanId}</p>
           </div>
 

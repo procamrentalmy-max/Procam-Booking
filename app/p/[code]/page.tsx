@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { countAvailableCameras } from "@/lib/booking/availability";
+import { countAvailableAssets } from "@/lib/booking/availability";
 
 export default async function PartnerLandingPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
@@ -21,24 +21,24 @@ export default async function PartnerLandingPage({ params }: { params: Promise<{
       .select("id,name,price_myr,deposit_myr,duration_minutes")
       .eq("active", true)
       .order("duration_minutes", { ascending: true }),
-    countAvailableCameras(partner.id),
+    countAvailableAssets(partner.id),
   ]);
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
       <div className="text-center">
         <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">ProCam</h1>
-        <p className="mt-1 text-sm text-zinc-500">Action camera rental at {partner.name}</p>
+        <p className="mt-1 text-sm text-zinc-500">Equipment rental at {partner.name}</p>
         {/*
-          Advisory only, not a hard gate: a camera busy right now can still
+          Advisory only, not a hard gate: an asset busy right now can still
           have a free slot later today, and the booking wizard lets you pick
           any time. The real availability check happens when you actually
           request a slot (createPendingBooking) — this is just a hint.
         */}
         <p className="mt-2 text-xs text-zinc-400">
           {availableNowCount > 0
-            ? `${availableNowCount} camera${availableNowCount === 1 ? "" : "s"} available right now`
-            : "All cameras are out right now — you can still book a later time today"}
+            ? `${availableNowCount} item${availableNowCount === 1 ? "" : "s"} available right now`
+            : "Everything is out right now — you can still book a later time today"}
         </p>
       </div>
 
