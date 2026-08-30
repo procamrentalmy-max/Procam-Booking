@@ -136,8 +136,35 @@ export type IdentityVerificationRow = {
   created_at: string;
 };
 
+export type ProductPhoneCompatibilityRow = {
+  id: string;
+  product_id: string;
+  manufacturer: string;
+  model: string;
+  variant: string | null;
+  compatible: boolean;
+  notes: string | null;
+  created_at: string;
+};
+
+export type RentalProductRow = {
+  id: string;
+  slug: string;
+  internal_name: string;
+  customer_facing_name: string;
+  tagline: string | null;
+  description: string | null;
+  asset_prefix: string;
+  uses_batteries: boolean;
+  requires_phone_compatibility: boolean;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export type RentalPackageRow = {
   id: string;
+  product_id: string;
   name: string;
   duration_minutes: number;
   price_myr: number;
@@ -151,6 +178,7 @@ export type RentalPackageRow = {
 export type RentalAssetRow = {
   id: string;
   human_id: string;
+  product_id: string;
   model: string;
   serial_number: string;
   partner_id: string | null;
@@ -163,6 +191,7 @@ export type RentalAssetRow = {
 export type KitRow = {
   id: string;
   human_id: string;
+  product_id: string;
   partner_id: string | null;
   status: KitStatus;
   created_at: string;
@@ -365,6 +394,8 @@ export interface Database {
       staff_users: TableDef<StaffUserRow>;
       customers: TableDef<CustomerRow>;
       identity_verifications: TableDef<IdentityVerificationRow>;
+      rental_products: TableDef<RentalProductRow>;
+      product_phone_compatibility: TableDef<ProductPhoneCompatibilityRow>;
       rental_packages: TableDef<RentalPackageRow>;
       rental_assets: TableDef<RentalAssetRow>;
       kits: TableDef<KitRow>;

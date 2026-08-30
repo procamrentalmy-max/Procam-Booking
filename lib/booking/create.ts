@@ -62,7 +62,7 @@ export async function createPendingBooking(params: {
 
   const { data: pkg } = await supabase
     .from("rental_packages")
-    .select("duration_minutes,active")
+    .select("product_id,duration_minutes,active")
     .eq("id", params.rentalPackageId)
     .single();
   if (!pkg || !pkg.active) throw new Error("This rental package is no longer available.");
@@ -74,9 +74,11 @@ export async function createPendingBooking(params: {
     .single();
   if (!partner || partner.status !== "ACTIVE") throw new Error("This property is not currently active.");
 
+  // Scoped to the package's product — a SeaLife package can only ever be
+  // fulfilled by a SeaLife housing, never an Insta360 camera.
   const [{ data: allAssets }, { data: allKits }] = await Promise.all([
-    supabase.from("rental_assets").select("id,status").eq("partner_id", params.partnerId),
-    supabase.from("kits").select("id,status").eq("partner_id", params.partnerId),
+    supabase.from("rental_assets").select("id,status").eq("partner_id", params.partnerId).eq("product_id", pkg.product_id),
+    supabase.from("kits").select("id,status").eq("partner_id", params.partnerId).eq("product_id", pkg.product_id),
   ]);
   const assets = (allAssets ?? []).filter((a) => !OUT_OF_ROTATION_ASSET_STATUSES.includes(a.status));
   const kits = (allKits ?? []).filter((k) => !OUT_OF_ROTATION_KIT_STATUSES.includes(k.status));

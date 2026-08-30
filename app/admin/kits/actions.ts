@@ -18,12 +18,14 @@ function parseItems(raw: string | null): string[] {
 }
 
 const createKitSchema = z.object({
+  productId: z.string().uuid(),
   partnerId: uuidOrEmpty,
   items: z.string().optional(),
 });
 
 export async function createKitAction(formData: FormData) {
   const parsed = createKitSchema.safeParse({
+    productId: formData.get("productId"),
     partnerId: formData.get("partnerId"),
     items: formData.get("items"),
   });
@@ -32,7 +34,7 @@ export async function createKitAction(formData: FormData) {
   const supabase = await createServerSupabaseClient();
   const { data: kit, error } = await supabase
     .from("kits")
-    .insert({ partner_id: parsed.data.partnerId })
+    .insert({ product_id: parsed.data.productId, partner_id: parsed.data.partnerId })
     .select("id")
     .single();
   if (error) throw new Error(error.message);

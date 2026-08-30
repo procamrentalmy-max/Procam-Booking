@@ -4,16 +4,26 @@ import { createRentalPackageAction, updateRentalPackageAction } from "./actions"
 
 export default async function RentalPackagesPage() {
   const supabase = await createServerSupabaseClient();
-  const { data: packages } = await supabase
-    .from("rental_packages")
-    .select("*")
-    .order("duration_minutes", { ascending: true });
+  const [{ data: packages }, { data: products }] = await Promise.all([
+    supabase.from("rental_packages").select("*").order("duration_minutes", { ascending: true }),
+    supabase.from("rental_products").select("id,customer_facing_name").order("customer_facing_name"),
+  ]);
+
+  const productName = new Map((products ?? []).map((p) => [p.id, p.customer_facing_name]));
 
   return (
     <div className="space-y-6 pt-4">
       <section className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
         <h2 className="mb-3 text-sm font-semibold">New Package</h2>
-        <form action={createRentalPackageAction} className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <form action={createRentalPackageAction} className="grid grid-cols-2 gap-2 sm:grid-cols-6">
+          <select name="productId" required className={inputClass}>
+            <option value="">Product…</option>
+            {(products ?? []).map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.customer_facing_name}
+              </option>
+            ))}
+          </select>
           <input name="name" placeholder="Name" required className={`${inputClass} col-span-2 sm:col-span-1`} />
           <input name="durationMinutes" type="number" placeholder="Minutes" required min={1} className={inputClass} />
           <input name="priceMyr" type="number" step="0.01" placeholder="Price RM" required min={0} className={inputClass} />
@@ -27,7 +37,7 @@ export default async function RentalPackagesPage() {
             min={0}
             className={inputClass}
           />
-          <button type="submit" className={`${primaryButtonClass} col-span-2 sm:col-span-5`}>
+          <button type="submit" className={`${primaryButtonClass} col-span-2 sm:col-span-6`}>
             Create Package
           </button>
         </form>
@@ -38,9 +48,16 @@ export default async function RentalPackagesPage() {
           <form
             key={pkg.id}
             action={updateRentalPackageAction}
-            className="grid grid-cols-2 items-center gap-2 rounded-xl border border-zinc-200 p-4 sm:grid-cols-6 dark:border-zinc-800"
+            className="grid grid-cols-2 items-center gap-2 rounded-xl border border-zinc-200 p-4 sm:grid-cols-7 dark:border-zinc-800"
           >
             <input type="hidden" name="id" value={pkg.id} />
+            <select name="productId" defaultValue={pkg.product_id} className={inputClass}>
+              {(products ?? []).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.customer_facing_name}
+                </option>
+              ))}
+            </select>
             <input name="name" defaultValue={pkg.name} className={`${inputClass} col-span-2 sm:col-span-1`} />
             <input
               name="durationMinutes"
@@ -81,6 +98,9 @@ export default async function RentalPackagesPage() {
                 Save
               </button>
             </div>
+            <p className="col-span-2 text-xs text-zinc-400 sm:col-span-7">
+              {productName.get(pkg.product_id) ?? "Unknown product"}
+            </p>
           </form>
         ))}
       </section>

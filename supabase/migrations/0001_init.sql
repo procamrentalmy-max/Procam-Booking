@@ -181,11 +181,60 @@ create table identity_verifications (
 create index idx_identity_verifications_customer on identity_verifications(customer_id);
 
 -- ============================================================================
--- RENTAL PACKAGES (admin-configurable pricing)
+-- RENTAL PRODUCTS (Insta360 Adventure Camera, SeaLife SportDiver Ultra, ...)
+-- ============================================================================
+
+-- The catalogue of rentable product lines. Everything product-specific
+-- (packages, assets, kits, check templates, phone compatibility,
+-- instructions, terms) hangs off this table by product_id — the booking,
+-- payment, deposit, and inspection engines stay product-agnostic and never
+-- need to know which product they're moving through.
+create table rental_products (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  internal_name text not null,
+  customer_facing_name text not null,
+  tagline text,
+  description text,
+  -- Prefix for this product's asset human_ids, e.g. 'CAM', 'SDU'.
+  asset_prefix text not null,
+  uses_batteries boolean not null default false,
+  requires_phone_compatibility boolean not null default false,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create trigger trg_rental_products_updated_at before update on rental_products
+  for each row execute function set_updated_at();
+
+-- Admin-editable phone compatibility list for products that need one (spec:
+-- "compatibility must be stored in editable data, do not hardcode it in
+-- frontend components"). A phone not found here is treated as NOT
+-- confirmed compatible — see lib/booking/phone-compatibility.ts — rather
+-- than silently allowed, since we can only ever know about phones someone
+-- has actually entered.
+create table product_phone_compatibility (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references rental_products(id) on delete cascade,
+  manufacturer text not null,
+  model text not null,
+  variant text,
+  compatible boolean not null default true,
+  notes text,
+  created_at timestamptz not null default now()
+);
+create index idx_phone_compat_product on product_phone_compatibility(product_id);
+create unique index idx_phone_compat_unique on product_phone_compatibility(
+  product_id, lower(manufacturer), lower(model), coalesce(lower(variant), '')
+);
+
+-- ============================================================================
+-- RENTAL PACKAGES (admin-configurable pricing, product-specific)
 -- ============================================================================
 
 create table rental_packages (
   id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references rental_products(id),
   name text not null,
   duration_minutes int not null check (duration_minutes > 0),
   price_myr numeric(10, 2) not null check (price_myr >= 0),
@@ -195,6 +244,7 @@ create table rental_packages (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+create index idx_rental_packages_product on rental_packages(product_id);
 create trigger trg_rental_packages_updated_at before update on rental_packages
   for each row execute function set_updated_at();
 
@@ -204,7 +254,8 @@ create trigger trg_rental_packages_updated_at before update on rental_packages
 
 create table rental_assets (
   id uuid primary key default gen_random_uuid(),
-  human_id text not null unique default next_human_id('rental_assets_human_id_seq', 'CAM', 3),
+  human_id text not null unique,
+  product_id uuid not null references rental_products(id),
   model text not null,
   serial_number text not null unique,
   partner_id uuid references partners(id) on delete set null,
@@ -215,18 +266,44 @@ create table rental_assets (
 );
 create index idx_rental_assets_partner on rental_assets(partner_id);
 create index idx_rental_assets_status on rental_assets(status);
+create index idx_rental_assets_product on rental_assets(product_id);
 create trigger trg_rental_assets_updated_at before update on rental_assets
   for each row execute function set_updated_at();
+
+-- human_id needs the owning product's prefix (CAM-001 vs SDU-001), so it
+-- can't be a plain column default the way other tables' human_ids are —
+-- it has to look up rental_products first. One shared sequence across
+-- products, so numbers don't restart per product (SDU-007 if 6 cameras
+-- were added first) — an accepted simplification over per-product counters.
+create or replace function set_rental_asset_human_id()
+returns trigger
+language plpgsql
+as $$
+declare
+  v_prefix text;
+begin
+  if new.human_id is not null then
+    return new;
+  end if;
+  select asset_prefix into v_prefix from rental_products where id = new.product_id;
+  new.human_id := v_prefix || '-' || lpad(nextval('rental_assets_human_id_seq')::text, 3, '0');
+  return new;
+end;
+$$;
+create trigger trg_rental_assets_human_id before insert on rental_assets
+  for each row execute function set_rental_asset_human_id();
 
 create table kits (
   id uuid primary key default gen_random_uuid(),
   human_id text not null unique default next_human_id('kits_human_id_seq', 'KIT', 3),
+  product_id uuid not null references rental_products(id),
   partner_id uuid references partners(id) on delete set null,
   status kit_status not null default 'AVAILABLE',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 create index idx_kits_partner on kits(partner_id);
+create index idx_kits_product on kits(product_id);
 create trigger trg_kits_updated_at before update on kits
   for each row execute function set_updated_at();
 
@@ -568,6 +645,8 @@ alter table partner_users enable row level security;
 alter table staff_users enable row level security;
 alter table customers enable row level security;
 alter table identity_verifications enable row level security;
+alter table rental_products enable row level security;
+alter table product_phone_compatibility enable row level security;
 alter table rental_packages enable row level security;
 alter table rental_assets enable row level security;
 alter table kits enable row level security;
@@ -594,6 +673,8 @@ create policy admin_all_partner_users on partner_users for all using (is_admin()
 create policy admin_all_staff_users on staff_users for all using (is_admin()) with check (is_admin());
 create policy admin_all_customers on customers for all using (is_admin()) with check (is_admin());
 create policy admin_all_identity_verifications on identity_verifications for all using (is_admin()) with check (is_admin());
+create policy admin_all_rental_products on rental_products for all using (is_admin()) with check (is_admin());
+create policy admin_all_phone_compatibility on product_phone_compatibility for all using (is_admin()) with check (is_admin());
 create policy admin_all_rental_packages on rental_packages for all using (is_admin()) with check (is_admin());
 create policy admin_all_rental_assets on rental_assets for all using (is_admin()) with check (is_admin());
 create policy admin_all_kits on kits for all using (is_admin()) with check (is_admin());
@@ -620,6 +701,7 @@ create policy admin_all_notifications on notifications for all using (is_admin()
 -- service-role logic that enforces the state machine.
 create policy staff_read_partners on partners for select using (is_procam_staff());
 create policy staff_read_customers on customers for select using (is_procam_staff());
+create policy staff_read_rental_products on rental_products for select using (is_procam_staff());
 create policy staff_read_rental_packages on rental_packages for select using (is_procam_staff());
 create policy staff_all_rental_assets on rental_assets for all using (is_procam_staff()) with check (is_procam_staff());
 create policy staff_all_kits on kits for all using (is_procam_staff()) with check (is_procam_staff());

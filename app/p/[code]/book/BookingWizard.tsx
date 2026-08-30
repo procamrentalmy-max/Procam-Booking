@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { startVerificationAction, verifyOtpAction, createBookingAction } from "./actions";
+import { startVerificationAction, verifyOtpAction, createBookingAction, checkPhoneCompatibilityAction } from "./actions";
 
 type RentalPackage = {
   id: string;
@@ -12,7 +12,7 @@ type RentalPackage = {
   duration_minutes: number;
 };
 
-type Step = "details" | "otp" | "confirm";
+type Step = "details" | "phone" | "otp" | "confirm";
 
 function toDateInputValue(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -25,23 +25,31 @@ function toTimeInputValue(d: Date): string {
 export function BookingWizard({
   partnerId,
   referralCode,
+  productId,
+  productName,
+  requiresPhoneCompatibility,
   packages,
-  initialPackageId,
 }: {
   partnerId: string;
   referralCode: string;
+  productId: string;
+  productName: string;
+  requiresPhoneCompatibility: boolean;
   packages: RentalPackage[];
-  initialPackageId?: string;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("details");
-  const [packageId, setPackageId] = useState(initialPackageId ?? packages[0]?.id ?? "");
+  const [packageId, setPackageId] = useState(packages[0]?.id ?? "");
   const [startNow, setStartNow] = useState(true);
   const [date, setDate] = useState(() => toDateInputValue(new Date()));
   const [time, setTime] = useState(() => toTimeInputValue(new Date()));
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [manufacturer, setManufacturer] = useState("");
+  const [model, setModel] = useState("");
+  const [variant, setVariant] = useState("");
+  const [phoneCompatible, setPhoneCompatible] = useState<boolean | null>(null);
   const [otpCode, setOtpCode] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [customerId, setCustomerId] = useState<string | null>(null);
@@ -58,6 +66,20 @@ export function BookingWizard({
     return Number.isNaN(combined.getTime()) ? new Date() : combined;
   }
 
+  async function sendVerificationCode() {
+    setLoading(true);
+    try {
+      const result = await startVerificationAction({ name, phone, email });
+      setCustomerId(result.customerId);
+      setVerificationId(result.verificationId);
+      setStep("otp");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleDetailsSubmit() {
     setError(null);
     if (!packageId) {
@@ -68,12 +90,20 @@ export function BookingWizard({
       setError("Please choose a time in the future.");
       return;
     }
+
+    if (requiresPhoneCompatibility) {
+      setStep("phone");
+      return;
+    }
+    await sendVerificationCode();
+  }
+
+  async function handleCheckCompatibility() {
+    setError(null);
     setLoading(true);
     try {
-      const result = await startVerificationAction({ name, phone, email });
-      setCustomerId(result.customerId);
-      setVerificationId(result.verificationId);
-      setStep("otp");
+      const result = await checkPhoneCompatibilityAction({ productId, manufacturer, model, variant });
+      setPhoneCompatible(result.compatible);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -118,7 +148,8 @@ export function BookingWizard({
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
       <h1 className="text-center text-xl font-semibold text-black dark:text-zinc-50">
-        {step === "details" && "Your Details"}
+        {step === "details" && productName}
+        {step === "phone" && "Check Your Phone"}
         {step === "otp" && "Verify Your Phone"}
         {step === "confirm" && "Confirm Booking"}
       </h1>
@@ -224,6 +255,72 @@ export function BookingWizard({
           >
             {loading ? "Sending code…" : "Continue"}
           </button>
+        </div>
+      )}
+
+      {step === "phone" && (
+        <div className="space-y-4">
+          <p className="text-center text-sm text-zinc-500">
+            {productName} works with your own phone — let&apos;s check it&apos;s compatible before you continue.
+          </p>
+
+          <input
+            placeholder="Manufacturer, e.g. Apple"
+            value={manufacturer}
+            onChange={(e) => {
+              setManufacturer(e.target.value);
+              setPhoneCompatible(null);
+            }}
+            className="w-full rounded-lg border border-zinc-300 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
+          />
+          <input
+            placeholder="Model, e.g. iPhone 16 Pro Max"
+            value={model}
+            onChange={(e) => {
+              setModel(e.target.value);
+              setPhoneCompatible(null);
+            }}
+            className="w-full rounded-lg border border-zinc-300 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
+          />
+          <input
+            placeholder="Variant (optional)"
+            value={variant}
+            onChange={(e) => {
+              setVariant(e.target.value);
+              setPhoneCompatible(null);
+            }}
+            className="w-full rounded-lg border border-zinc-300 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
+          />
+
+          {phoneCompatible === true && (
+            <p className="rounded-lg bg-green-50 p-3 text-center text-sm text-green-700 dark:bg-green-950 dark:text-green-300">
+              Your phone is compatible.
+            </p>
+          )}
+          {phoneCompatible === false && (
+            <p className="rounded-lg bg-red-50 p-3 text-center text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+              We can&apos;t confirm this phone works with {productName}. Please ask reception or try a different
+              phone — we can&apos;t book this rental with an unconfirmed fit.
+            </p>
+          )}
+
+          {phoneCompatible !== true ? (
+            <button
+              onClick={handleCheckCompatibility}
+              disabled={loading || !manufacturer || !model}
+              className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
+            >
+              {loading ? "Checking…" : "Check Compatibility"}
+            </button>
+          ) : (
+            <button
+              onClick={sendVerificationCode}
+              disabled={loading}
+              className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
+            >
+              {loading ? "Sending code…" : "Continue"}
+            </button>
+          )}
         </div>
       )}
 

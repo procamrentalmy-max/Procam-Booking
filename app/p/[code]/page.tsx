@@ -15,55 +15,64 @@ export default async function PartnerLandingPage({ params }: { params: Promise<{
 
   if (!partner || partner.status !== "ACTIVE") notFound();
 
-  const [{ data: packages }, availableNowCount] = await Promise.all([
-    supabase
-      .from("rental_packages")
-      .select("id,name,price_myr,deposit_myr,duration_minutes")
-      .eq("active", true)
-      .order("duration_minutes", { ascending: true }),
-    countAvailableAssets(partner.id),
-  ]);
+  // Only products with actual deployed inventory at this property are
+  // offered — a property with no SeaLife units never shows that card,
+  // even if SeaLife exists as a product elsewhere.
+  const { data: assetsHere } = await supabase
+    .from("rental_assets")
+    .select("product_id,status")
+    .eq("partner_id", partner.id);
+  const productIdsHere = [...new Set((assetsHere ?? []).filter((a) => a.status !== "RETIRED").map((a) => a.product_id))];
+
+  const { data: products } = productIdsHere.length
+    ? await supabase
+        .from("rental_products")
+        .select("id,slug,customer_facing_name,tagline")
+        .eq("active", true)
+        .in("id", productIdsHere)
+    : { data: [] };
+
+  const productsWithAvailability = await Promise.all(
+    (products ?? []).map(async (p) => ({
+      ...p,
+      availableNow: await countAvailableAssets(partner.id, p.id),
+    }))
+  );
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
       <div className="text-center">
         <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">ProCam</h1>
         <p className="mt-1 text-sm text-zinc-500">Equipment rental at {partner.name}</p>
-        {/*
-          Advisory only, not a hard gate: an asset busy right now can still
-          have a free slot later today, and the booking wizard lets you pick
-          any time. The real availability check happens when you actually
-          request a slot (createPendingBooking) — this is just a hint.
-        */}
-        <p className="mt-2 text-xs text-zinc-400">
-          {availableNowCount > 0
-            ? `${availableNowCount} item${availableNowCount === 1 ? "" : "s"} available right now`
-            : "Everything is out right now — you can still book a later time today"}
-        </p>
       </div>
 
       <div className="space-y-3">
-        {(packages ?? []).map((pkg) => (
-          <div
-            key={pkg.id}
-            className="flex items-center justify-between rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
+        {productsWithAvailability.map((product) => (
+          <Link
+            key={product.id}
+            href={`/p/${partner.referral_code}/book?product=${product.id}`}
+            className="block rounded-xl border border-zinc-200 p-4 hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
           >
-            <div>
-              <p className="font-medium">{pkg.name}</p>
-              <p className="text-sm text-zinc-500">RM{pkg.deposit_myr} refundable deposit</p>
-            </div>
-            <div className="text-right">
-              <p className="font-semibold">RM{pkg.price_myr}</p>
-            </div>
-          </div>
+            <p className="font-medium text-black dark:text-zinc-50">{product.customer_facing_name}</p>
+            {product.tagline && <p className="text-sm text-zinc-500">{product.tagline}</p>}
+            {/*
+              Advisory only, not a hard gate: an asset busy right now can
+              still have a free slot later today, and the booking wizard
+              lets you pick any time. The real check happens when you
+              request a slot (createPendingBooking) — this is just a hint.
+            */}
+            <p className="mt-2 text-xs text-zinc-400">
+              {product.availableNow > 0
+                ? `${product.availableNow} available right now`
+                : "Out right now — you can still book a later time today"}
+            </p>
+          </Link>
         ))}
-
-        <Link
-          href={`/p/${partner.referral_code}/book`}
-          className="flex h-14 items-center justify-center rounded-full bg-black text-base font-semibold text-white dark:bg-white dark:text-black"
-        >
-          Book Now
-        </Link>
+        {!productsWithAvailability.length && (
+          <p className="rounded-xl border border-zinc-200 p-4 text-center text-sm text-zinc-500 dark:border-zinc-800">
+            No equipment is currently set up at this property.
+          </p>
+        )}
       </div>
     </div>
   );

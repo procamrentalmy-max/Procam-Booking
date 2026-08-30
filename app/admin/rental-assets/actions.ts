@@ -12,6 +12,7 @@ const uuidOrEmpty = z
   .refine((v) => v === null || z.string().uuid().safeParse(v).success, "Invalid partner");
 
 const createAssetSchema = z.object({
+  productId: z.string().uuid(),
   model: z.string().min(1),
   serialNumber: z.string().min(1),
   partnerId: uuidOrEmpty,
@@ -19,6 +20,7 @@ const createAssetSchema = z.object({
 
 export async function createAssetAction(formData: FormData) {
   const parsed = createAssetSchema.safeParse({
+    productId: formData.get("productId"),
     model: formData.get("model"),
     serialNumber: formData.get("serialNumber"),
     partnerId: formData.get("partnerId"),
@@ -29,6 +31,7 @@ export async function createAssetAction(formData: FormData) {
   // New units enter the fleet in MAINTENANCE — they need a staff prep/check
   // before ever becoming AVAILABLE, same as any other asset would.
   const { error } = await supabase.from("rental_assets").insert({
+    product_id: parsed.data.productId,
     model: parsed.data.model,
     serial_number: parsed.data.serialNumber,
     partner_id: parsed.data.partnerId,

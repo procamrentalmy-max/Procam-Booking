@@ -5,18 +5,28 @@ import { createAssetAction, updateAssetAction, transitionAssetAction } from "./a
 
 export default async function RentalAssetsPage() {
   const supabase = await createServerSupabaseClient();
-  const [{ data: assets }, { data: partners }] = await Promise.all([
+  const [{ data: assets }, { data: partners }, { data: products }] = await Promise.all([
     supabase.from("rental_assets").select("*").order("human_id", { ascending: true }),
     supabase.from("partners").select("id,name").order("name", { ascending: true }),
+    supabase.from("rental_products").select("id,customer_facing_name").order("customer_facing_name"),
   ]);
 
   const partnerName = new Map((partners ?? []).map((p) => [p.id, p.name]));
+  const productName = new Map((products ?? []).map((p) => [p.id, p.customer_facing_name]));
 
   return (
     <div className="space-y-6 pt-4">
       <section className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
         <h2 className="mb-3 text-sm font-semibold">New Rental Asset</h2>
-        <form action={createAssetAction} className="grid gap-2 sm:grid-cols-4">
+        <form action={createAssetAction} className="grid gap-2 sm:grid-cols-5">
+          <select name="productId" required className={inputClass}>
+            <option value="">Product…</option>
+            {(products ?? []).map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.customer_facing_name}
+              </option>
+            ))}
+          </select>
           <input name="model" placeholder="Model" required className={inputClass} />
           <input name="serialNumber" placeholder="Serial number" required className={inputClass} />
           <select name="partnerId" defaultValue="" className={inputClass}>
@@ -41,6 +51,7 @@ export default async function RentalAssetsPage() {
               <span className="text-sm text-zinc-500">({asset.serial_number})</span>
             </p>
             <p className="text-sm text-zinc-500">
+              {productName.get(asset.product_id) ?? "Unknown product"} —{" "}
               {asset.partner_id ? partnerName.get(asset.partner_id) ?? "Unknown property" : "Backup fleet"} —{" "}
               <span className="font-medium">{asset.status}</span>
             </p>

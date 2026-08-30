@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const packageSchema = z.object({
+  productId: z.string().uuid(),
   name: z.string().min(1),
   durationMinutes: z.coerce.number().int().positive(),
   priceMyr: z.coerce.number().min(0),
@@ -14,6 +15,7 @@ const packageSchema = z.object({
 
 export async function createRentalPackageAction(formData: FormData) {
   const parsed = packageSchema.safeParse({
+    productId: formData.get("productId"),
     name: formData.get("name"),
     durationMinutes: formData.get("durationMinutes"),
     priceMyr: formData.get("priceMyr"),
@@ -24,6 +26,7 @@ export async function createRentalPackageAction(formData: FormData) {
 
   const supabase = await createServerSupabaseClient();
   const { error } = await supabase.from("rental_packages").insert({
+    product_id: parsed.data.productId,
     name: parsed.data.name,
     duration_minutes: parsed.data.durationMinutes,
     price_myr: parsed.data.priceMyr,
@@ -43,6 +46,7 @@ const updateSchema = packageSchema.extend({
 export async function updateRentalPackageAction(formData: FormData) {
   const parsed = updateSchema.safeParse({
     id: formData.get("id"),
+    productId: formData.get("productId"),
     name: formData.get("name"),
     durationMinutes: formData.get("durationMinutes"),
     priceMyr: formData.get("priceMyr"),
@@ -56,6 +60,7 @@ export async function updateRentalPackageAction(formData: FormData) {
   const { error } = await supabase
     .from("rental_packages")
     .update({
+      product_id: parsed.data.productId,
       name: parsed.data.name,
       duration_minutes: parsed.data.durationMinutes,
       price_myr: parsed.data.priceMyr,

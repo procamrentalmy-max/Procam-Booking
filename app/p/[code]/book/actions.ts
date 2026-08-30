@@ -5,7 +5,27 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getNotificationProvider } from "@/lib/notifications";
 import { generateOtpCode, hashOtpCode, otpCodeMatches, OTP_TTL_MINUTES, OTP_MAX_ATTEMPTS } from "@/lib/otp";
 import { createPendingBooking, NoAssetAvailableError, InvalidStartTimeError } from "@/lib/booking/create";
+import { isPhoneCompatible } from "@/lib/booking/phone-compatibility";
 import { bookingDashboardUrl } from "@/lib/urls";
+
+const phoneCompatibilitySchema = z.object({
+  productId: z.string().uuid(),
+  manufacturer: z.string().min(1, "Select a manufacturer"),
+  model: z.string().min(1, "Enter a model"),
+  variant: z.string().optional(),
+});
+
+/** Server-side gate — the client never gets to declare its own phone "compatible". */
+export async function checkPhoneCompatibilityAction(input: {
+  productId: string;
+  manufacturer: string;
+  model: string;
+  variant?: string;
+}): Promise<{ compatible: boolean }> {
+  const parsed = phoneCompatibilitySchema.parse(input);
+  const compatible = await isPhoneCompatible(parsed.productId, parsed.manufacturer, parsed.model, parsed.variant ?? "");
+  return { compatible };
+}
 
 const startSchema = z.object({
   name: z.string().min(1, "Name is required"),
