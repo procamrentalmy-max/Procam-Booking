@@ -156,6 +156,32 @@ export type ProductPhoneCompatibilityRow = {
   created_at: string;
 };
 
+export type ProductInstructionRow = {
+  id: string;
+  product_id: string;
+  step_number: number;
+  title: string;
+  body: string;
+  created_at: string;
+};
+
+export type ProductTermsVersionRow = {
+  id: string;
+  product_id: string;
+  version: number;
+  body: string;
+  effective_at: string;
+  active: boolean;
+  created_at: string;
+};
+
+export type BookingAcknowledgementRow = {
+  id: string;
+  booking_id: string;
+  terms_version_id: string;
+  agreed_at: string;
+};
+
 export type RentalProductRow = {
   id: string;
   slug: string;
@@ -418,6 +444,9 @@ export interface Database {
       rental_products: TableDef<RentalProductRow>;
       product_phone_compatibility: TableDef<ProductPhoneCompatibilityRow>;
       check_templates: TableDef<CheckTemplateRow>;
+      product_instructions: TableDef<ProductInstructionRow>;
+      product_terms_versions: TableDef<ProductTermsVersionRow>;
+      booking_acknowledgements: TableDef<BookingAcknowledgementRow>;
       rental_packages: TableDef<RentalPackageRow>;
       rental_assets: TableDef<RentalAssetRow>;
       kits: TableDef<KitRow>;

@@ -6,6 +6,7 @@ import { getNotificationProvider } from "@/lib/notifications";
 import { generateOtpCode, hashOtpCode, otpCodeMatches, OTP_TTL_MINUTES, OTP_MAX_ATTEMPTS } from "@/lib/otp";
 import { createPendingBooking, NoAssetAvailableError, InvalidStartTimeError } from "@/lib/booking/create";
 import { isPhoneCompatible } from "@/lib/booking/phone-compatibility";
+import { recordBookingAcknowledgement } from "@/lib/booking/terms";
 import { bookingDashboardUrl } from "@/lib/urls";
 
 const phoneCompatibilitySchema = z.object({
@@ -118,6 +119,7 @@ const createBookingSchema = z.object({
   rentalPackageId: z.string().uuid(),
   referralCode: z.string().nullable(),
   startTime: z.string().min(1),
+  termsVersionId: z.string().uuid().nullable(),
 });
 
 export async function createBookingAction(input: {
@@ -127,6 +129,7 @@ export async function createBookingAction(input: {
   rentalPackageId: string;
   referralCode: string | null;
   startTime: string;
+  termsVersionId: string | null;
 }) {
   const parsed = createBookingSchema.parse(input);
   const supabase = createServiceRoleClient();
@@ -153,6 +156,15 @@ export async function createBookingAction(input: {
       source: "PARTNER_QR",
       referralCode: parsed.referralCode,
     });
+
+    if (parsed.termsVersionId) {
+      // Best-effort: a missing acknowledgement row is a record-keeping gap,
+      // not a reason to fail a booking that's already been created and paid for.
+      await recordBookingAcknowledgement(booking.id, parsed.termsVersionId).catch((err) =>
+        console.error("[booking] failed to record terms acknowledgement", err)
+      );
+    }
+
     return { secureToken: booking.secure_token as string, dashboardUrl: bookingDashboardUrl(booking.secure_token) };
   } catch (err) {
     if (err instanceof NoAssetAvailableError || err instanceof InvalidStartTimeError) throw new Error(err.message);

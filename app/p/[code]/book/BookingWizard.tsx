@@ -29,6 +29,8 @@ export function BookingWizard({
   productName,
   requiresPhoneCompatibility,
   packages,
+  termsVersionId,
+  termsBody,
 }: {
   partnerId: string;
   referralCode: string;
@@ -36,6 +38,8 @@ export function BookingWizard({
   productName: string;
   requiresPhoneCompatibility: boolean;
   packages: RentalPackage[];
+  termsVersionId: string | null;
+  termsBody: string | null;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("details");
@@ -137,6 +141,7 @@ export function BookingWizard({
         rentalPackageId: packageId,
         referralCode,
         startTime: resolveStartTime().toISOString(),
+        termsVersionId,
       });
       router.push(`/r/${result.secureToken}/pay`);
     } catch (err) {
@@ -356,10 +361,16 @@ export function BookingWizard({
             <p className="text-sm text-zinc-500">Refundable security deposit: RM{selectedPackage.deposit_myr}</p>
           </div>
 
+          {termsBody && (
+            <div className="max-h-40 overflow-y-auto rounded-lg border border-zinc-200 p-3 text-xs text-zinc-500 dark:border-zinc-800">
+              {termsBody}
+            </div>
+          )}
+
           <label className="flex items-start gap-2 text-sm text-zinc-600 dark:text-zinc-400">
             <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-1" />
-            I agree to the ProCam rental terms, including responsibility for the equipment and accessories until
-            returned and inspected.
+            I agree to the ProCam rental terms above, including responsibility for the equipment and accessories
+            until returned and inspected.
           </label>
 
           <button

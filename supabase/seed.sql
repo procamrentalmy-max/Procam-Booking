@@ -120,6 +120,36 @@ insert into check_templates (product_id, phase, item_key, label, instruction, in
   ('40000000-0000-0000-0000-000000000002', 'STAFF_INSPECTION', 'corrosion', 'Corrosion', null, 'BOOLEAN', 12, true),
   ('40000000-0000-0000-0000-000000000002', 'STAFF_INSPECTION', 'water_ingress_evidence', 'Evidence of Water Ingress', null, 'BOOLEAN', 13, true);
 
+-- Customer-facing setup/usage instructions, shown after pickup.
+insert into product_instructions (product_id, step_number, title, body) values
+  ('40000000-0000-0000-0000-000000000001', 1, 'Power On', 'Press and hold the side button for 2 seconds to turn the camera on.'),
+  ('40000000-0000-0000-0000-000000000001', 2, 'Start / Stop Recording', 'Tap the shutter button once to start recording, tap again to stop.'),
+  ('40000000-0000-0000-0000-000000000001', 3, 'Switch Mode', 'Swipe on the screen to switch between video, photo, and 360 mode.'),
+  ('40000000-0000-0000-0000-000000000001', 4, '360 Recording', 'Select the 360 icon, then record as normal — reframe the shot later in the app.'),
+  ('40000000-0000-0000-0000-000000000001', 5, 'Waterproof Limits', 'Safe underwater up to 10m without the extra dive case. Rinse with fresh water after any saltwater use.'),
+  ('40000000-0000-0000-0000-000000000001', 6, 'Battery', 'Low battery? Ask reception for a battery exchange — no charging needed on your end.'),
+  ('40000000-0000-0000-0000-000000000001', 7, 'Protect the Lenses', 'Always use the lens cap when not filming, and avoid touching the glass directly.'),
+  ('40000000-0000-0000-0000-000000000001', 8, 'Need Help?', 'Message ProCam support from your booking page any time during your rental.'),
+  ('40000000-0000-0000-0000-000000000002', 1, 'Confirm Your Phone', 'Double-check the phone model you registered matches what''s in your hand.'),
+  ('40000000-0000-0000-0000-000000000002', 2, 'Remove Your Case', 'Take off any phone case that would stop it sitting flush in the housing.'),
+  ('40000000-0000-0000-0000-000000000002', 3, 'Get the SeaLife App', 'Download or open the SeaLife SportDiver app on your phone.'),
+  ('40000000-0000-0000-0000-000000000002', 4, 'Enable Bluetooth', 'Turn on Bluetooth so your phone can pair with the housing.'),
+  ('40000000-0000-0000-0000-000000000002', 5, 'Pair the Housing', 'In the SportDiver app, connect to your housing when prompted.'),
+  ('40000000-0000-0000-0000-000000000002', 6, 'Inspect the Housing', 'Check the housing body for cracks or damage before use.'),
+  ('40000000-0000-0000-0000-000000000002', 7, 'Check the Sealing Surface', 'Look closely at the O-ring and sealing surface — no sand, hair, or debris.'),
+  ('40000000-0000-0000-0000-000000000002', 8, 'Insert Your Phone', 'Place your phone into the housing exactly as shown in the app guide.'),
+  ('40000000-0000-0000-0000-000000000002', 9, 'Close and Lock', 'Close the housing fully and engage the locking latch.'),
+  ('40000000-0000-0000-0000-000000000002', 10, 'Run the Seal Test', 'Use the housing''s vacuum/seal test before going near water.'),
+  ('40000000-0000-0000-0000-000000000002', 11, 'Confirm the Seal', 'Only proceed once the seal test shows a successful result.'),
+  ('40000000-0000-0000-0000-000000000002', 12, 'Attach the Tether', 'Loop the wrist tether around your wrist before entering the water.'),
+  ('40000000-0000-0000-0000-000000000002', 13, 'Test the Controls', 'Try the shutter and recording controls on land first.'),
+  ('40000000-0000-0000-0000-000000000002', 14, 'You''re Set', 'Once everything checks out, you''re ready to start.'),
+  ('40000000-0000-0000-0000-000000000002', 15, 'Need Help?', 'Message ProCam support from your booking page any time during your rental.');
+
+insert into product_terms_versions (product_id, version, body) values
+  ('40000000-0000-0000-0000-000000000001', 1, 'You are responsible for the Insta360 camera and kit from pickup until ProCam staff inspect and pass its return. The security deposit is held until that inspection is complete and may be captured to cover loss or damage found at inspection.'),
+  ('40000000-0000-0000-0000-000000000002', 1, 'You are responsible for the SeaLife SportDiver Ultra housing and kit from pickup until ProCam staff inspect and pass its return. The housing protects your own phone; ProCam is not responsible for water damage to your phone if the housing was not sealed correctly, including if the guided seal test was skipped or its result ignored. The security deposit covers the ProCam-owned housing and kit only, never your phone, and is held until inspection is complete.');
+
 insert into batteries (id, partner_id, status) values
   ('30000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'CHARGED'),
   ('30000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001', 'CHARGED'),

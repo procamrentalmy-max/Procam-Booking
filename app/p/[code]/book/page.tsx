@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { getActiveTermsVersion } from "@/lib/booking/terms";
 import { BookingWizard } from "./BookingWizard";
 
 export default async function BookPage({
@@ -33,12 +34,15 @@ export default async function BookPage({
     .maybeSingle();
   if (!product) redirect(`/p/${partner.referral_code}`);
 
-  const { data: packages } = await supabase
-    .from("rental_packages")
-    .select("id,name,price_myr,deposit_myr,duration_minutes")
-    .eq("product_id", product.id)
-    .eq("active", true)
-    .order("duration_minutes", { ascending: true });
+  const [{ data: packages }, terms] = await Promise.all([
+    supabase
+      .from("rental_packages")
+      .select("id,name,price_myr,deposit_myr,duration_minutes")
+      .eq("product_id", product.id)
+      .eq("active", true)
+      .order("duration_minutes", { ascending: true }),
+    getActiveTermsVersion(product.id),
+  ]);
 
   return (
     <BookingWizard
@@ -48,6 +52,8 @@ export default async function BookPage({
       productName={product.customer_facing_name}
       requiresPhoneCompatibility={product.requires_phone_compatibility}
       packages={packages ?? []}
+      termsVersionId={terms?.id ?? null}
+      termsBody={terms?.body ?? null}
     />
   );
 }

@@ -73,12 +73,20 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
       )}
 
       {booking.status === "ACTIVE" && (
-        <Link
-          href={`/r/${token}/return`}
-          className="flex h-12 items-center justify-center rounded-full bg-black text-sm font-semibold text-white dark:bg-white dark:text-black"
-        >
-          Begin Return
-        </Link>
+        <>
+          <Link
+            href={`/r/${token}/instructions`}
+            className="flex h-12 items-center justify-center rounded-full border border-zinc-300 text-sm font-semibold dark:border-zinc-700"
+          >
+            View Instructions
+          </Link>
+          <Link
+            href={`/r/${token}/return`}
+            className="flex h-12 items-center justify-center rounded-full bg-black text-sm font-semibold text-white dark:bg-white dark:text-black"
+          >
+            Begin Return
+          </Link>
+        </>
       )}
 
       <div className="space-y-2 rounded-xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">

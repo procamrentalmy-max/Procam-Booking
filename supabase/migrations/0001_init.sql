@@ -235,6 +235,43 @@ create unique index idx_phone_compat_unique on product_phone_compatibility(
   product_id, lower(manufacturer), lower(model), coalesce(lower(variant), '')
 );
 
+-- Short customer-facing setup/usage steps shown after pickup (spec section
+-- 11 for Insta360's short instructions, section 19 for SeaLife's longer
+-- guided setup) — the ProCam app only ever hands the customer instructions
+-- and collects evidence; it never reimplements the product's own controls.
+create table product_instructions (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references rental_products(id) on delete cascade,
+  step_number int not null,
+  title text not null,
+  body text not null,
+  created_at timestamptz not null default now()
+);
+create unique index idx_product_instructions_unique on product_instructions(product_id, step_number);
+
+-- Versioned per-product rental terms. A booking records exactly which
+-- version it agreed to and when (booking_acknowledgements) — this also
+-- fixes a pre-existing gap where the "I agree to terms" checkbox in the
+-- booking wizard didn't persist anything at all.
+create table product_terms_versions (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references rental_products(id) on delete cascade,
+  version int not null,
+  body text not null,
+  effective_at timestamptz not null default now(),
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+create unique index idx_product_terms_unique on product_terms_versions(product_id, version);
+
+create table booking_acknowledgements (
+  id uuid primary key default gen_random_uuid(),
+  booking_id uuid not null references bookings(id),
+  terms_version_id uuid not null references product_terms_versions(id),
+  agreed_at timestamptz not null default now()
+);
+create unique index idx_booking_ack_unique on booking_acknowledgements(booking_id);
+
 -- ============================================================================
 -- RENTAL PACKAGES (admin-configurable pricing, product-specific)
 -- ============================================================================
@@ -684,6 +721,9 @@ alter table identity_verifications enable row level security;
 alter table rental_products enable row level security;
 alter table product_phone_compatibility enable row level security;
 alter table check_templates enable row level security;
+alter table product_instructions enable row level security;
+alter table product_terms_versions enable row level security;
+alter table booking_acknowledgements enable row level security;
 alter table rental_packages enable row level security;
 alter table rental_assets enable row level security;
 alter table kits enable row level security;
@@ -713,6 +753,9 @@ create policy admin_all_identity_verifications on identity_verifications for all
 create policy admin_all_rental_products on rental_products for all using (is_admin()) with check (is_admin());
 create policy admin_all_phone_compatibility on product_phone_compatibility for all using (is_admin()) with check (is_admin());
 create policy admin_all_check_templates on check_templates for all using (is_admin()) with check (is_admin());
+create policy admin_all_product_instructions on product_instructions for all using (is_admin()) with check (is_admin());
+create policy admin_all_product_terms_versions on product_terms_versions for all using (is_admin()) with check (is_admin());
+create policy admin_read_booking_acknowledgements on booking_acknowledgements for select using (is_admin());
 create policy admin_all_rental_packages on rental_packages for all using (is_admin()) with check (is_admin());
 create policy admin_all_rental_assets on rental_assets for all using (is_admin()) with check (is_admin());
 create policy admin_all_kits on kits for all using (is_admin()) with check (is_admin());
