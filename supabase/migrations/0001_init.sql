@@ -664,3 +664,17 @@ create policy reception_read_own_customers on customers for select
     where bookings.customer_id = customers.id
     and bookings.partner_id = current_reception_partner_id()
   ));
+
+-- The one write reception is allowed: logging that they handed over or
+-- received a pouch. Scoped to their own property's bookings, and they can
+-- only ever log themselves as the actor — never impersonate STAFF/ADMIN or
+-- write an entry for another property.
+create policy reception_insert_own_asset_events on asset_events for insert
+  with check (
+    actor_type = 'RECEPTION'
+    and exists (
+      select 1 from bookings
+      where bookings.id = asset_events.booking_id
+      and bookings.partner_id = current_reception_partner_id()
+    )
+  );

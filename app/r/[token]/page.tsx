@@ -57,6 +57,15 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
         </Link>
       )}
 
+      {booking.status === "READY_FOR_PICKUP" && (
+        <Link
+          href={`/r/${token}/pickup`}
+          className="flex h-12 items-center justify-center rounded-full bg-black text-sm font-semibold text-white dark:bg-white dark:text-black"
+        >
+          Start Pickup Check
+        </Link>
+      )}
+
       <div className="space-y-2 rounded-xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">
         <Row label="Property" value={partner?.name ?? "—"} />
         <Row label="Package" value={pkg?.name ?? "—"} />
