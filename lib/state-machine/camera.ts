@@ -24,6 +24,8 @@ export const CAMERA_TRANSITIONS: Record<CameraStatus, CameraStatus[]> = {
   RETIRED: [],
 };
 
+export const ALL_CAMERA_STATUSES = Object.keys(CAMERA_TRANSITIONS) as CameraStatus[];
+
 export class InvalidCameraTransitionError extends Error {
   constructor(from: CameraStatus, to: CameraStatus) {
     super(`Camera cannot transition from ${from} to ${to}`);

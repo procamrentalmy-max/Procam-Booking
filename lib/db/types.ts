@@ -9,6 +9,12 @@
  * Row types are kept accurate to the schema. Insert/Update are intentionally
  * loose (Partial<Row>) rather than hand-modeling every nullable/defaulted
  * column twice — swap in generated types to tighten this.
+ *
+ * Row shapes below are `type` aliases, not `interface`s: postgrest-js's
+ * generic query typing requires each table's Row/Insert/Update to
+ * structurally satisfy `Record<string, unknown>`, which only object type
+ * literals do — an `interface` doesn't get the implicit index signature and
+ * silently collapses every query result to `never`.
  */
 
 export type PartnerStatus = "ACTIVE" | "INACTIVE";
@@ -75,7 +81,7 @@ export type NotificationStatus = "PENDING" | "SENT" | "FAILED";
 export type BookingSource = "PARTNER_QR" | "WALK_IN" | "AFFILIATE" | "OTHER";
 export type CommissionStatus = "ACCRUED" | "PAID";
 
-export interface PartnerRow {
+export type PartnerRow = {
   id: string;
   human_id: string;
   name: string;
@@ -85,9 +91,9 @@ export interface PartnerRow {
   status: PartnerStatus;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface PartnerUserRow {
+export type PartnerUserRow = {
   id: string;
   partner_id: string;
   auth_user_id: string;
@@ -95,27 +101,27 @@ export interface PartnerUserRow {
   email: string;
   active: boolean;
   created_at: string;
-}
+};
 
-export interface StaffUserRow {
+export type StaffUserRow = {
   id: string;
   auth_user_id: string;
   name: string;
   role: StaffRole;
   active: boolean;
   created_at: string;
-}
+};
 
-export interface CustomerRow {
+export type CustomerRow = {
   id: string;
   human_id: string;
   name: string;
   phone: string;
   email: string;
   created_at: string;
-}
+};
 
-export interface IdentityVerificationRow {
+export type IdentityVerificationRow = {
   id: string;
   customer_id: string;
   method: IdentityVerificationMethod;
@@ -123,9 +129,9 @@ export interface IdentityVerificationRow {
   otp_verified_at: string | null;
   status: IdentityVerificationStatus;
   created_at: string;
-}
+};
 
-export interface RentalPackageRow {
+export type RentalPackageRow = {
   id: string;
   name: string;
   duration_minutes: number;
@@ -135,9 +141,9 @@ export interface RentalPackageRow {
   active: boolean;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface CameraRow {
+export type CameraRow = {
   id: string;
   human_id: string;
   model: string;
@@ -147,33 +153,33 @@ export interface CameraRow {
   notes: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface KitRow {
+export type KitRow = {
   id: string;
   human_id: string;
   partner_id: string | null;
   status: KitStatus;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface KitItemRow {
+export type KitItemRow = {
   id: string;
   kit_id: string;
   item_name: string;
-}
+};
 
-export interface BatteryRow {
+export type BatteryRow = {
   id: string;
   human_id: string;
   partner_id: string | null;
   status: BatteryStatus;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface BookingRow {
+export type BookingRow = {
   id: string;
   human_id: string;
   secure_token: string;
@@ -192,9 +198,9 @@ export interface BookingRow {
   referral_code: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface BatteryExchangeRow {
+export type BatteryExchangeRow = {
   id: string;
   booking_id: string;
   old_battery_id: string;
@@ -202,9 +208,9 @@ export interface BatteryExchangeRow {
   partner_id: string;
   performed_by_partner_user_id: string | null;
   created_at: string;
-}
+};
 
-export interface PaymentRow {
+export type PaymentRow = {
   id: string;
   booking_id: string;
   kind: PaymentKind;
@@ -214,9 +220,9 @@ export interface PaymentRow {
   status: PaymentStatus;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface DepositAuthorizationRow {
+export type DepositAuthorizationRow = {
   id: string;
   booking_id: string;
   provider: string;
@@ -226,9 +232,9 @@ export interface DepositAuthorizationRow {
   created_at: string;
   resolved_at: string | null;
   resolved_by: string | null;
-}
+};
 
-export interface ConditionCheckRow {
+export type ConditionCheckRow = {
   id: string;
   booking_id: string;
   camera_id: string;
@@ -240,17 +246,17 @@ export interface ConditionCheckRow {
   damage_reported: boolean;
   damage_description: string | null;
   created_at: string;
-}
+};
 
-export interface ConditionPhotoRow {
+export type ConditionPhotoRow = {
   id: string;
   condition_check_id: string;
   photo_type: ConditionPhotoType;
   storage_path: string;
   created_at: string;
-}
+};
 
-export interface InspectionRow {
+export type InspectionRow = {
   id: string;
   booking_id: string;
   camera_id: string;
@@ -259,9 +265,9 @@ export interface InspectionRow {
   checklist: Record<string, unknown>;
   notes: string | null;
   created_at: string;
-}
+};
 
-export interface DamageCaseRow {
+export type DamageCaseRow = {
   id: string;
   inspection_id: string;
   booking_id: string;
@@ -274,16 +280,16 @@ export interface DamageCaseRow {
   resolved_at: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface DamageCasePhotoRow {
+export type DamageCasePhotoRow = {
   id: string;
   damage_case_id: string;
   storage_path: string;
   created_at: string;
-}
+};
 
-export interface MaintenanceRow {
+export type MaintenanceRow = {
   id: string;
   asset_type: MaintainableAssetType;
   camera_id: string | null;
@@ -292,9 +298,9 @@ export interface MaintenanceRow {
   started_at: string;
   completed_at: string | null;
   staff_id: string;
-}
+};
 
-export interface CommissionRow {
+export type CommissionRow = {
   id: string;
   booking_id: string;
   partner_id: string;
@@ -304,9 +310,9 @@ export interface CommissionRow {
   status: CommissionStatus;
   paid_at: string | null;
   created_at: string;
-}
+};
 
-export interface AssetEventRow {
+export type AssetEventRow = {
   id: string;
   asset_type: TrackedAssetType;
   asset_id: string;
@@ -318,9 +324,9 @@ export interface AssetEventRow {
   actor_id: string | null;
   metadata: Record<string, unknown>;
   created_at: string;
-}
+};
 
-export interface AuditLogRow {
+export type AuditLogRow = {
   id: string;
   actor_type: ActorType;
   actor_id: string | null;
@@ -330,9 +336,9 @@ export interface AuditLogRow {
   before: Record<string, unknown> | null;
   after: Record<string, unknown> | null;
   created_at: string;
-}
+};
 
-export interface NotificationRow {
+export type NotificationRow = {
   id: string;
   customer_id: string | null;
   booking_id: string | null;
@@ -342,9 +348,9 @@ export interface NotificationRow {
   sent_at: string | null;
   payload: Record<string, unknown>;
   created_at: string;
-}
+};
 
-type TableDef<Row> = { Row: Row; Insert: Partial<Row>; Update: Partial<Row> };
+type TableDef<Row> = { Row: Row; Insert: Partial<Row>; Update: Partial<Row>; Relationships: [] };
 
 export interface Database {
   public: {
@@ -374,5 +380,20 @@ export interface Database {
       audit_logs: TableDef<AuditLogRow>;
       notifications: TableDef<NotificationRow>;
     };
+    Views: Record<string, never>;
+    Functions: {
+      transition_camera_status: {
+        Args: {
+          p_camera_id: string;
+          p_to_status: CameraStatus;
+          p_event_type?: string | null;
+          p_booking_id?: string | null;
+          p_metadata?: Record<string, unknown>;
+        };
+        Returns: CameraRow;
+      };
+    };
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 }
