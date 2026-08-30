@@ -7,7 +7,7 @@ const STATUS_MESSAGES: Record<string, string> = {
   CONFIRMED: "You're all set. Show this page at reception to pick up your camera.",
   READY_FOR_PICKUP: "Your camera is ready. Show this page at reception to pick it up.",
   ACTIVE: "Your rental is in progress. Enjoy!",
-  RETURN_STARTED: "Complete the return steps, then hand the pouch to reception.",
+  RETURN_STARTED: "Please hand the camera pouch to reception now.",
   AWAITING_INSPECTION: "Thanks for returning your camera. Your deposit is held until ProCam staff inspect it.",
   INSPECTION: "Your camera is being inspected now.",
   DAMAGE_REVIEW: "An issue was found during inspection. Our team will be in touch about your deposit.",
@@ -63,6 +63,15 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
           className="flex h-12 items-center justify-center rounded-full bg-black text-sm font-semibold text-white dark:bg-white dark:text-black"
         >
           Start Pickup Check
+        </Link>
+      )}
+
+      {booking.status === "ACTIVE" && (
+        <Link
+          href={`/r/${token}/return`}
+          className="flex h-12 items-center justify-center rounded-full bg-black text-sm font-semibold text-white dark:bg-white dark:text-black"
+        >
+          Begin Return
         </Link>
       )}
 

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -30,7 +31,7 @@ export default async function StaffDashboard() {
       .in("status", ["CONFIRMED", "READY_FOR_PICKUP", "ACTIVE"])
       .order("start_time", { ascending: true })
       .limit(10),
-    supabase.from("cameras").select("human_id,partner_id").eq("status", "RETURNED_AWAITING_INSPECTION"),
+    supabase.from("cameras").select("id,human_id,partner_id").eq("status", "RETURNED_AWAITING_INSPECTION"),
     supabase.from("cameras").select("human_id").eq("status", "CHARGING"),
     supabase.from("cameras").select("human_id,notes").eq("status", "MAINTENANCE"),
     supabase.from("cameras").select("human_id").eq("status", "AVAILABLE"),
@@ -57,7 +58,11 @@ export default async function StaffDashboard() {
         {returnsAwaitingInspection?.length ? (
           <ul className="space-y-1 text-sm">
             {returnsAwaitingInspection.map((c) => (
-              <li key={c.human_id}>{c.human_id}</li>
+              <li key={c.human_id}>
+                <Link href={`/staff/inspections/${c.id}`} className="underline underline-offset-2">
+                  {c.human_id}
+                </Link>
+              </li>
             ))}
           </ul>
         ) : (
