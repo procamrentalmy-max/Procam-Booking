@@ -6,9 +6,9 @@ const CONDITION_PHOTOS_BUCKET = "condition-photos";
 export function conditionPhotoPath(
   bookingId: string,
   checkType: "pre-rental" | "return",
-  photoType: string
+  itemKey: string
 ): string {
-  return `${bookingId}/${checkType}/${photoType}.jpg`;
+  return `${bookingId}/${checkType}/${itemKey}.jpg`;
 }
 
 export async function uploadConditionPhoto(path: string, file: File): Promise<void> {

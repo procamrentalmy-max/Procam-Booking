@@ -4,22 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { passInspectionAction, reportDamageAction } from "./actions";
 
-const CHECKLIST_ITEMS = [
-  { key: "lensA", label: "Lens A" },
-  { key: "lensB", label: "Lens B" },
-  { key: "screen", label: "Screen" },
-  { key: "buttons", label: "Buttons" },
-  { key: "batteryCompartment", label: "Battery Compartment" },
-  { key: "usbPort", label: "USB / Charging Port" },
-  { key: "waterIngress", label: "No Water Ingress" },
-  { key: "power", label: "Powers On" },
-  { key: "recording", label: "Recording Works" },
-  { key: "selfieStick", label: "Selfie Stick" },
-  { key: "strap", label: "Wrist Strap" },
-  { key: "case", label: "Case" },
-] as const;
-
-const DAMAGE_CATEGORIES = [
+const CAMERA_DAMAGE_CATEGORIES = [
   "LENS_SCRATCH",
   "SEVERE_LENS_DAMAGE",
   "SCREEN_DAMAGE",
@@ -32,38 +17,55 @@ const DAMAGE_CATEGORIES = [
   "OTHER",
 ] as const;
 
-const PHOTO_TYPES = ["SCREEN_ON", "LENS_A", "LENS_B", "KIT_FULL"] as const;
-const PHOTO_LABELS: Record<(typeof PHOTO_TYPES)[number], string> = {
-  SCREEN_ON: "Screen On",
-  LENS_A: "Lens A",
-  LENS_B: "Lens B",
-  KIT_FULL: "Full Kit",
-};
+const SEALIFE_DAMAGE_CATEGORIES = [
+  "HOUSING_CRACK",
+  "OPTICAL_WINDOW_DAMAGE",
+  "SEAL_ORING_FAILURE",
+  "LOCKING_LATCH_DAMAGE",
+  "VACUUM_SYSTEM_FAULT",
+  "MOISTURE_LEAK_DETECTED",
+  "CORROSION_SALT_DAMAGE",
+  "MISSING_ACCESSORY",
+  "HOUSING_MISSING",
+  "FUNCTIONALITY_ISSUE",
+  "OTHER",
+] as const;
+
+type PhotoItem = { key: string; label: string; preUrl?: string; returnUrl?: string };
+type ChecklistItem = { key: string; label: string };
 
 export function InspectionForm({
   assetId,
   assetHumanId,
+  productSlug,
+  productName,
   bookingId,
   bookingHumanId,
-  photos,
+  photoItems,
+  checklistItems,
   damageReported,
   damageDescription,
 }: {
   assetId: string;
   assetHumanId: string;
+  productSlug: string;
+  productName: string;
   bookingId: string;
   bookingHumanId: string;
-  photos: Record<string, string>;
+  photoItems: PhotoItem[];
+  checklistItems: ChecklistItem[];
   damageReported: boolean;
   damageDescription: string | null;
 }) {
   const router = useRouter();
+  const damageCategories = productSlug.includes("sealife") ? SEALIFE_DAMAGE_CATEGORIES : CAMERA_DAMAGE_CATEGORIES;
+
   const [checklist, setChecklist] = useState<Record<string, boolean>>(
-    Object.fromEntries(CHECKLIST_ITEMS.map((i) => [i.key, true]))
+    Object.fromEntries(checklistItems.map((i) => [i.key, true]))
   );
   const [notes, setNotes] = useState("");
   const [showDamageForm, setShowDamageForm] = useState(damageReported);
-  const [category, setCategory] = useState<(typeof DAMAGE_CATEGORIES)[number]>("OTHER");
+  const [category, setCategory] = useState<(typeof damageCategories)[number]>("OTHER");
   const [description, setDescription] = useState(damageDescription ?? "");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -109,7 +111,7 @@ export function InspectionForm({
   return (
     <div className="space-y-6 pt-4 pb-10">
       <h1 className="text-lg font-semibold">
-        Inspect {assetHumanId} — Booking {bookingHumanId}
+        Inspect {assetHumanId} ({productName}) — Booking {bookingHumanId}
       </h1>
 
       {damageReported && (
@@ -120,17 +122,18 @@ export function InspectionForm({
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-zinc-500">Pre-Rental vs Return</h2>
-        {PHOTO_TYPES.map((type) => (
-          <div key={type} className="grid grid-cols-2 gap-2">
-            <PhotoTile label={`${PHOTO_LABELS[type]} — Before`} url={photos[`pre_${type}`]} />
-            <PhotoTile label={`${PHOTO_LABELS[type]} — After`} url={photos[`return_${type}`]} />
+        {photoItems.map((item) => (
+          <div key={item.key} className="grid grid-cols-2 gap-2">
+            <PhotoTile label={`${item.label} — Before`} url={item.preUrl} />
+            <PhotoTile label={`${item.label} — After`} url={item.returnUrl} />
           </div>
         ))}
+        {!photoItems.length && <p className="text-sm text-zinc-400">No condition photos configured for this product.</p>}
       </section>
 
       <section className="space-y-2 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
         <h2 className="text-sm font-semibold text-zinc-500">Checklist</h2>
-        {CHECKLIST_ITEMS.map((item) => (
+        {checklistItems.map((item) => (
           <label key={item.key} className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -140,6 +143,7 @@ export function InspectionForm({
             {item.label}
           </label>
         ))}
+        {!checklistItems.length && <p className="text-sm text-zinc-400">No inspection checklist configured for this product.</p>}
       </section>
 
       <textarea
@@ -176,7 +180,7 @@ export function InspectionForm({
             onChange={(e) => setCategory(e.target.value as typeof category)}
             className="w-full rounded-lg border border-zinc-300 px-4 py-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
           >
-            {DAMAGE_CATEGORIES.map((c) => (
+            {damageCategories.map((c) => (
               <option key={c} value={c}>
                 {c.replace(/_/g, " ")}
               </option>

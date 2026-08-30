@@ -57,14 +57,21 @@ create type deposit_status as enum (
 );
 
 create type condition_check_type as enum ('PRE_RENTAL', 'RETURN');
-create type condition_photo_type as enum ('SCREEN_ON', 'LENS_A', 'LENS_B', 'KIT_FULL');
+create type check_phase as enum ('PRE_RENTAL', 'RETURN', 'STAFF_INSPECTION');
+create type check_input_type as enum ('PHOTO', 'BOOLEAN');
 
 create type inspection_result as enum ('PASS', 'DAMAGE');
 
 create type damage_category as enum (
   'LENS_SCRATCH', 'SEVERE_LENS_DAMAGE', 'SCREEN_DAMAGE', 'BODY_DAMAGE',
   'WATER_DAMAGE', 'MISSING_ACCESSORY', 'MISSING_BATTERY', 'CAMERA_MISSING',
-  'FUNCTIONALITY_ISSUE', 'OTHER'
+  'FUNCTIONALITY_ISSUE', 'OTHER',
+  -- SeaLife SportDiver Ultra specific. One combined enum rather than a
+  -- per-product one — the staff inspection UI filters which categories it
+  -- offers based on the booking's product.
+  'HOUSING_CRACK', 'OPTICAL_WINDOW_DAMAGE', 'SEAL_ORING_FAILURE',
+  'LOCKING_LATCH_DAMAGE', 'VACUUM_SYSTEM_FAULT', 'MOISTURE_LEAK_DETECTED',
+  'CORROSION_SALT_DAMAGE', 'HOUSING_MISSING'
 );
 create type damage_case_status as enum ('OPEN', 'UNDER_REVIEW', 'RESOLVED');
 create type deposit_action as enum ('NONE', 'CAPTURED', 'PARTIALLY_CAPTURED');
@@ -439,15 +446,44 @@ create unique index idx_deposit_auth_provider_ref on deposit_authorizations(prov
 -- CONDITION EVIDENCE
 -- ============================================================================
 
+-- Product-specific, admin-editable evidence/checklist definitions. One
+-- mechanism covers all three "what does staff/customer need to check"
+-- concepts (spec: "the same concept should apply to pickup evidence,
+-- return evidence, staff inspection") — an Insta360 pre-rental check asks
+-- for lens photos, a SeaLife one asks for the sealing area and O-ring,
+-- and the staff inspection checklist for each product is just another
+-- phase of the same table. Replaces what used to be a fixed
+-- condition_photo_type enum plus a hardcoded checklist array in the UI.
+create table check_templates (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references rental_products(id) on delete cascade,
+  phase check_phase not null,
+  item_key text not null,
+  label text not null,
+  instruction text,
+  input_type check_input_type not null,
+  sort_order int not null default 0,
+  required boolean not null default true,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+create index idx_check_templates_product_phase on check_templates(product_id, phase);
+create unique index idx_check_templates_unique on check_templates(product_id, phase, item_key);
+
 create table condition_checks (
   id uuid primary key default gen_random_uuid(),
   booking_id uuid not null references bookings(id),
   asset_id uuid not null references rental_assets(id),
   type condition_check_type not null,
   performed_at timestamptz not null default now(),
-  ack_powers_on boolean not null default false,
-  ack_no_damage boolean not null default false,
-  ack_accessories_present boolean not null default false,
+  -- {item_key: true/false} for this product/phase's BOOLEAN check_templates
+  -- items — same jsonb-checklist pattern as inspections.checklist, since
+  -- which acknowledgements exist is product-specific (an Insta360 pre-rental
+  -- check asks "powers on"; a SeaLife one asks "O-ring inspected").
+  acknowledgements jsonb not null default '{}'::jsonb,
+  -- Not a template item: "did anything go wrong" is a distinct, universal
+  -- return-time question regardless of product, not a per-product checklist
+  -- entry, so it stays a dedicated column.
   damage_reported boolean not null default false,
   damage_description text,
   created_at timestamptz not null default now()
@@ -458,12 +494,12 @@ create unique index idx_condition_checks_booking_type on condition_checks(bookin
 create table condition_photos (
   id uuid primary key default gen_random_uuid(),
   condition_check_id uuid not null references condition_checks(id) on delete cascade,
-  photo_type condition_photo_type not null,
+  check_template_item_id uuid not null references check_templates(id),
   storage_path text not null,
   created_at timestamptz not null default now()
 );
 create index idx_condition_photos_check on condition_photos(condition_check_id);
-create unique index idx_condition_photos_check_type on condition_photos(condition_check_id, photo_type);
+create unique index idx_condition_photos_check_item on condition_photos(condition_check_id, check_template_item_id);
 
 -- ============================================================================
 -- INSPECTION & DAMAGE
@@ -647,6 +683,7 @@ alter table customers enable row level security;
 alter table identity_verifications enable row level security;
 alter table rental_products enable row level security;
 alter table product_phone_compatibility enable row level security;
+alter table check_templates enable row level security;
 alter table rental_packages enable row level security;
 alter table rental_assets enable row level security;
 alter table kits enable row level security;
@@ -675,6 +712,7 @@ create policy admin_all_customers on customers for all using (is_admin()) with c
 create policy admin_all_identity_verifications on identity_verifications for all using (is_admin()) with check (is_admin());
 create policy admin_all_rental_products on rental_products for all using (is_admin()) with check (is_admin());
 create policy admin_all_phone_compatibility on product_phone_compatibility for all using (is_admin()) with check (is_admin());
+create policy admin_all_check_templates on check_templates for all using (is_admin()) with check (is_admin());
 create policy admin_all_rental_packages on rental_packages for all using (is_admin()) with check (is_admin());
 create policy admin_all_rental_assets on rental_assets for all using (is_admin()) with check (is_admin());
 create policy admin_all_kits on kits for all using (is_admin()) with check (is_admin());
@@ -702,6 +740,7 @@ create policy admin_all_notifications on notifications for all using (is_admin()
 create policy staff_read_partners on partners for select using (is_procam_staff());
 create policy staff_read_customers on customers for select using (is_procam_staff());
 create policy staff_read_rental_products on rental_products for select using (is_procam_staff());
+create policy staff_read_check_templates on check_templates for select using (is_procam_staff());
 create policy staff_read_rental_packages on rental_packages for select using (is_procam_staff());
 create policy staff_all_rental_assets on rental_assets for all using (is_procam_staff()) with check (is_procam_staff());
 create policy staff_all_kits on kits for all using (is_procam_staff()) with check (is_procam_staff());

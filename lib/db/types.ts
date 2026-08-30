@@ -57,7 +57,8 @@ export type PaymentStatus = "PENDING" | "SUCCEEDED" | "FAILED" | "REFUNDED";
 export type DepositStatus = "AUTHORIZED" | "RELEASED" | "CAPTURED" | "PARTIALLY_CAPTURED" | "VOIDED" | "EXPIRED";
 
 export type ConditionCheckType = "PRE_RENTAL" | "RETURN";
-export type ConditionPhotoType = "SCREEN_ON" | "LENS_A" | "LENS_B" | "KIT_FULL";
+export type CheckPhase = "PRE_RENTAL" | "RETURN" | "STAFF_INSPECTION";
+export type CheckInputType = "PHOTO" | "BOOLEAN";
 
 export type InspectionResult = "PASS" | "DAMAGE";
 export type DamageCategory =
@@ -70,7 +71,15 @@ export type DamageCategory =
   | "MISSING_BATTERY"
   | "CAMERA_MISSING"
   | "FUNCTIONALITY_ISSUE"
-  | "OTHER";
+  | "OTHER"
+  | "HOUSING_CRACK"
+  | "OPTICAL_WINDOW_DAMAGE"
+  | "SEAL_ORING_FAILURE"
+  | "LOCKING_LATCH_DAMAGE"
+  | "VACUUM_SYSTEM_FAULT"
+  | "MOISTURE_LEAK_DETECTED"
+  | "CORROSION_SALT_DAMAGE"
+  | "HOUSING_MISSING";
 export type DamageCaseStatus = "OPEN" | "UNDER_REVIEW" | "RESOLVED";
 export type DepositAction = "NONE" | "CAPTURED" | "PARTIALLY_CAPTURED";
 
@@ -268,15 +277,27 @@ export type DepositAuthorizationRow = {
   resolved_by: string | null;
 };
 
+export type CheckTemplateRow = {
+  id: string;
+  product_id: string;
+  phase: CheckPhase;
+  item_key: string;
+  label: string;
+  instruction: string | null;
+  input_type: CheckInputType;
+  sort_order: number;
+  required: boolean;
+  active: boolean;
+  created_at: string;
+};
+
 export type ConditionCheckRow = {
   id: string;
   booking_id: string;
   asset_id: string;
   type: ConditionCheckType;
   performed_at: string;
-  ack_powers_on: boolean;
-  ack_no_damage: boolean;
-  ack_accessories_present: boolean;
+  acknowledgements: Record<string, boolean>;
   damage_reported: boolean;
   damage_description: string | null;
   created_at: string;
@@ -285,7 +306,7 @@ export type ConditionCheckRow = {
 export type ConditionPhotoRow = {
   id: string;
   condition_check_id: string;
-  photo_type: ConditionPhotoType;
+  check_template_item_id: string;
   storage_path: string;
   created_at: string;
 };
@@ -396,6 +417,7 @@ export interface Database {
       identity_verifications: TableDef<IdentityVerificationRow>;
       rental_products: TableDef<RentalProductRow>;
       product_phone_compatibility: TableDef<ProductPhoneCompatibilityRow>;
+      check_templates: TableDef<CheckTemplateRow>;
       rental_packages: TableDef<RentalPackageRow>;
       rental_assets: TableDef<RentalAssetRow>;
       kits: TableDef<KitRow>;

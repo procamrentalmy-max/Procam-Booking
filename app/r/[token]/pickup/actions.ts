@@ -5,42 +5,21 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { uploadConditionPhoto, conditionPhotoPath } from "@/lib/storage";
 import { assertValidBookingTransition } from "@/lib/state-machine/booking";
 import { promoteBookingToReadyForPickup } from "@/lib/booking/confirm";
+import { getCheckTemplates, getBookingProductId } from "@/lib/booking/checkTemplates";
 import { logAudit } from "@/lib/audit";
-import type { ConditionPhotoType } from "@/lib/db/types";
-
-const PHOTO_FIELDS = ["screen_on", "lens_a", "lens_b", "kit_full"] as const;
-const PHOTO_TYPE_MAP: Record<(typeof PHOTO_FIELDS)[number], ConditionPhotoType> = {
-  screen_on: "SCREEN_ON",
-  lens_a: "LENS_A",
-  lens_b: "LENS_B",
-  kit_full: "KIT_FULL",
-};
 
 /**
- * Completes the pre-rental condition check (spec section 10). This is the
- * one place a booking moves READY_FOR_PICKUP -> ACTIVE and its asset moves
+ * Completes the pre-rental condition check (spec section 10) using the
+ * booking's product's PRE_RENTAL check_templates — a SeaLife booking asks
+ * for the sealing area and a seal-test acknowledgement, an Insta360 one
+ * asks for lens photos, same code path either way. This is the one place
+ * a booking moves READY_FOR_PICKUP -> ACTIVE and its asset moves
  * READY_FOR_PICKUP -> RENTED — customers can't skip straight here without
- * a valid booking at the right status, and can't submit without all four
- * required photos and all three acknowledgements.
+ * a valid booking at the right status, and can't submit without every
+ * required template item filled in.
  */
 export async function submitPreRentalConditionCheckAction(formData: FormData) {
   const token = z.string().min(1).parse(formData.get("token"));
-
-  const ackPowersOn = formData.get("ackPowersOn") === "true";
-  const ackNoDamage = formData.get("ackNoDamage") === "true";
-  const ackAccessoriesPresent = formData.get("ackAccessoriesPresent") === "true";
-  if (!ackPowersOn || !ackNoDamage || !ackAccessoriesPresent) {
-    throw new Error("Please confirm all three checks before continuing.");
-  }
-
-  const photos: Partial<Record<(typeof PHOTO_FIELDS)[number], File>> = {};
-  for (const field of PHOTO_FIELDS) {
-    const file = formData.get(field);
-    if (!(file instanceof File) || file.size === 0) {
-      throw new Error("All four photos are required.");
-    }
-    photos[field] = file;
-  }
 
   const supabase = createServiceRoleClient();
 
@@ -63,6 +42,32 @@ export async function submitPreRentalConditionCheckAction(formData: FormData) {
     throw new Error("This booking isn't ready for pickup.");
   }
 
+  const productId = await getBookingProductId(booking.rental_package_id);
+  if (!productId) throw new Error("Could not determine the rental product for this booking.");
+  const templates = await getCheckTemplates(productId, "PRE_RENTAL");
+  if (!templates.length) throw new Error("No condition check is configured for this product yet.");
+
+  const photoTemplates = templates.filter((t) => t.input_type === "PHOTO");
+  const booleanTemplates = templates.filter((t) => t.input_type === "BOOLEAN");
+
+  const acknowledgements: Record<string, boolean> = {};
+  for (const item of booleanTemplates) {
+    const checked = formData.get(`ack_${item.item_key}`) === "true";
+    if (item.required && !checked) {
+      throw new Error(`Please confirm: ${item.label}`);
+    }
+    acknowledgements[item.item_key] = checked;
+  }
+
+  const photos: Record<string, File> = {};
+  for (const item of photoTemplates) {
+    const file = formData.get(`photo_${item.item_key}`);
+    if (item.required && (!(file instanceof File) || file.size === 0)) {
+      throw new Error(`Please add a photo: ${item.label}`);
+    }
+    if (file instanceof File && file.size > 0) photos[item.item_key] = file;
+  }
+
   const { data: check, error: checkError } = await supabase
     .from("condition_checks")
     .upsert(
@@ -70,9 +75,7 @@ export async function submitPreRentalConditionCheckAction(formData: FormData) {
         booking_id: booking.id,
         asset_id: booking.asset_id,
         type: "PRE_RENTAL",
-        ack_powers_on: true,
-        ack_no_damage: true,
-        ack_accessories_present: true,
+        acknowledgements,
       },
       { onConflict: "booking_id,type" }
     )
@@ -80,15 +83,16 @@ export async function submitPreRentalConditionCheckAction(formData: FormData) {
     .single();
   if (checkError || !check) throw new Error("Could not save your condition check. Please try again.");
 
-  for (const field of PHOTO_FIELDS) {
-    const photoType = PHOTO_TYPE_MAP[field];
-    const path = conditionPhotoPath(booking.id, "pre-rental", photoType);
-    await uploadConditionPhoto(path, photos[field]!);
+  for (const item of photoTemplates) {
+    const file = photos[item.item_key];
+    if (!file) continue;
+    const path = conditionPhotoPath(booking.id, "pre-rental", item.item_key);
+    await uploadConditionPhoto(path, file);
     await supabase
       .from("condition_photos")
       .upsert(
-        { condition_check_id: check.id, photo_type: photoType, storage_path: path },
-        { onConflict: "condition_check_id,photo_type" }
+        { condition_check_id: check.id, check_template_item_id: item.id, storage_path: path },
+        { onConflict: "condition_check_id,check_template_item_id" }
       );
   }
 

@@ -9,10 +9,16 @@ export default async function InspectionDetailPage({ params }: { params: Promise
 
   const { data: asset } = await supabase
     .from("rental_assets")
-    .select("id,human_id,status")
+    .select("id,human_id,status,product_id")
     .eq("id", assetId)
     .maybeSingle();
   if (!asset || asset.status !== "RETURNED_AWAITING_INSPECTION") notFound();
+
+  const { data: product } = await supabase
+    .from("rental_products")
+    .select("slug,customer_facing_name")
+    .eq("id", asset.product_id)
+    .single();
 
   const { data: booking } = await supabase
     .from("bookings")
@@ -24,32 +30,82 @@ export default async function InspectionDetailPage({ params }: { params: Promise
     .maybeSingle();
   if (!booking) notFound();
 
-  const { data: checks } = await supabase
-    .from("condition_checks")
-    .select("id,type,damage_reported,damage_description")
-    .eq("booking_id", booking.id);
+  const [{ data: checks }, { data: preRentalTemplates }, { data: returnTemplates }, { data: checklistTemplates }] =
+    await Promise.all([
+      supabase.from("condition_checks").select("id,type,damage_reported,damage_description").eq("booking_id", booking.id),
+      supabase
+        .from("check_templates")
+        .select("id,item_key,label")
+        .eq("product_id", asset.product_id)
+        .eq("phase", "PRE_RENTAL")
+        .eq("input_type", "PHOTO"),
+      supabase
+        .from("check_templates")
+        .select("id,item_key,label")
+        .eq("product_id", asset.product_id)
+        .eq("phase", "RETURN")
+        .eq("input_type", "PHOTO"),
+      supabase
+        .from("check_templates")
+        .select("item_key,label")
+        .eq("product_id", asset.product_id)
+        .eq("phase", "STAFF_INSPECTION")
+        .eq("input_type", "BOOLEAN")
+        .eq("active", true)
+        .order("sort_order", { ascending: true }),
+    ]);
 
   const preRentalCheck = checks?.find((c) => c.type === "PRE_RENTAL");
   const returnCheck = checks?.find((c) => c.type === "RETURN");
   const checkIds = [preRentalCheck?.id, returnCheck?.id].filter((id): id is string => Boolean(id));
 
   const { data: photos } = checkIds.length
-    ? await supabase.from("condition_photos").select("condition_check_id,photo_type,storage_path").in("condition_check_id", checkIds)
+    ? await supabase
+        .from("condition_photos")
+        .select("condition_check_id,check_template_item_id,storage_path")
+        .in("condition_check_id", checkIds)
     : { data: [] };
 
-  const signedUrls: Record<string, string> = {};
+  const preTemplateById = new Map((preRentalTemplates ?? []).map((t) => [t.id, t]));
+  const returnTemplateById = new Map((returnTemplates ?? []).map((t) => [t.id, t]));
+
+  const preSignedByKey: Record<string, string> = {};
+  const returnSignedByKey: Record<string, string> = {};
   for (const photo of photos ?? []) {
-    const side = photo.condition_check_id === preRentalCheck?.id ? "pre" : "return";
-    signedUrls[`${side}_${photo.photo_type}`] = await getConditionPhotoSignedUrl(photo.storage_path);
+    const url = await getConditionPhotoSignedUrl(photo.storage_path);
+    if (photo.condition_check_id === preRentalCheck?.id) {
+      const template = preTemplateById.get(photo.check_template_item_id);
+      if (template) preSignedByKey[template.item_key] = url;
+    } else if (photo.condition_check_id === returnCheck?.id) {
+      const template = returnTemplateById.get(photo.check_template_item_id);
+      if (template) returnSignedByKey[template.item_key] = url;
+    }
   }
+
+  // Item keys are shared between the PRE_RENTAL and RETURN template rows
+  // for a product (same photo concept, two separate template rows — one
+  // per phase) — union them so a photo present on only one side still shows.
+  const photoItemKeys = [
+    ...new Map(
+      [...(preRentalTemplates ?? []), ...(returnTemplates ?? [])].map((t) => [t.item_key, t.label])
+    ).entries(),
+  ];
 
   return (
     <InspectionForm
       assetId={asset.id}
       assetHumanId={asset.human_id}
+      productSlug={product?.slug ?? ""}
+      productName={product?.customer_facing_name ?? "Equipment"}
       bookingId={booking.id}
       bookingHumanId={booking.human_id}
-      photos={signedUrls}
+      photoItems={photoItemKeys.map(([key, label]) => ({
+        key,
+        label,
+        preUrl: preSignedByKey[key],
+        returnUrl: returnSignedByKey[key],
+      }))}
+      checklistItems={(checklistTemplates ?? []).map((t) => ({ key: t.item_key, label: t.label }))}
       damageReported={returnCheck?.damage_reported ?? false}
       damageDescription={returnCheck?.damage_description ?? null}
     />

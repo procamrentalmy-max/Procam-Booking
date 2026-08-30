@@ -58,6 +58,68 @@ from kits k
 cross join (values ('Wrist Tether'), ('Microfiber Cloth'), ('Silica Gel Pack')) as items(item)
 where k.partner_id is not null and k.product_id = '40000000-0000-0000-0000-000000000002';
 
+-- Check templates: what the customer/staff has to check at each phase, per
+-- product. Replaces what used to be one hardcoded photo/checklist set.
+insert into check_templates (product_id, phase, item_key, label, instruction, input_type, sort_order, required) values
+  -- Insta360 — pre-rental
+  ('40000000-0000-0000-0000-000000000001', 'PRE_RENTAL', 'screen_on', 'Power On', 'Turn the camera ON, then photograph the screen showing it''s powered on.', 'PHOTO', 1, true),
+  ('40000000-0000-0000-0000-000000000001', 'PRE_RENTAL', 'lens_a', 'Lens A', 'Photograph the front lens closely.', 'PHOTO', 2, true),
+  ('40000000-0000-0000-0000-000000000001', 'PRE_RENTAL', 'lens_b', 'Lens B', 'Photograph the second lens closely.', 'PHOTO', 3, true),
+  ('40000000-0000-0000-0000-000000000001', 'PRE_RENTAL', 'kit_full', 'Full Kit', 'Lay out the camera and every accessory, then photograph it all together.', 'PHOTO', 4, true),
+  ('40000000-0000-0000-0000-000000000001', 'PRE_RENTAL', 'ack_powers_on', 'The camera powers on and works.', null, 'BOOLEAN', 5, true),
+  ('40000000-0000-0000-0000-000000000001', 'PRE_RENTAL', 'ack_no_damage', 'I don''t see any visible damage.', null, 'BOOLEAN', 6, true),
+  ('40000000-0000-0000-0000-000000000001', 'PRE_RENTAL', 'ack_accessories_present', 'All the accessories shown in my kit photo are present.', null, 'BOOLEAN', 7, true),
+  -- Insta360 — return
+  ('40000000-0000-0000-0000-000000000001', 'RETURN', 'screen_on', 'Power On', 'Turn the camera ON, then photograph the screen showing it''s powered on.', 'PHOTO', 1, true),
+  ('40000000-0000-0000-0000-000000000001', 'RETURN', 'lens_a', 'Lens A', 'Photograph the front lens closely.', 'PHOTO', 2, true),
+  ('40000000-0000-0000-0000-000000000001', 'RETURN', 'lens_b', 'Lens B', 'Photograph the second lens closely.', 'PHOTO', 3, true),
+  ('40000000-0000-0000-0000-000000000001', 'RETURN', 'kit_full', 'Full Kit', 'Lay out the camera and every accessory, then photograph it all together.', 'PHOTO', 4, true),
+  -- Insta360 — staff inspection
+  ('40000000-0000-0000-0000-000000000001', 'STAFF_INSPECTION', 'lens_a', 'Lens A', null, 'BOOLEAN', 1, true),
+  ('40000000-0000-0000-0000-000000000001', 'STAFF_INSPECTION', 'lens_b', 'Lens B', null, 'BOOLEAN', 2, true),
+  ('40000000-0000-0000-0000-000000000001', 'STAFF_INSPECTION', 'screen', 'Screen', null, 'BOOLEAN', 3, true),
+  ('40000000-0000-0000-0000-000000000001', 'STAFF_INSPECTION', 'buttons', 'Buttons', null, 'BOOLEAN', 4, true),
+  ('40000000-0000-0000-0000-000000000001', 'STAFF_INSPECTION', 'battery_compartment', 'Battery Compartment', null, 'BOOLEAN', 5, true),
+  ('40000000-0000-0000-0000-000000000001', 'STAFF_INSPECTION', 'usb_port', 'USB / Charging Port', null, 'BOOLEAN', 6, true),
+  ('40000000-0000-0000-0000-000000000001', 'STAFF_INSPECTION', 'water_ingress', 'No Water Ingress', null, 'BOOLEAN', 7, true),
+  ('40000000-0000-0000-0000-000000000001', 'STAFF_INSPECTION', 'power', 'Powers On', null, 'BOOLEAN', 8, true),
+  ('40000000-0000-0000-0000-000000000001', 'STAFF_INSPECTION', 'recording', 'Recording Works', null, 'BOOLEAN', 9, true),
+  ('40000000-0000-0000-0000-000000000001', 'STAFF_INSPECTION', 'selfie_stick', 'Selfie Stick', null, 'BOOLEAN', 10, true),
+  ('40000000-0000-0000-0000-000000000001', 'STAFF_INSPECTION', 'strap', 'Wrist Strap', null, 'BOOLEAN', 11, true),
+  ('40000000-0000-0000-0000-000000000001', 'STAFF_INSPECTION', 'case', 'Case', null, 'BOOLEAN', 12, true),
+  -- SeaLife — pre-rental
+  ('40000000-0000-0000-0000-000000000002', 'PRE_RENTAL', 'housing_body', 'Housing Body', 'Photograph the full housing body.', 'PHOTO', 1, true),
+  ('40000000-0000-0000-0000-000000000002', 'PRE_RENTAL', 'optical_window', 'Optical Window', 'Photograph the lens window closely.', 'PHOTO', 2, true),
+  ('40000000-0000-0000-0000-000000000002', 'PRE_RENTAL', 'sealing_area', 'Sealing Area', 'Photograph the O-ring and sealing surface closely.', 'PHOTO', 3, true),
+  ('40000000-0000-0000-0000-000000000002', 'PRE_RENTAL', 'locking_mechanism', 'Locking Mechanism', 'Photograph the locking latch.', 'PHOTO', 4, true),
+  ('40000000-0000-0000-0000-000000000002', 'PRE_RENTAL', 'vacuum_components', 'Vacuum Components', 'Photograph the vacuum valve/indicator.', 'PHOTO', 5, true),
+  ('40000000-0000-0000-0000-000000000002', 'PRE_RENTAL', 'wrist_tether', 'Wrist Tether', 'Photograph the wrist tether.', 'PHOTO', 6, true),
+  ('40000000-0000-0000-0000-000000000002', 'PRE_RENTAL', 'kit_full', 'Full Kit', 'Lay out the housing and every accessory, then photograph it all together.', 'PHOTO', 7, true),
+  ('40000000-0000-0000-0000-000000000002', 'PRE_RENTAL', 'seal_test_passed', 'I performed the vacuum/seal test and it passed.', null, 'BOOLEAN', 8, true),
+  ('40000000-0000-0000-0000-000000000002', 'PRE_RENTAL', 'ack_no_damage', 'I don''t see any visible damage to the housing.', null, 'BOOLEAN', 9, true),
+  -- SeaLife — return
+  ('40000000-0000-0000-0000-000000000002', 'RETURN', 'housing_body', 'Housing Body', 'Photograph the full housing body.', 'PHOTO', 1, true),
+  ('40000000-0000-0000-0000-000000000002', 'RETURN', 'optical_window', 'Optical Window', 'Photograph the lens window closely.', 'PHOTO', 2, true),
+  ('40000000-0000-0000-0000-000000000002', 'RETURN', 'sealing_area', 'Sealing Area', 'Photograph the O-ring and sealing surface closely.', 'PHOTO', 3, true),
+  ('40000000-0000-0000-0000-000000000002', 'RETURN', 'locking_mechanism', 'Locking Mechanism', 'Photograph the locking latch.', 'PHOTO', 4, true),
+  ('40000000-0000-0000-0000-000000000002', 'RETURN', 'vacuum_components', 'Vacuum Components', 'Photograph the vacuum valve/indicator.', 'PHOTO', 5, true),
+  ('40000000-0000-0000-0000-000000000002', 'RETURN', 'wrist_tether', 'Wrist Tether', 'Photograph the wrist tether.', 'PHOTO', 6, true),
+  ('40000000-0000-0000-0000-000000000002', 'RETURN', 'kit_full', 'Full Kit', 'Lay out the housing and every accessory, then photograph it all together.', 'PHOTO', 7, true),
+  -- SeaLife — staff inspection
+  ('40000000-0000-0000-0000-000000000002', 'STAFF_INSPECTION', 'housing_body', 'Housing Body / Cracks', null, 'BOOLEAN', 1, true),
+  ('40000000-0000-0000-0000-000000000002', 'STAFF_INSPECTION', 'optical_window', 'Optical Window', null, 'BOOLEAN', 2, true),
+  ('40000000-0000-0000-0000-000000000002', 'STAFF_INSPECTION', 'o_ring_seal', 'O-Ring / Seal', null, 'BOOLEAN', 3, true),
+  ('40000000-0000-0000-0000-000000000002', 'STAFF_INSPECTION', 'sealing_surface', 'Sealing Surface', null, 'BOOLEAN', 4, true),
+  ('40000000-0000-0000-0000-000000000002', 'STAFF_INSPECTION', 'locking_latch', 'Locking Latch', null, 'BOOLEAN', 5, true),
+  ('40000000-0000-0000-0000-000000000002', 'STAFF_INSPECTION', 'vacuum_system', 'Vacuum System', null, 'BOOLEAN', 6, true),
+  ('40000000-0000-0000-0000-000000000002', 'STAFF_INSPECTION', 'moisture_leak_indicator', 'Moisture / Leak Indicator', null, 'BOOLEAN', 7, true),
+  ('40000000-0000-0000-0000-000000000002', 'STAFF_INSPECTION', 'buttons', 'Physical Buttons', null, 'BOOLEAN', 8, true),
+  ('40000000-0000-0000-0000-000000000002', 'STAFF_INSPECTION', 'bluetooth_functionality', 'Bluetooth / Functionality', null, 'BOOLEAN', 9, true),
+  ('40000000-0000-0000-0000-000000000002', 'STAFF_INSPECTION', 'tether', 'Wrist Tether', null, 'BOOLEAN', 10, true),
+  ('40000000-0000-0000-0000-000000000002', 'STAFF_INSPECTION', 'salt_residue', 'Salt Residue', null, 'BOOLEAN', 11, true),
+  ('40000000-0000-0000-0000-000000000002', 'STAFF_INSPECTION', 'corrosion', 'Corrosion', null, 'BOOLEAN', 12, true),
+  ('40000000-0000-0000-0000-000000000002', 'STAFF_INSPECTION', 'water_ingress_evidence', 'Evidence of Water Ingress', null, 'BOOLEAN', 13, true);
+
 insert into batteries (id, partner_id, status) values
   ('30000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'CHARGED'),
   ('30000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001', 'CHARGED'),
