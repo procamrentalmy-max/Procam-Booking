@@ -270,14 +270,6 @@ create table product_terms_versions (
 );
 create unique index idx_product_terms_unique on product_terms_versions(product_id, version);
 
-create table booking_acknowledgements (
-  id uuid primary key default gen_random_uuid(),
-  booking_id uuid not null references bookings(id),
-  terms_version_id uuid not null references product_terms_versions(id),
-  agreed_at timestamptz not null default now()
-);
-create unique index idx_booking_ack_unique on booking_acknowledgements(booking_id);
-
 -- ============================================================================
 -- RENTAL PACKAGES (admin-configurable pricing, product-specific)
 -- ============================================================================
@@ -496,6 +488,14 @@ create index idx_bookings_status on bookings(status);
 create index idx_bookings_secure_token on bookings(secure_token);
 create trigger trg_bookings_updated_at before update on bookings
   for each row execute function set_updated_at();
+
+create table booking_acknowledgements (
+  id uuid primary key default gen_random_uuid(),
+  booking_id uuid not null references bookings(id),
+  terms_version_id uuid not null references product_terms_versions(id),
+  agreed_at timestamptz not null default now()
+);
+create unique index idx_booking_ack_unique on booking_acknowledgements(booking_id);
 
 -- The core correctness guarantee: a rental asset cannot have two overlapping
 -- non-terminal bookings. Enforced by Postgres itself, not application code.
