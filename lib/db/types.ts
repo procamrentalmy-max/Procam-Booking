@@ -18,6 +18,7 @@
  */
 
 export type PartnerStatus = "ACTIVE" | "INACTIVE";
+export type PickupMethod = "RECEPTION" | "LOCKER";
 export type StaffRole = "PROCAM_STAFF" | "ADMIN";
 export type IdentityVerificationMethod = "WHATSAPP_OTP" | "SMS_OTP";
 export type IdentityVerificationStatus = "PENDING" | "VERIFIED" | "FAILED";
@@ -99,6 +100,7 @@ export type PartnerRow = {
   commission_rate: number;
   referral_code: string;
   status: PartnerStatus;
+  pickup_method: PickupMethod;
   created_at: string;
   updated_at: string;
 };
@@ -219,6 +221,44 @@ export type RentalAssetRow = {
   partner_id: string | null;
   status: AssetStatus;
   notes: string | null;
+  is_hot_spare: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LockerRow = {
+  id: string;
+  human_id: string;
+  partner_id: string;
+  compartment_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LockerCompartmentRow = {
+  id: string;
+  locker_id: string;
+  compartment_number: number;
+  current_pin: string | null;
+  current_asset_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WorkerRow = {
+  id: string;
+  staff_user_id: string;
+  current_partner_id: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LocationTravelTimeRow = {
+  id: string;
+  from_partner_id: string;
+  to_partner_id: string;
+  minutes: number;
   created_at: string;
   updated_at: string;
 };
@@ -449,6 +489,10 @@ export interface Database {
       booking_acknowledgements: TableDef<BookingAcknowledgementRow>;
       rental_packages: TableDef<RentalPackageRow>;
       rental_assets: TableDef<RentalAssetRow>;
+      lockers: TableDef<LockerRow>;
+      locker_compartments: TableDef<LockerCompartmentRow>;
+      workers: TableDef<WorkerRow>;
+      location_travel_times: TableDef<LocationTravelTimeRow>;
       kits: TableDef<KitRow>;
       kit_items: TableDef<KitItemRow>;
       batteries: TableDef<BatteryRow>;

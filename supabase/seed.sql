@@ -7,6 +7,13 @@ insert into partners (id, name, address, commission_rate, referral_code, status)
   ('00000000-0000-0000-0000-000000000002', 'Sunset Bay Resort', 'Batu Ferringhi, Penang', 0.20, 'SBR456', 'ACTIVE'),
   ('00000000-0000-0000-0000-000000000003', 'Perhentian Backpackers', 'Pulau Perhentian, Terengganu', 0.20, 'PHB789', 'ACTIVE');
 
+-- Langkawi self-service locker network (Phase 1 of the locker/routing
+-- rebuild) — three locations the roaming worker services, ~10-15 min apart.
+insert into partners (id, name, address, commission_rate, referral_code, status, pickup_method) values
+  ('00000000-0000-0000-0000-000000000004', 'Cenang Beach Locker', 'Pantai Cenang, Langkawi', 0.20, 'LGK-CEN', 'ACTIVE', 'LOCKER'),
+  ('00000000-0000-0000-0000-000000000005', 'Kuah Jetty Locker', 'Kuah Town, Langkawi', 0.20, 'LGK-KUA', 'ACTIVE', 'LOCKER'),
+  ('00000000-0000-0000-0000-000000000006', 'Airport Locker', 'Langkawi International Airport', 0.20, 'LGK-AIR', 'ACTIVE', 'LOCKER');
+
 insert into rental_products (id, slug, internal_name, customer_facing_name, tagline, asset_prefix, uses_batteries, requires_phone_compatibility) values
   ('40000000-0000-0000-0000-000000000001', 'insta360-adventure-camera', 'Insta360 Adventure Camera', 'Insta360 Adventure Camera', 'Capture your whole adventure.', 'CAM', true, false),
   ('40000000-0000-0000-0000-000000000002', 'sealife-sportdiver-ultra', 'SeaLife SportDiver Ultra', 'Underwater Phone Camera', 'Use your own phone underwater.', 'SDU', false, true);
@@ -157,3 +164,51 @@ insert into batteries (id, partner_id, status) values
   ('30000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000002', 'CHARGED'),
   ('30000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000003', 'CHARGED'),
   ('30000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000003', 'CHARGED');
+
+-- ============================================================================
+-- LANGKAWI LOCKER NETWORK — pooled fleet + worker routing (Phase 1)
+-- ============================================================================
+
+-- One locker per location, 3 compartments each.
+insert into lockers (id, human_id, partner_id, compartment_count) values
+  ('50000000-0000-0000-0000-000000000001', 'LKR-001', '00000000-0000-0000-0000-000000000004', 3),
+  ('50000000-0000-0000-0000-000000000002', 'LKR-002', '00000000-0000-0000-0000-000000000005', 3),
+  ('50000000-0000-0000-0000-000000000003', 'LKR-003', '00000000-0000-0000-0000-000000000006', 3);
+
+insert into locker_compartments (locker_id, compartment_number) values
+  ('50000000-0000-0000-0000-000000000001', 1),
+  ('50000000-0000-0000-0000-000000000001', 2),
+  ('50000000-0000-0000-0000-000000000001', 3),
+  ('50000000-0000-0000-0000-000000000002', 1),
+  ('50000000-0000-0000-0000-000000000002', 2),
+  ('50000000-0000-0000-0000-000000000002', 3),
+  ('50000000-0000-0000-0000-000000000003', 1),
+  ('50000000-0000-0000-0000-000000000003', 2),
+  ('50000000-0000-0000-0000-000000000003', 3);
+
+-- Pooled fleet: 6 sellable cameras split 2/2/2 across the three locations,
+-- plus 1 hot spare carried by the worker (no fixed partner_id).
+insert into rental_assets (id, product_id, model, serial_number, partner_id, status, notes, is_hot_spare) values
+  ('12000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-LGK-0001', '00000000-0000-0000-0000-000000000004', 'AVAILABLE', null, false),
+  ('12000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-LGK-0002', '00000000-0000-0000-0000-000000000004', 'AVAILABLE', null, false),
+  ('12000000-0000-0000-0000-000000000003', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-LGK-0003', '00000000-0000-0000-0000-000000000005', 'AVAILABLE', null, false),
+  ('12000000-0000-0000-0000-000000000004', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-LGK-0004', '00000000-0000-0000-0000-000000000005', 'AVAILABLE', null, false),
+  ('12000000-0000-0000-0000-000000000005', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-LGK-0005', '00000000-0000-0000-0000-000000000006', 'AVAILABLE', null, false),
+  ('12000000-0000-0000-0000-000000000006', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-LGK-0006', '00000000-0000-0000-0000-000000000006', 'AVAILABLE', null, false),
+  ('12000000-0000-0000-0000-000000000007', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-LGK-0007', null, 'AVAILABLE', 'Hot spare — carried by worker, rotates between locations', true);
+
+-- Mock travel-time matrix between the three locations (~10-15 min, all
+-- directional pairs). Replaced with live Google Maps data in a later phase.
+insert into location_travel_times (from_partner_id, to_partner_id, minutes) values
+  ('00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000005', 12),
+  ('00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000004', 12),
+  ('00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000006', 15),
+  ('00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000004', 15),
+  ('00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000006', 10),
+  ('00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000005', 10);
+
+-- No seed row for `workers`: staff_users.auth_user_id references a real
+-- auth.users row, which plain SQL can't create. Once a real staff account
+-- exists (Supabase Auth signup + a staff_users row), create its worker row
+-- with: insert into workers (staff_user_id, current_partner_id) values
+-- (<that staff_users.id>, '00000000-0000-0000-0000-000000000004');

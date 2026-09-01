@@ -24,6 +24,11 @@ create extension if not exists btree_gist;
 -- ============================================================================
 
 create type partner_status as enum ('ACTIVE', 'INACTIVE');
+-- RECEPTION: staff at the property hands over/receives the pouch (original V1 model).
+-- LOCKER: self-service — customer gets a PIN, reception has zero involvement (Langkawi network).
+-- Coexist deliberately: new locker locations don't have to wait on every existing
+-- reception-based partner migrating first, and vice versa.
+create type pickup_method as enum ('RECEPTION', 'LOCKER');
 create type staff_role as enum ('PROCAM_STAFF', 'ADMIN');
 
 create type identity_verification_method as enum ('WHATSAPP_OTP', 'SMS_OTP');
@@ -133,6 +138,7 @@ create table partners (
   commission_rate numeric(5, 4) not null default 0.20 check (commission_rate >= 0 and commission_rate <= 1),
   referral_code text not null unique,
   status partner_status not null default 'ACTIVE',
+  pickup_method pickup_method not null default 'RECEPTION',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -304,6 +310,14 @@ create table rental_assets (
   serial_number text not null unique,
   partner_id uuid references partners(id) on delete set null,
   status asset_status not null default 'MAINTENANCE',
+  -- Fleet ROLE, independent of `status` (physical/operational condition).
+  -- A hot spare can still be READY, being serviced, in transit, etc. —
+  -- modeling "reserve" as a status value instead would force awkward
+  -- combinations (HOT_SPARE_SERVICING?) for every future status added.
+  -- The booking/availability engine must always filter is_hot_spare = false;
+  -- promoting/demoting the spare during a swap chain is just flipping this
+  -- flag on two rows, not juggling the status enum.
+  is_hot_spare boolean not null default false,
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -311,6 +325,7 @@ create table rental_assets (
 create index idx_rental_assets_partner on rental_assets(partner_id);
 create index idx_rental_assets_status on rental_assets(status);
 create index idx_rental_assets_product on rental_assets(product_id);
+create index idx_rental_assets_hot_spare on rental_assets(is_hot_spare) where is_hot_spare;
 create trigger trg_rental_assets_updated_at before update on rental_assets
   for each row execute function set_updated_at();
 
@@ -369,6 +384,78 @@ create table batteries (
 );
 create index idx_batteries_partner on batteries(partner_id);
 create trigger trg_batteries_updated_at before update on batteries
+  for each row execute function set_updated_at();
+
+-- ============================================================================
+-- LOCKER NETWORK (pickup_method = 'LOCKER' partners)
+-- ============================================================================
+
+-- One row per physical locker unit. 1:1 with a partner location for MVP,
+-- not hard-coded that way — a location could get a second locker later.
+create table lockers (
+  id uuid primary key default gen_random_uuid(),
+  human_id text not null unique,
+  partner_id uuid not null references partners(id),
+  compartment_count int not null check (compartment_count > 0),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index idx_lockers_partner on lockers(partner_id);
+create trigger trg_lockers_updated_at before update on lockers
+  for each row execute function set_updated_at();
+
+-- No electronics, no API (spec section 1) — current_pin is just data a
+-- worker is told to physically set on an ordinary combination lock, and
+-- confirms back via the worker screen (Phase 7/8). The system is the
+-- source of truth for what the PIN *should* be, not a verification that
+-- the lock was actually changed.
+create table locker_compartments (
+  id uuid primary key default gen_random_uuid(),
+  locker_id uuid not null references lockers(id) on delete cascade,
+  compartment_number int not null,
+  current_pin text,
+  current_asset_id uuid references rental_assets(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (locker_id, compartment_number)
+);
+create index idx_locker_compartments_locker on locker_compartments(locker_id);
+create trigger trg_locker_compartments_updated_at before update on locker_compartments
+  for each row execute function set_updated_at();
+
+-- ============================================================================
+-- WORKER / ROUTING (MVP: one worker; modeled for more without extra work later)
+-- ============================================================================
+
+-- Adds routing-specific state to an existing ProCam staff account rather
+-- than inventing a second identity concept — a worker already logs in as
+-- PROCAM_STAFF (staff_users); this just tracks where they currently are
+-- for the routing engine (Phase 2+).
+create table workers (
+  id uuid primary key default gen_random_uuid(),
+  staff_user_id uuid not null unique references staff_users(id),
+  current_partner_id uuid references partners(id),
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create trigger trg_workers_updated_at before update on workers
+  for each row execute function set_updated_at();
+
+-- Mock travel-time matrix for MVP simulation (spec section 33) — swapped
+-- for live Google Maps data in a later phase without changing anything
+-- that reads from this table.
+create table location_travel_times (
+  id uuid primary key default gen_random_uuid(),
+  from_partner_id uuid not null references partners(id),
+  to_partner_id uuid not null references partners(id),
+  minutes int not null check (minutes > 0),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (from_partner_id, to_partner_id),
+  check (from_partner_id <> to_partner_id)
+);
+create trigger trg_location_travel_times_updated_at before update on location_travel_times
   for each row execute function set_updated_at();
 
 -- ============================================================================
@@ -729,6 +816,10 @@ alter table rental_assets enable row level security;
 alter table kits enable row level security;
 alter table kit_items enable row level security;
 alter table batteries enable row level security;
+alter table lockers enable row level security;
+alter table locker_compartments enable row level security;
+alter table workers enable row level security;
+alter table location_travel_times enable row level security;
 alter table bookings enable row level security;
 alter table battery_exchanges enable row level security;
 alter table payments enable row level security;
@@ -761,6 +852,10 @@ create policy admin_all_rental_assets on rental_assets for all using (is_admin()
 create policy admin_all_kits on kits for all using (is_admin()) with check (is_admin());
 create policy admin_all_kit_items on kit_items for all using (is_admin()) with check (is_admin());
 create policy admin_all_batteries on batteries for all using (is_admin()) with check (is_admin());
+create policy admin_all_lockers on lockers for all using (is_admin()) with check (is_admin());
+create policy admin_all_locker_compartments on locker_compartments for all using (is_admin()) with check (is_admin());
+create policy admin_all_workers on workers for all using (is_admin()) with check (is_admin());
+create policy admin_all_location_travel_times on location_travel_times for all using (is_admin()) with check (is_admin());
 create policy admin_all_bookings on bookings for all using (is_admin()) with check (is_admin());
 create policy admin_all_battery_exchanges on battery_exchanges for all using (is_admin()) with check (is_admin());
 create policy admin_all_payments on payments for all using (is_admin()) with check (is_admin());
@@ -789,6 +884,15 @@ create policy staff_all_rental_assets on rental_assets for all using (is_procam_
 create policy staff_all_kits on kits for all using (is_procam_staff()) with check (is_procam_staff());
 create policy staff_all_kit_items on kit_items for all using (is_procam_staff()) with check (is_procam_staff());
 create policy staff_all_batteries on batteries for all using (is_procam_staff()) with check (is_procam_staff());
+create policy staff_all_lockers on lockers for all using (is_procam_staff()) with check (is_procam_staff());
+create policy staff_all_locker_compartments on locker_compartments for all using (is_procam_staff()) with check (is_procam_staff());
+create policy staff_read_workers on workers for select using (is_procam_staff());
+-- A worker can update their own operational row (current location, active
+-- flag) without needing admin access for every location change.
+create policy staff_update_own_worker on workers for update
+  using (staff_user_id = (select id from staff_users where auth_user_id = auth.uid()))
+  with check (staff_user_id = (select id from staff_users where auth_user_id = auth.uid()));
+create policy staff_read_location_travel_times on location_travel_times for select using (is_procam_staff());
 create policy staff_read_bookings on bookings for select using (is_procam_staff());
 create policy staff_all_battery_exchanges on battery_exchanges for all using (is_procam_staff()) with check (is_procam_staff());
 create policy staff_read_condition_checks on condition_checks for select using (is_procam_staff());
