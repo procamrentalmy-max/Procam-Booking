@@ -503,7 +503,7 @@ alter table bookings
   add constraint no_overlapping_asset_bookings
   exclude using gist (
     asset_id with =,
-    tsrange(start_time, end_time) with &&
+    tstzrange(start_time, end_time) with &&
   )
   where (status not in ('CANCELLED', 'EXPIRED', 'COMPLETED'));
 
@@ -513,7 +513,7 @@ alter table bookings
   add constraint no_overlapping_kit_bookings
   exclude using gist (
     kit_id with =,
-    tsrange(start_time, end_time) with &&
+    tstzrange(start_time, end_time) with &&
   )
   where (status not in ('CANCELLED', 'EXPIRED', 'COMPLETED'));
 
