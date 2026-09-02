@@ -9,6 +9,13 @@ import type { FleetSnapshot } from "./types";
  */
 export const DEFAULT_ROUTING_HORIZON_MINUTES = 180;
 
+/** Whether `assetId` has a non-terminal booking overlapping the half-open interval [start, end). */
+export function hasOverlappingBooking(snapshot: FleetSnapshot, assetId: string, start: Date, end: Date): boolean {
+  return snapshot.bookings.some(
+    (b) => b.assetId === assetId && !isTerminal(b.status) && b.startTime < end && b.endTime > start
+  );
+}
+
 /**
  * Whether `assetId` has a non-terminal booking overlapping [now, now +
  * horizon]. Boundary-inclusive: a booking starting at exactly the horizon
