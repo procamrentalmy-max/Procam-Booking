@@ -1,14 +1,7 @@
-import { isTerminal } from "@/lib/state-machine/booking";
+import { DEFAULT_ROUTING_HORIZON_MINUTES, isNeededSoon } from "./bookingWindow";
 import type { EngineAsset, FleetSnapshot } from "./types";
 
-/**
- * How far ahead the routing engine actively plans (brief: 2-3hr active-
- * routing horizon). A camera with a confirmed booking inside this window is
- * "needed soon" and must not be pulled into hot-spare duty; one further out
- * is still a legitimate candidate today — feasibility gets re-checked
- * continuously as the horizon rolls forward.
- */
-export const DEFAULT_ROUTING_HORIZON_MINUTES = 180;
+export { DEFAULT_ROUTING_HORIZON_MINUTES };
 
 export class AssetNotFoundError extends Error {
   constructor(assetId: string) {
@@ -31,6 +24,13 @@ export class AssetNotFailedError extends Error {
   }
 }
 
+export class MultipleHotSparesError extends Error {
+  constructor(assetIds: string[]) {
+    super(`Invariant violated: more than one asset is flagged is_hot_spare (${assetIds.join(", ")})`);
+    this.name = "MultipleHotSparesError";
+  }
+}
+
 function getAsset(snapshot: FleetSnapshot, assetId: string): EngineAsset {
   const asset = snapshot.assets.find((a) => a.id === assetId);
   if (!asset) throw new AssetNotFoundError(assetId);
@@ -44,12 +44,13 @@ function withAsset(snapshot: FleetSnapshot, assetId: string, patch: Partial<Engi
   };
 }
 
-/** Whether `assetId` has a non-terminal booking overlapping [now, now + horizon]. */
-function isNeededSoon(snapshot: FleetSnapshot, assetId: string, now: Date, horizonMinutes: number): boolean {
-  const horizonEnd = new Date(now.getTime() + horizonMinutes * 60_000);
-  return snapshot.bookings.some(
-    (b) => b.assetId === assetId && !isTerminal(b.status) && b.startTime < horizonEnd && b.endTime > now
-  );
+/** Throws if more than one asset is flagged as the hot spare — should never happen, fails loudly rather than picking one arbitrarily. */
+function getCurrentHotSpare(snapshot: FleetSnapshot): EngineAsset | null {
+  const spares = snapshot.assets.filter((a) => a.isHotSpare);
+  if (spares.length > 1) {
+    throw new MultipleHotSparesError(spares.map((a) => a.id));
+  }
+  return spares[0] ?? null;
 }
 
 /** The spare gets deployed to cover a failed camera's slot — it stops being the spare. */
@@ -120,8 +121,14 @@ export type HotSpareFailureEvent =
  * the failed camera's position, then the engine looks for a replacement
  * spare among the rest of the fleet — skipping the just-deployed unit
  * itself (it's now serving that position, not available to double as the
- * spare again) and any camera a confirmed booking needs soon. A no-op if
- * there's currently no hot spare to redeploy.
+ * spare again) and any camera a confirmed booking needs soon.
+ *
+ * Two edge cases handled explicitly (found by adversarial testing):
+ * - If the failed camera IS the current hot spare, there's nothing to
+ *   "deploy into its own slot" — skip straight to picking a replacement.
+ * - `failedAssetId` is validated even when there's no current spare to
+ *   redeploy, so a bad asset ID always throws rather than silently no-op
+ *   depending on unrelated fleet state.
  */
 export function handleAssetFailure(
   snapshot: FleetSnapshot,
@@ -129,20 +136,23 @@ export function handleAssetFailure(
   now: Date = new Date(),
   horizonMinutes: number = DEFAULT_ROUTING_HORIZON_MINUTES
 ): { snapshot: FleetSnapshot; events: HotSpareFailureEvent[] } {
-  const currentSpare = snapshot.assets.find((a) => a.isHotSpare);
-  if (!currentSpare) {
-    return { snapshot, events: [] };
-  }
-
   const failedAsset = getAsset(snapshot, failedAssetId);
   if (failedAsset.status !== "MAINTENANCE" && failedAsset.status !== "LOST") {
     throw new AssetNotFailedError(failedAssetId, failedAsset.status);
   }
 
+  const currentSpare = getCurrentHotSpare(snapshot);
+  if (!currentSpare) {
+    return { snapshot, events: [] };
+  }
+
   const events: HotSpareFailureEvent[] = [];
   let next = demoteHotSpare(snapshot, currentSpare.id);
-  next = withAsset(next, currentSpare.id, { partnerId: failedAsset.partnerId });
-  events.push({ type: "HOT_SPARE_DEPLOYED", deployedAssetId: currentSpare.id, replacingAssetId: failedAssetId });
+
+  if (currentSpare.id !== failedAssetId) {
+    next = withAsset(next, currentSpare.id, { partnerId: failedAsset.partnerId });
+    events.push({ type: "HOT_SPARE_DEPLOYED", deployedAssetId: currentSpare.id, replacingAssetId: failedAssetId });
+  }
 
   const replacementId = selectReplacementHotSpare(next, now, horizonMinutes, [currentSpare.id]);
   if (replacementId) {

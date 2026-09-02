@@ -167,7 +167,11 @@ describe("handleAssetFailure", () => {
     const snapshot = baseSnapshot();
     const noSpare: FleetSnapshot = {
       ...snapshot,
-      assets: snapshot.assets.map((a) => (a.id === "spare" ? { ...a, isHotSpare: false } : a)),
+      assets: snapshot.assets.map((a) => {
+        if (a.id === "spare") return { ...a, isHotSpare: false };
+        if (a.id === "cam-2") return { ...a, status: "MAINTENANCE" as const };
+        return a;
+      }),
     };
     const { snapshot: result, events } = handleAssetFailure(noSpare, "cam-2", NOW);
     expect(result).toBe(noSpare);
@@ -176,5 +180,55 @@ describe("handleAssetFailure", () => {
 
   it("throws if the target asset isn't actually failed", () => {
     expect(() => handleAssetFailure(baseSnapshot(), "cam-2", NOW)).toThrow(/not in a failed state/);
+  });
+
+  it("does not report the spare as deploying to replace itself when the spare is what failed", () => {
+    const snapshot = baseSnapshot();
+    const spareFails: FleetSnapshot = {
+      ...snapshot,
+      assets: snapshot.assets.map((a) => (a.id === "spare" ? { ...a, status: "MAINTENANCE" as const } : a)),
+    };
+    const { events } = handleAssetFailure(spareFails, "spare", NOW);
+    expect(events).not.toContainEqual(
+      expect.objectContaining({ type: "HOT_SPARE_DEPLOYED", deployedAssetId: "spare", replacingAssetId: "spare" })
+    );
+    expect(events).toEqual([{ type: "HOT_SPARE_REPLACED", newHotSpareAssetId: "cam-1" }]);
+  });
+
+  it("still validates the asset ID even when there is no current hot spare", () => {
+    const snapshot = baseSnapshot();
+    const noSpare: FleetSnapshot = {
+      ...snapshot,
+      assets: snapshot.assets.map((a) => (a.id === "spare" ? { ...a, isHotSpare: false } : a)),
+    };
+    expect(() => handleAssetFailure(noSpare, "totally-bogus-id", NOW)).toThrow(/not found/);
+  });
+
+  it("throws instead of silently picking one when the snapshot already has two hot spares", () => {
+    const snapshot = baseSnapshot();
+    const corrupted: FleetSnapshot = {
+      ...snapshot,
+      assets: snapshot.assets.map((a) => (a.id === "cam-3" ? { ...a, isHotSpare: true } : a)),
+    };
+    const withFailure: FleetSnapshot = {
+      ...corrupted,
+      assets: corrupted.assets.map((a) => (a.id === "cam-2" ? { ...a, status: "MAINTENANCE" as const } : a)),
+    };
+    expect(() => handleAssetFailure(withFailure, "cam-2", NOW)).toThrow(/more than one asset is flagged/);
+  });
+
+  it("treats a booking starting exactly at the horizon boundary as needed soon", () => {
+    const horizonMinutes = 180;
+    const horizonEnd = new Date(NOW.getTime() + horizonMinutes * 60_000);
+    const snapshot = baseSnapshot();
+    const withFailure: FleetSnapshot = {
+      ...snapshot,
+      assets: snapshot.assets.map((a) => (a.id === "cam-2" ? { ...a, status: "MAINTENANCE" as const } : a)),
+      bookings: [
+        { id: "b1", assetId: "cam-1", status: "CONFIRMED", startTime: horizonEnd, endTime: new Date(horizonEnd.getTime() + 60 * 60_000) },
+      ],
+    };
+    const { events } = handleAssetFailure(withFailure, "cam-2", NOW, horizonMinutes);
+    expect(events[1]).toEqual({ type: "HOT_SPARE_REPLACED", newHotSpareAssetId: "cam-3" });
   });
 });
