@@ -100,6 +100,7 @@ create type commission_status as enum ('ACCRUED', 'PAID');
 create or replace function next_human_id(seq_name text, prefix text, pad int)
 returns text
 language plpgsql
+set search_path = public
 as $$
 declare
   n bigint;
@@ -119,6 +120,7 @@ create sequence bookings_human_id_seq;
 create or replace function set_updated_at()
 returns trigger
 language plpgsql
+set search_path = public
 as $$
 begin
   new.updated_at = now();
@@ -329,6 +331,7 @@ create trigger trg_rental_assets_updated_at before update on rental_assets
 create or replace function set_rental_asset_human_id()
 returns trigger
 language plpgsql
+set search_path = public
 as $$
 declare
   v_prefix text;
