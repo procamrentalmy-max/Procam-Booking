@@ -11,6 +11,8 @@ function baseSnapshot(): FleetSnapshot {
       { id: "c2", lockerId: "locker-1", compartmentNumber: 2, currentAssetId: "cam-9" },
     ],
     workers: [],
+    locations: [],
+    travelTimes: [],
   };
 }
 

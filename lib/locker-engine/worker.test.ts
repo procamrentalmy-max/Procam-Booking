@@ -8,6 +8,8 @@ function baseSnapshot(): FleetSnapshot {
     bookings: [],
     compartments: [],
     workers: [{ id: "worker-1", currentPartnerId: "loc-a", active: true }],
+    locations: [],
+    travelTimes: [],
   };
 }
 

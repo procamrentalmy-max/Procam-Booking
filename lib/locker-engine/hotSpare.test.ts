@@ -22,6 +22,8 @@ function baseSnapshot(): FleetSnapshot {
     bookings: [],
     compartments: [],
     workers: [],
+    locations: [],
+    travelTimes: [],
   };
 }
 
@@ -43,7 +45,7 @@ describe("promoteToHotSpare / demoteHotSpare", () => {
   it("refuses to promote a camera with a booking inside the routing horizon", () => {
     const snapshot: FleetSnapshot = {
       ...demoteHotSpare(baseSnapshot(), "spare"),
-      bookings: [{ id: "bkg-1", assetId: "cam-1", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
+      bookings: [{ id: "bkg-1", assetId: "cam-1", partnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
     };
     expect(() => promoteToHotSpare(snapshot, "cam-1", NOW)).toThrow(/routing horizon/);
   });
@@ -66,7 +68,7 @@ describe("selectReplacementHotSpare", () => {
   it("skips a camera needed for a confirmed booking soon", () => {
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
-      bookings: [{ id: "bkg-1", assetId: "cam-1", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
+      bookings: [{ id: "bkg-1", assetId: "cam-1", partnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
     };
     expect(selectReplacementHotSpare(snapshot, NOW)).toBe("cam-2");
   });
@@ -74,7 +76,7 @@ describe("selectReplacementHotSpare", () => {
   it("ignores cancelled/expired/completed bookings", () => {
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
-      bookings: [{ id: "bkg-1", assetId: "cam-1", status: "CANCELLED", startTime: SOON, endTime: LATER }],
+      bookings: [{ id: "bkg-1", assetId: "cam-1", partnerId: "loc-a", status: "CANCELLED", startTime: SOON, endTime: LATER }],
     };
     expect(selectReplacementHotSpare(snapshot, NOW)).toBe("cam-1");
   });
@@ -83,9 +85,9 @@ describe("selectReplacementHotSpare", () => {
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
       bookings: [
-        { id: "b1", assetId: "cam-1", status: "CONFIRMED", startTime: NOW, endTime: SOON },
-        { id: "b2", assetId: "cam-2", status: "ACTIVE", startTime: NOW, endTime: SOON },
-        { id: "b3", assetId: "cam-3", status: "READY_FOR_PICKUP", startTime: NOW, endTime: SOON },
+        { id: "b1", assetId: "cam-1", partnerId: "loc-a", status: "CONFIRMED", startTime: NOW, endTime: SOON },
+        { id: "b2", assetId: "cam-2", partnerId: "loc-a", status: "ACTIVE", startTime: NOW, endTime: SOON },
+        { id: "b3", assetId: "cam-3", partnerId: "loc-a", status: "READY_FOR_PICKUP", startTime: NOW, endTime: SOON },
       ],
     };
     expect(selectReplacementHotSpare(snapshot, NOW)).toBeNull();
@@ -124,7 +126,7 @@ describe("handleAssetFailure", () => {
     const withFailure: FleetSnapshot = {
       ...snapshot,
       assets: snapshot.assets.map((a) => (a.id === "cam-2" ? { ...a, status: "MAINTENANCE" as const } : a)),
-      bookings: [{ id: "bkg-1", assetId: "cam-1", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
+      bookings: [{ id: "bkg-1", assetId: "cam-1", partnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
     };
 
     const { events } = handleAssetFailure(withFailure, "cam-2", NOW);
@@ -153,8 +155,8 @@ describe("handleAssetFailure", () => {
       ...snapshot,
       assets: snapshot.assets.map((a) => (a.id === "cam-2" ? { ...a, status: "MAINTENANCE" as const } : a)),
       bookings: [
-        { id: "b1", assetId: "cam-1", status: "CONFIRMED", startTime: SOON, endTime: LATER },
-        { id: "b3", assetId: "cam-3", status: "CONFIRMED", startTime: SOON, endTime: LATER },
+        { id: "b1", assetId: "cam-1", partnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER },
+        { id: "b3", assetId: "cam-3", partnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER },
       ],
     };
 
@@ -225,7 +227,7 @@ describe("handleAssetFailure", () => {
       ...snapshot,
       assets: snapshot.assets.map((a) => (a.id === "cam-2" ? { ...a, status: "MAINTENANCE" as const } : a)),
       bookings: [
-        { id: "b1", assetId: "cam-1", status: "CONFIRMED", startTime: horizonEnd, endTime: new Date(horizonEnd.getTime() + 60 * 60_000) },
+        { id: "b1", assetId: "cam-1", partnerId: "loc-a", status: "CONFIRMED", startTime: horizonEnd, endTime: new Date(horizonEnd.getTime() + 60 * 60_000) },
       ],
     };
     const { events } = handleAssetFailure(withFailure, "cam-2", NOW, horizonMinutes);

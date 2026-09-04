@@ -19,9 +19,22 @@ export type EngineAsset = {
 export type EngineBooking = {
   id: string;
   assetId: string;
+  /** Pickup location — which spot this booking needs a camera dropped off at. */
+  partnerId: string;
   status: BookingStatus;
   startTime: Date;
   endTime: Date;
+};
+
+/** A locker location the worker can visit. Kept minimal — the routing engine only needs the ID to key off of. */
+export type EngineLocation = {
+  partnerId: string;
+};
+
+export type EngineTravelTime = {
+  fromPartnerId: string;
+  toPartnerId: string;
+  minutes: number;
 };
 
 export type EngineCompartment = {
@@ -42,4 +55,6 @@ export type FleetSnapshot = {
   bookings: EngineBooking[];
   compartments: EngineCompartment[];
   workers: EngineWorker[];
+  locations: EngineLocation[];
+  travelTimes: EngineTravelTime[];
 };
