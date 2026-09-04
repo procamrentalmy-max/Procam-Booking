@@ -160,4 +160,49 @@ describe("planRoute", () => {
     const plan = planRoute(snapshot, NOW);
     expect(plan.stops.map((s) => s.partnerId)).toEqual(["loc-b", "loc-c"]);
   });
+
+  it("rebalances surplus AVAILABLE cameras from an over-supplied spot to cover a shortfall elsewhere", () => {
+    const snapshot: FleetSnapshot = {
+      ...baseSnapshot(),
+      assets: [
+        // loc-a has 4 surplus AVAILABLE cameras and nothing due there.
+        { id: "cam-1", humanId: "CAM-001", isHotSpare: false, partnerId: "loc-a", status: "AVAILABLE" },
+        { id: "cam-2", humanId: "CAM-002", isHotSpare: false, partnerId: "loc-a", status: "AVAILABLE" },
+        { id: "cam-3", humanId: "CAM-003", isHotSpare: false, partnerId: "loc-a", status: "AVAILABLE" },
+        { id: "cam-4", humanId: "CAM-004", isHotSpare: false, partnerId: "loc-a", status: "AVAILABLE" },
+      ],
+      bookings: [{ id: "b1", assetId: "any-1", partnerId: "loc-c", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
+    };
+    const plan = planRoute(snapshot, NOW);
+    expect(plan.unmetDropoffs).toEqual([]);
+    const dropoffStop = plan.stops.find((s) => s.partnerId === "loc-c")!;
+    expect(dropoffStop.actions).toContainEqual(
+      expect.objectContaining({ type: "DROPOFF", assetIds: expect.arrayContaining([expect.any(String)]) })
+    );
+    // Surplus cameras are already serviced — no SERVICE action needed for them.
+    const pickupStop = plan.stops.find((s) => s.partnerId === "loc-a")!;
+    expect(pickupStop.actions.some((a) => a.type === "SERVICE")).toBe(false);
+  });
+
+  it("never picks up the same physical camera twice when a location is visited for two reasons", () => {
+    // loc-b is both the nearest top-up source (has a return) AND itself a
+    // dropoff-need spot — a location visited once should still only move
+    // each camera once.
+    const snapshot: FleetSnapshot = {
+      ...baseSnapshot(),
+      assets: [
+        { id: "returned-1", humanId: "CAM-050", isHotSpare: false, partnerId: "loc-b", status: "RETURNED_AWAITING_INSPECTION" },
+      ],
+      bookings: [{ id: "b1", assetId: "any-1", partnerId: "loc-b", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
+    };
+    const plan = planRoute(snapshot, NOW);
+    const stop = plan.stops.find((s) => s.partnerId === "loc-b")!;
+    const pickupActions = stop.actions.filter((a) => a.type === "PICKUP");
+    const serviceActions = stop.actions.filter((a) => a.type === "SERVICE");
+    expect(pickupActions).toHaveLength(1);
+    expect(serviceActions).toHaveLength(1);
+    expect(pickupActions[0]).toEqual({ type: "PICKUP", assetIds: ["returned-1"] });
+    expect(stop.actions).toContainEqual({ type: "DROPOFF", assetIds: ["returned-1"] });
+    expect(plan.unmetDropoffs).toEqual([]);
+  });
 });

@@ -20,6 +20,13 @@ export type FeasibilityResult =
   | { outcome: "NEXT_FEASIBLE_SLOT"; assetId: string; startTime: Date; endTime: Date }
   | { outcome: "INFEASIBLE" };
 
+export class InvalidBookingRequestError extends Error {
+  constructor(reason: string) {
+    super(`Invalid booking request: ${reason}`);
+    this.name = "InvalidBookingRequestError";
+  }
+}
+
 /** Rounds up to the next full hour — the locker network only ever offers hourly pickup slots. */
 export function alignToNextHour(date: Date): Date {
   const aligned = new Date(date);
@@ -51,12 +58,25 @@ function findEligibleAsset(snapshot: FleetSnapshot, start: Date, end: Date): str
  * filter. "Confirmed beats forecast" from the brief isn't implemented yet:
  * there's no demand-forecasting data model to weigh against (that's
  * Phase 13) — every booking here is either a real request or nothing.
+ *
+ * Validates its own input rather than trusting the caller: a request
+ * starting in the past, or with a non-positive duration, throws instead of
+ * silently confirming a nonsensical booking (found by adversarial testing
+ * — both previously produced a "successful" CONFIRM).
  */
 export function checkBookingFeasibility(
   snapshot: FleetSnapshot,
   request: BookingRequest,
+  now: Date = new Date(),
   maxLookaheadHours: number = 24 * 7
 ): FeasibilityResult {
+  if (request.durationMinutes <= 0) {
+    throw new InvalidBookingRequestError(`durationMinutes must be positive, got ${request.durationMinutes}`);
+  }
+  if (request.earliestStartTime < now) {
+    throw new InvalidBookingRequestError("earliestStartTime cannot be in the past");
+  }
+
   const requestedStart = alignToNextHour(request.earliestStartTime);
   const durationMs = request.durationMinutes * 60_000;
 

@@ -1,3 +1,4 @@
+import { isTerminal } from "@/lib/state-machine/booking";
 import { DEFAULT_ROUTING_HORIZON_MINUTES, isNeededSoon } from "./bookingWindow";
 import type { EngineAsset, FleetSnapshot } from "./types";
 
@@ -28,6 +29,13 @@ export class MultipleHotSparesError extends Error {
   constructor(assetIds: string[]) {
     super(`Invariant violated: more than one asset is flagged is_hot_spare (${assetIds.join(", ")})`);
     this.name = "MultipleHotSparesError";
+  }
+}
+
+export class HotSpareHasBookingError extends Error {
+  constructor(assetId: string) {
+    super(`Invariant violated: hot spare ${assetId} has a non-terminal booking attached — the hot spare must never be booked`);
+    this.name = "HotSpareHasBookingError";
   }
 }
 
@@ -144,6 +152,11 @@ export function handleAssetFailure(
   const currentSpare = getCurrentHotSpare(snapshot);
   if (!currentSpare) {
     return { snapshot, events: [] };
+  }
+
+  const spareHasBooking = snapshot.bookings.some((b) => b.assetId === currentSpare.id && !isTerminal(b.status));
+  if (spareHasBooking) {
+    throw new HotSpareHasBookingError(currentSpare.id);
   }
 
   const events: HotSpareFailureEvent[] = [];

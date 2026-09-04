@@ -1,4 +1,5 @@
 import { isTerminal } from "@/lib/state-machine/booking";
+import { selectCamerasForCollection } from "./collection";
 import type { FleetSnapshot } from "./types";
 
 /** "Next or next 2 hours" — how far ahead a location's confirmed bookings count toward its dropoff need. */
@@ -23,17 +24,13 @@ function countOnSiteAvailable(snapshot: FleetSnapshot, partnerId: string): numbe
   return snapshot.assets.filter((a) => a.partnerId === partnerId && !a.isHotSpare && a.status === "AVAILABLE").length;
 }
 
-function returnedAssetsAt(snapshot: FleetSnapshot, partnerId: string): string[] {
-  return snapshot.assets
-    .filter((a) => a.partnerId === partnerId && a.status === "RETURNED_AWAITING_INSPECTION")
-    .map((a) => a.id);
-}
-
 /**
  * How many cameras short each location is to cover its own confirmed
  * bookings in the next `lookaheadMinutes` (default 2hr) — "enough" means
  * on-site AVAILABLE cameras already meet or exceed upcoming demand. Only
- * locations with a positive shortfall are included.
+ * locations with a positive shortfall are included. Computed once, up
+ * front, against the frozen snapshot — the simulation below consumes this
+ * as a fixed cycle's worth of demand.
  */
 export function computeDropoffNeeds(
   snapshot: FleetSnapshot,
@@ -86,15 +83,24 @@ export type RoutePlan = {
  *
  * 1. If current in-hand serviced inventory won't cover every location's
  *    dropoff shortfall, top up first — visit the nearest spot with
- *    returned cameras and service them immediately, repeating until
- *    there's enough (or nothing left to pick up).
+ *    anything collectible (a returned camera, or surplus AVAILABLE
+ *    cameras this same location doesn't need soon — reuses the exact
+ *    Phase 2 collection rule, so a spot over-supplied relative to its own
+ *    demand can supply a spot that's short, not just returns). Anything
+ *    already AVAILABLE goes straight into ready inventory — it's already
+ *    serviced; only raw returns need the SERVICE step.
  * 2. Visit every location that needs a dropoff, nearest-first, before any
- *    location that's pickup-only. Returned cameras encountered along the
- *    way are collected but NOT serviced yet — servicing is deferred so it
- *    never delays a confirmed-booking dropoff.
+ *    location that's pickup-only. Anything collectible along the way is
+ *    picked up but NOT serviced yet — servicing is deferred so it never
+ *    delays a confirmed-booking dropoff.
  * 3. Once every dropoff is handled, service whatever raw returns have
  *    piled up in the van — they become spare inventory for the next cycle.
  * 4. Visit any remaining pickup-only locations.
+ *
+ * Every physical camera can be moved at most once per plan — `movedAssetIds`
+ * is the single source of truth for that, so a location visited for more
+ * than one reason (e.g. a top-up source that's also a dropoff-need spot)
+ * never gets "picked up" twice for the same camera.
  *
  * Deterministic greedy nearest-first chaining via the (mock) travel-time
  * matrix, not a full route optimizer — matches the rest of this engine's
@@ -109,17 +115,26 @@ export function planRoute(
   let currentLocation: string | null = worker?.currentPartnerId ?? null;
 
   const remainingDropoffs = computeDropoffNeeds(snapshot, now, lookaheadMinutes);
-  const pickupSpots = new Set(
-    snapshot.locations.map((l) => l.partnerId).filter((id) => returnedAssetsAt(snapshot, id).length > 0)
-  );
+  const assetById = new Map(snapshot.assets.map((a) => [a.id, a]));
 
-  const readyInventory = snapshot.assets
+  const movedAssetIds = new Set<string>();
+
+  function collectibleAt(partnerId: string): string[] {
+    return selectCamerasForCollection(snapshot, partnerId, now, lookaheadMinutes).filter(
+      (id) => !movedAssetIds.has(id)
+    );
+  }
+
+  function supplySpots(): string[] {
+    return snapshot.locations.map((l) => l.partnerId).filter((id) => collectibleAt(id).length > 0);
+  }
+
+  const readyInventory: string[] = snapshot.assets
     .filter((a) => a.partnerId === null && !a.isHotSpare && a.status === "AVAILABLE")
     .map((a) => a.id);
   let rawInventory: string[] = [];
 
   const stops: RouteStop[] = [];
-  const visitedForPickup = new Set<string>();
   const unmetDropoffs: { partnerId: string; shortfall: number }[] = [];
 
   function stopFor(partnerId: string): RouteStop {
@@ -131,12 +146,19 @@ export function planRoute(
     return stop;
   }
 
+  /** Collects everything still collectible here. Already-AVAILABLE surplus goes straight to ready inventory; raw returns wait for a later SERVICE action. */
   function doPickup(partnerId: string): void {
-    visitedForPickup.add(partnerId);
-    const returned = returnedAssetsAt(snapshot, partnerId);
-    if (returned.length === 0) return;
-    stopFor(partnerId).actions.push({ type: "PICKUP", assetIds: returned });
-    rawInventory.push(...returned);
+    const items = collectibleAt(partnerId);
+    if (items.length === 0) return;
+    stopFor(partnerId).actions.push({ type: "PICKUP", assetIds: items });
+    for (const id of items) {
+      movedAssetIds.add(id);
+      if (assetById.get(id)!.status === "AVAILABLE") {
+        readyInventory.push(id);
+      } else {
+        rawInventory.push(id);
+      }
+    }
   }
 
   function serviceRawInventory(atPartnerId: string): void {
@@ -150,16 +172,12 @@ export function planRoute(
     return [...remainingDropoffs.values()].reduce((sum, n) => sum + n, 0);
   }
 
-  function unvisitedPickupSpots(): string[] {
-    return [...pickupSpots].filter((id) => !visitedForPickup.has(id));
-  }
-
-  while (remainingDropoffs.size > 0 || unvisitedPickupSpots().length > 0) {
+  while (remainingDropoffs.size > 0 || supplySpots().length > 0) {
     const needMoreSupply = readyInventory.length < totalRemainingShortfall();
-    const unvisitedPickups = unvisitedPickupSpots();
+    const unvisitedSupply = supplySpots();
 
-    if (needMoreSupply && unvisitedPickups.length > 0) {
-      const next = nearest(snapshot, currentLocation, unvisitedPickups);
+    if (needMoreSupply && unvisitedSupply.length > 0) {
+      const next = nearest(snapshot, currentLocation, unvisitedSupply);
       if (!next) break;
       doPickup(next);
       serviceRawInventory(next); // needed now to cover an urgent shortfall
@@ -178,15 +196,15 @@ export function planRoute(
       if (toDrop.length < shortfall) {
         unmetDropoffs.push({ partnerId: next, shortfall: shortfall - toDrop.length });
       }
-      doPickup(next); // collect any returns here too — servicing deferred
+      doPickup(next); // collect anything still here too — servicing deferred
       remainingDropoffs.delete(next);
       currentLocation = next;
       continue;
     }
 
     // No dropoffs left: service what's piled up, then mop up pickup-only spots.
-    if (unvisitedPickups.length > 0) {
-      const next = nearest(snapshot, currentLocation, unvisitedPickups);
+    if (unvisitedSupply.length > 0) {
+      const next = nearest(snapshot, currentLocation, unvisitedSupply);
       if (!next) break;
       doPickup(next);
       serviceRawInventory(next);

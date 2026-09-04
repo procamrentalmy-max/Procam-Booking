@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alignToNextHour, checkBookingFeasibility } from "./feasibility";
+import { InvalidBookingRequestError, alignToNextHour, checkBookingFeasibility } from "./feasibility";
 import type { FleetSnapshot } from "./types";
 
 const ALIGNED_10AM = new Date("2026-09-02T10:00:00Z");
@@ -38,10 +38,11 @@ describe("alignToNextHour", () => {
 
 describe("checkBookingFeasibility", () => {
   it("confirms at the requested (already-aligned) hour when a camera is free", () => {
-    const result = checkBookingFeasibility(baseSnapshot(), {
-      durationMinutes: 240,
-      earliestStartTime: ALIGNED_10AM,
-    });
+    const result = checkBookingFeasibility(
+      baseSnapshot(),
+      { durationMinutes: 240, earliestStartTime: ALIGNED_10AM },
+      ALIGNED_10AM
+    );
     expect(result).toEqual({
       outcome: "CONFIRM",
       assetId: "cam-1",
@@ -59,7 +60,7 @@ describe("checkBookingFeasibility", () => {
         { id: "b2", assetId: "cam-2", partnerId: "loc-a", status: "CONFIRMED", startTime: ALIGNED_10AM, endTime: farFuture },
       ],
     };
-    const result = checkBookingFeasibility(snapshot, { durationMinutes: 240, earliestStartTime: ALIGNED_10AM }, 5);
+    const result = checkBookingFeasibility(snapshot, { durationMinutes: 240, earliestStartTime: ALIGNED_10AM }, ALIGNED_10AM, 5);
     expect(result).toEqual({ outcome: "INFEASIBLE" });
   });
 
@@ -69,12 +70,12 @@ describe("checkBookingFeasibility", () => {
       ...snapshot,
       assets: snapshot.assets.map((a) => (a.id === "cam-1" ? { ...a, status: "MAINTENANCE" as const } : a)),
     };
-    const result = checkBookingFeasibility(withMaintenance, { durationMinutes: 240, earliestStartTime: ALIGNED_10AM });
+    const result = checkBookingFeasibility(withMaintenance, { durationMinutes: 240, earliestStartTime: ALIGNED_10AM }, ALIGNED_10AM);
     expect(result).toMatchObject({ outcome: "CONFIRM", assetId: "cam-2" });
   });
 
   it("picks the lowest human_id when multiple cameras are free (deterministic)", () => {
-    const result = checkBookingFeasibility(baseSnapshot(), { durationMinutes: 240, earliestStartTime: ALIGNED_10AM });
+    const result = checkBookingFeasibility(baseSnapshot(), { durationMinutes: 240, earliestStartTime: ALIGNED_10AM }, ALIGNED_10AM);
     expect(result).toMatchObject({ assetId: "cam-1" });
   });
 
@@ -87,7 +88,7 @@ describe("checkBookingFeasibility", () => {
         { id: "b2", assetId: "cam-2", partnerId: "loc-a", status: "CONFIRMED", startTime: ALIGNED_10AM, endTime: bookingEnd },
       ],
     };
-    const result = checkBookingFeasibility(snapshot, { durationMinutes: 60, earliestStartTime: ALIGNED_10AM });
+    const result = checkBookingFeasibility(snapshot, { durationMinutes: 60, earliestStartTime: ALIGNED_10AM }, ALIGNED_10AM);
     expect(result).toEqual({
       outcome: "NEXT_FEASIBLE_SLOT",
       assetId: "cam-1",
@@ -105,7 +106,7 @@ describe("checkBookingFeasibility", () => {
         { id: "b2", assetId: "cam-2", partnerId: "loc-a", status: "CONFIRMED", startTime: ALIGNED_10AM, endTime: farFuture },
       ],
     };
-    const result = checkBookingFeasibility(snapshot, { durationMinutes: 60, earliestStartTime: ALIGNED_10AM }, 5);
+    const result = checkBookingFeasibility(snapshot, { durationMinutes: 60, earliestStartTime: ALIGNED_10AM }, ALIGNED_10AM, 5);
     expect(result).toEqual({ outcome: "INFEASIBLE" });
   });
 
@@ -116,7 +117,31 @@ describe("checkBookingFeasibility", () => {
         { id: "b1", assetId: "cam-1", partnerId: "loc-a", status: "CANCELLED", startTime: ALIGNED_10AM, endTime: new Date(ALIGNED_10AM.getTime() + 240 * 60_000) },
       ],
     };
-    const result = checkBookingFeasibility(snapshot, { durationMinutes: 240, earliestStartTime: ALIGNED_10AM });
+    const result = checkBookingFeasibility(snapshot, { durationMinutes: 240, earliestStartTime: ALIGNED_10AM }, ALIGNED_10AM);
     expect(result).toMatchObject({ outcome: "CONFIRM", assetId: "cam-1" });
+  });
+
+  it("throws for a request starting in the past instead of silently confirming it", () => {
+    const past = new Date(ALIGNED_10AM.getTime() - 60 * 60_000);
+    expect(() =>
+      checkBookingFeasibility(baseSnapshot(), { durationMinutes: 60, earliestStartTime: past }, ALIGNED_10AM)
+    ).toThrow(InvalidBookingRequestError);
+  });
+
+  it("allows a request whose earliestStartTime is exactly now", () => {
+    const result = checkBookingFeasibility(baseSnapshot(), { durationMinutes: 60, earliestStartTime: ALIGNED_10AM }, ALIGNED_10AM);
+    expect(result).toMatchObject({ outcome: "CONFIRM" });
+  });
+
+  it("throws for a zero-length duration", () => {
+    expect(() =>
+      checkBookingFeasibility(baseSnapshot(), { durationMinutes: 0, earliestStartTime: ALIGNED_10AM }, ALIGNED_10AM)
+    ).toThrow(InvalidBookingRequestError);
+  });
+
+  it("throws for a negative duration instead of confirming an inverted time window", () => {
+    expect(() =>
+      checkBookingFeasibility(baseSnapshot(), { durationMinutes: -60, earliestStartTime: ALIGNED_10AM }, ALIGNED_10AM)
+    ).toThrow(InvalidBookingRequestError);
   });
 });

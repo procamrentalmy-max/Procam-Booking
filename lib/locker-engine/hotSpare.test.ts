@@ -233,4 +233,14 @@ describe("handleAssetFailure", () => {
     const { events } = handleAssetFailure(withFailure, "cam-2", NOW, horizonMinutes);
     expect(events[1]).toEqual({ type: "HOT_SPARE_REPLACED", newHotSpareAssetId: "cam-3" });
   });
+
+  it("throws instead of deploying a hot spare that already has a (shouldn't-happen) confirmed booking", () => {
+    const snapshot = baseSnapshot();
+    const withBookedSpare: FleetSnapshot = {
+      ...snapshot,
+      assets: snapshot.assets.map((a) => (a.id === "cam-2" ? { ...a, status: "MAINTENANCE" as const } : a)),
+      bookings: [{ id: "b1", assetId: "spare", partnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
+    };
+    expect(() => handleAssetFailure(withBookedSpare, "cam-2", NOW)).toThrow(/hot spare .* has a non-terminal booking/);
+  });
 });
