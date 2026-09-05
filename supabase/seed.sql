@@ -26,6 +26,20 @@ insert into rental_packages (product_id, name, duration_minutes, price_myr, depo
   ('40000000-0000-0000-0000-000000000002', 'Half Day', 300, 59.00, 200.00, 15.00, true),
   ('40000000-0000-0000-0000-000000000002', 'Full Day', 600, 89.00, 200.00, 15.00, true);
 
+-- Langkawi locker-network packages — sized and priced from the profitability
+-- simulation (4/5/6hr won total revenue at every demand level tested;
+-- overnight modeled as a separate, unconflicted nightly slot). Kept as
+-- distinct named rows alongside the original reception packages above
+-- rather than replacing them — pickup_method isn't wired into package
+-- selection yet, so both sets are visible to any booking flow today; the
+-- booking wizard (not yet built for lockers) will need to filter by name
+-- or a future pickup_method scoping column once that UI exists.
+insert into rental_packages (product_id, name, duration_minutes, price_myr, deposit_myr, late_fee_per_hour_myr, active) values
+  ('40000000-0000-0000-0000-000000000001', 'Locker Quick (4hr)', 240, 59.00, 300.00, 20.00, true),
+  ('40000000-0000-0000-0000-000000000001', 'Locker Standard (5hr)', 300, 66.00, 300.00, 20.00, true),
+  ('40000000-0000-0000-0000-000000000001', 'Locker Extended (6hr)', 360, 72.00, 300.00, 20.00, true),
+  ('40000000-0000-0000-0000-000000000001', 'Locker Overnight (10pm-8am)', 600, 55.00, 300.00, 20.00, true);
+
 insert into rental_assets (id, product_id, model, serial_number, partner_id, status, notes) values
   ('10000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-AP-0001', '00000000-0000-0000-0000-000000000001', 'AVAILABLE', null),
   ('10000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-AP-0002', '00000000-0000-0000-0000-000000000001', 'AVAILABLE', null),

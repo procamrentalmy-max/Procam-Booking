@@ -37,7 +37,8 @@ export function alignToNextHour(date: Date): Date {
   return aligned;
 }
 
-function findEligibleAsset(snapshot: FleetSnapshot, start: Date, end: Date): string | null {
+/** Exported for reuse by bookingGate.ts, which needs the same camera-eligibility rule for both the daytime and overnight gates. */
+export function findEligibleAsset(snapshot: FleetSnapshot, start: Date, end: Date): string | null {
   const candidates = snapshot.assets
     .filter((a) => !a.isHotSpare)
     .filter((a) => !(INELIGIBLE_STATUSES as readonly string[]).includes(a.status))
