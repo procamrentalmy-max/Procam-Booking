@@ -53,7 +53,7 @@ export type BookingStatus =
   | "CANCELLED"
   | "EXPIRED";
 
-export type PaymentKind = "RENTAL_FEE" | "LATE_FEE";
+export type PaymentKind = "RENTAL_FEE" | "LATE_FEE" | "DAMAGE_FEE";
 export type PaymentStatus = "PENDING" | "SUCCEEDED" | "FAILED" | "REFUNDED";
 export type DepositStatus = "AUTHORIZED" | "RELEASED" | "CAPTURED" | "PARTIALLY_CAPTURED" | "VOIDED" | "EXPIRED";
 

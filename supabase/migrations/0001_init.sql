@@ -71,7 +71,7 @@ create type booking_status as enum (
   'COMPLETED', 'CANCELLED', 'EXPIRED'
 );
 
-create type payment_kind as enum ('RENTAL_FEE', 'LATE_FEE');
+create type payment_kind as enum ('RENTAL_FEE', 'LATE_FEE', 'DAMAGE_FEE');
 create type payment_status as enum ('PENDING', 'SUCCEEDED', 'FAILED', 'REFUNDED');
 
 create type deposit_status as enum (
