@@ -105,16 +105,6 @@ export type PartnerRow = {
   updated_at: string;
 };
 
-export type PartnerUserRow = {
-  id: string;
-  partner_id: string;
-  auth_user_id: string;
-  name: string;
-  email: string;
-  active: boolean;
-  created_at: string;
-};
-
 export type StaffUserRow = {
   id: string;
   auth_user_id: string;
@@ -315,7 +305,6 @@ export type BatteryExchangeRow = {
   old_battery_id: string;
   new_battery_id: string;
   partner_id: string;
-  performed_by_partner_user_id: string | null;
   created_at: string;
 };
 
@@ -477,7 +466,6 @@ export interface Database {
   public: {
     Tables: {
       partners: TableDef<PartnerRow>;
-      partner_users: TableDef<PartnerUserRow>;
       staff_users: TableDef<StaffUserRow>;
       customers: TableDef<CustomerRow>;
       identity_verifications: TableDef<IdentityVerificationRow>;

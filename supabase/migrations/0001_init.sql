@@ -147,18 +147,6 @@ create table partners (
 create trigger trg_partners_updated_at before update on partners
   for each row execute function set_updated_at();
 
--- Reception accounts. One row per Supabase Auth user, scoped to one partner.
-create table partner_users (
-  id uuid primary key default gen_random_uuid(),
-  partner_id uuid not null references partners(id) on delete cascade,
-  auth_user_id uuid not null unique references auth.users(id) on delete cascade,
-  name text not null,
-  email text not null,
-  active boolean not null default true,
-  created_at timestamptz not null default now()
-);
-create index idx_partner_users_partner on partner_users(partner_id);
-
 -- ProCam field staff / admin accounts.
 create table staff_users (
   id uuid primary key default gen_random_uuid(),
@@ -530,7 +518,6 @@ create table battery_exchanges (
   old_battery_id uuid not null references batteries(id),
   new_battery_id uuid not null references batteries(id),
   partner_id uuid not null references partners(id),
-  performed_by_partner_user_id uuid references partner_users(id),
   created_at timestamptz not null default now()
 );
 create index idx_battery_exchanges_booking on battery_exchanges(booking_id);
@@ -789,22 +776,9 @@ as $$
   );
 $$;
 
-create or replace function current_reception_partner_id()
-returns uuid
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select partner_id from partner_users
-  where auth_user_id = auth.uid() and active
-  limit 1;
-$$;
-
 -- Enable RLS everywhere. No policy = no access (default deny), which is
 -- exactly what we want for customers (they never hold a Supabase session).
 alter table partners enable row level security;
-alter table partner_users enable row level security;
 alter table staff_users enable row level security;
 alter table customers enable row level security;
 alter table identity_verifications enable row level security;
@@ -840,7 +814,6 @@ alter table notifications enable row level security;
 
 -- Admins: full access to every operational table.
 create policy admin_all_partners on partners for all using (is_admin()) with check (is_admin());
-create policy admin_all_partner_users on partner_users for all using (is_admin()) with check (is_admin());
 create policy admin_all_staff_users on staff_users for all using (is_admin()) with check (is_admin());
 create policy admin_all_customers on customers for all using (is_admin()) with check (is_admin());
 create policy admin_all_identity_verifications on identity_verifications for all using (is_admin()) with check (is_admin());
@@ -909,43 +882,3 @@ create policy staff_read_commissions on commissions for select using (is_procam_
 create policy staff_insert_asset_events on asset_events for insert with check (is_procam_staff());
 create policy staff_read_asset_events on asset_events for select using (is_procam_staff());
 create policy staff_read_notifications on notifications for select using (is_procam_staff());
-
--- Reception: read-only, scoped to their own partner. No policy exists on
--- payments/deposit_authorizations/inspections/damage_cases/commissions for
--- this role, so reception has zero access to any of that — not hidden by
--- the UI, actually unreachable through the database.
-create policy reception_read_own_bookings on bookings for select
-  using (partner_id = current_reception_partner_id());
-create policy reception_read_own_rental_assets on rental_assets for select
-  using (partner_id = current_reception_partner_id());
-create policy reception_read_own_kits on kits for select
-  using (partner_id = current_reception_partner_id());
-create policy reception_read_own_kit_items on kit_items for select
-  using (exists (
-    select 1 from kits where kits.id = kit_items.kit_id
-    and kits.partner_id = current_reception_partner_id()
-  ));
-create policy reception_read_own_batteries on batteries for select
-  using (partner_id = current_reception_partner_id());
-create policy reception_read_own_battery_exchanges on battery_exchanges for select
-  using (partner_id = current_reception_partner_id());
-create policy reception_read_own_customers on customers for select
-  using (exists (
-    select 1 from bookings
-    where bookings.customer_id = customers.id
-    and bookings.partner_id = current_reception_partner_id()
-  ));
-
--- The one write reception is allowed: logging that they handed over or
--- received a pouch. Scoped to their own property's bookings, and they can
--- only ever log themselves as the actor — never impersonate STAFF/ADMIN or
--- write an entry for another property.
-create policy reception_insert_own_asset_events on asset_events for insert
-  with check (
-    actor_type = 'RECEPTION'
-    and exists (
-      select 1 from bookings
-      where bookings.id = asset_events.booking_id
-      and bookings.partner_id = current_reception_partner_id()
-    )
-  );

@@ -2,11 +2,6 @@
 -- Applied automatically by `supabase db reset`. Fixed UUIDs are used so the
 -- seed is reproducible and easy to reference while developing.
 
-insert into partners (id, name, address, commission_rate, referral_code, status) values
-  ('00000000-0000-0000-0000-000000000001', 'ABC Beach Hostel', 'Pantai Cenang, Langkawi', 0.20, 'ABC123', 'ACTIVE'),
-  ('00000000-0000-0000-0000-000000000002', 'Sunset Bay Resort', 'Batu Ferringhi, Penang', 0.20, 'SBR456', 'ACTIVE'),
-  ('00000000-0000-0000-0000-000000000003', 'Perhentian Backpackers', 'Pulau Perhentian, Terengganu', 0.20, 'PHB789', 'ACTIVE');
-
 -- Langkawi self-service locker network (Phase 1 of the locker/routing
 -- rebuild) — three locations the roaming worker services, ~10-15 min apart.
 insert into partners (id, name, address, commission_rate, referral_code, status, pickup_method) values
@@ -18,66 +13,26 @@ insert into rental_products (id, slug, internal_name, customer_facing_name, tagl
   ('40000000-0000-0000-0000-000000000001', 'insta360-adventure-camera', 'Insta360 Adventure Camera', 'Insta360 Adventure Camera', 'Capture your whole adventure.', 'CAM', true, false),
   ('40000000-0000-0000-0000-000000000002', 'sealife-sportdiver-ultra', 'SeaLife SportDiver Ultra', 'Underwater Phone Camera', 'Use your own phone underwater.', 'SDU', false, true);
 
+-- Original reception-model packages — kept as inactive historical rows
+-- rather than deleted (no bookings ever referenced them). Reception is
+-- fully removed; every booking is a locker booking now, priced below.
 insert into rental_packages (product_id, name, duration_minutes, price_myr, deposit_myr, late_fee_per_hour_myr, active) values
-  ('40000000-0000-0000-0000-000000000001', '4 Hours', 240, 49.00, 300.00, 20.00, true),
-  ('40000000-0000-0000-0000-000000000001', 'Day Pass (10 Hours)', 600, 79.00, 300.00, 20.00, true),
-  ('40000000-0000-0000-0000-000000000001', '24 Hours', 1440, 99.00, 300.00, 20.00, true),
-  ('40000000-0000-0000-0000-000000000002', 'Snorkel Session', 120, 39.00, 200.00, 15.00, true),
-  ('40000000-0000-0000-0000-000000000002', 'Half Day', 300, 59.00, 200.00, 15.00, true),
-  ('40000000-0000-0000-0000-000000000002', 'Full Day', 600, 89.00, 200.00, 15.00, true);
+  ('40000000-0000-0000-0000-000000000001', '4 Hours', 240, 49.00, 300.00, 20.00, false),
+  ('40000000-0000-0000-0000-000000000001', 'Day Pass (10 Hours)', 600, 79.00, 300.00, 20.00, false),
+  ('40000000-0000-0000-0000-000000000001', '24 Hours', 1440, 99.00, 300.00, 20.00, false),
+  ('40000000-0000-0000-0000-000000000002', 'Snorkel Session', 120, 39.00, 200.00, 15.00, false),
+  ('40000000-0000-0000-0000-000000000002', 'Half Day', 300, 59.00, 200.00, 15.00, false),
+  ('40000000-0000-0000-0000-000000000002', 'Full Day', 600, 89.00, 200.00, 15.00, false);
 
 -- Langkawi locker-network packages — sized and priced from the profitability
 -- simulation (4/5/6hr won total revenue at every demand level tested;
--- overnight modeled as a separate, unconflicted nightly slot). Kept as
--- distinct named rows alongside the original reception packages above
--- rather than replacing them — pickup_method isn't wired into package
--- selection yet, so both sets are visible to any booking flow today; the
--- booking wizard (not yet built for lockers) will need to filter by name
--- or a future pickup_method scoping column once that UI exists.
+-- overnight modeled as a separate, unconflicted nightly slot). The only
+-- active packages in the system now.
 insert into rental_packages (product_id, name, duration_minutes, price_myr, deposit_myr, late_fee_per_hour_myr, active) values
   ('40000000-0000-0000-0000-000000000001', 'Locker Quick (4hr)', 240, 59.00, 300.00, 20.00, true),
   ('40000000-0000-0000-0000-000000000001', 'Locker Standard (5hr)', 300, 66.00, 300.00, 20.00, true),
   ('40000000-0000-0000-0000-000000000001', 'Locker Extended (6hr)', 360, 72.00, 300.00, 20.00, true),
   ('40000000-0000-0000-0000-000000000001', 'Locker Overnight (10pm-8am)', 600, 55.00, 300.00, 20.00, true);
-
-insert into rental_assets (id, product_id, model, serial_number, partner_id, status, notes) values
-  ('10000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-AP-0001', '00000000-0000-0000-0000-000000000001', 'AVAILABLE', null),
-  ('10000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-AP-0002', '00000000-0000-0000-0000-000000000001', 'AVAILABLE', null),
-  ('10000000-0000-0000-0000-000000000003', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-AP-0003', '00000000-0000-0000-0000-000000000002', 'AVAILABLE', null),
-  ('10000000-0000-0000-0000-000000000004', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-AP-0004', '00000000-0000-0000-0000-000000000002', 'AVAILABLE', null),
-  ('10000000-0000-0000-0000-000000000005', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-AP-0005', '00000000-0000-0000-0000-000000000003', 'AVAILABLE', null),
-  ('10000000-0000-0000-0000-000000000006', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-AP-0006', '00000000-0000-0000-0000-000000000003', 'AVAILABLE', null),
-  -- ProCam backup fleet, unassigned to any property.
-  ('10000000-0000-0000-0000-000000000007', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-AP-0007', null, 'MAINTENANCE', 'Backup unit'),
-  ('10000000-0000-0000-0000-000000000008', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-AP-0008', null, 'MAINTENANCE', 'Backup unit'),
-  -- SeaLife SportDiver Ultra — smaller initial deployment, one per property.
-  ('11000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000002', 'SeaLife SportDiver Ultra', 'SN-SDU-0001', '00000000-0000-0000-0000-000000000001', 'AVAILABLE', null),
-  ('11000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000002', 'SeaLife SportDiver Ultra', 'SN-SDU-0002', '00000000-0000-0000-0000-000000000002', 'AVAILABLE', null),
-  ('11000000-0000-0000-0000-000000000003', '40000000-0000-0000-0000-000000000002', 'SeaLife SportDiver Ultra', 'SN-SDU-0003', '00000000-0000-0000-0000-000000000003', 'AVAILABLE', null),
-  ('11000000-0000-0000-0000-000000000004', '40000000-0000-0000-0000-000000000002', 'SeaLife SportDiver Ultra', 'SN-SDU-0004', null, 'MAINTENANCE', 'Backup unit');
-
-insert into kits (id, product_id, partner_id, status) values
-  ('20000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'AVAILABLE'),
-  ('20000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'AVAILABLE'),
-  ('20000000-0000-0000-0000-000000000003', '40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', 'AVAILABLE'),
-  ('20000000-0000-0000-0000-000000000004', '40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', 'AVAILABLE'),
-  ('20000000-0000-0000-0000-000000000005', '40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000003', 'AVAILABLE'),
-  ('20000000-0000-0000-0000-000000000006', '40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000003', 'AVAILABLE'),
-  ('21000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001', 'AVAILABLE'),
-  ('21000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000002', 'AVAILABLE'),
-  ('21000000-0000-0000-0000-000000000003', '40000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000003', 'AVAILABLE');
-
-insert into kit_items (kit_id, item_name)
-select k.id, item
-from kits k
-cross join (values ('Selfie Stick'), ('Wrist Strap'), ('Protective Case'), ('USB-C Charging Cable')) as items(item)
-where k.partner_id is not null and k.product_id = '40000000-0000-0000-0000-000000000001';
-
-insert into kit_items (kit_id, item_name)
-select k.id, item
-from kits k
-cross join (values ('Wrist Tether'), ('Microfiber Cloth'), ('Silica Gel Pack')) as items(item)
-where k.partner_id is not null and k.product_id = '40000000-0000-0000-0000-000000000002';
 
 -- Check templates: what the customer/staff has to check at each phase, per
 -- product. Replaces what used to be one hardcoded photo/checklist set.
@@ -148,7 +103,7 @@ insert into product_instructions (product_id, step_number, title, body) values
   ('40000000-0000-0000-0000-000000000001', 3, 'Switch Mode', 'Swipe on the screen to switch between video, photo, and 360 mode.'),
   ('40000000-0000-0000-0000-000000000001', 4, '360 Recording', 'Select the 360 icon, then record as normal — reframe the shot later in the app.'),
   ('40000000-0000-0000-0000-000000000001', 5, 'Waterproof Limits', 'Safe underwater up to 10m without the extra dive case. Rinse with fresh water after any saltwater use.'),
-  ('40000000-0000-0000-0000-000000000001', 6, 'Battery', 'Low battery? Ask reception for a battery exchange — no charging needed on your end.'),
+  ('40000000-0000-0000-0000-000000000001', 6, 'Battery', 'Low battery? Message ProCam support from your booking page — mid-rental battery swaps aren''t available yet for locker rentals.'),
   ('40000000-0000-0000-0000-000000000001', 7, 'Protect the Lenses', 'Always use the lens cap when not filming, and avoid touching the glass directly.'),
   ('40000000-0000-0000-0000-000000000001', 8, 'Need Help?', 'Message ProCam support from your booking page any time during your rental.'),
   ('40000000-0000-0000-0000-000000000002', 1, 'Confirm Your Phone', 'Double-check the phone model you registered matches what''s in your hand.'),
@@ -170,14 +125,6 @@ insert into product_instructions (product_id, step_number, title, body) values
 insert into product_terms_versions (product_id, version, body) values
   ('40000000-0000-0000-0000-000000000001', 1, 'You are responsible for the Insta360 camera and kit from pickup until ProCam staff inspect and pass its return. The security deposit is held until that inspection is complete and may be captured to cover loss or damage found at inspection.'),
   ('40000000-0000-0000-0000-000000000002', 1, 'You are responsible for the SeaLife SportDiver Ultra housing and kit from pickup until ProCam staff inspect and pass its return. The housing protects your own phone; ProCam is not responsible for water damage to your phone if the housing was not sealed correctly, including if the guided seal test was skipped or its result ignored. The security deposit covers the ProCam-owned housing and kit only, never your phone, and is held until inspection is complete.');
-
-insert into batteries (id, partner_id, status) values
-  ('30000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'CHARGED'),
-  ('30000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001', 'CHARGED'),
-  ('30000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000002', 'CHARGED'),
-  ('30000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000002', 'CHARGED'),
-  ('30000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000003', 'CHARGED'),
-  ('30000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000003', 'CHARGED');
 
 -- ============================================================================
 -- LANGKAWI LOCKER NETWORK — pooled fleet + worker routing (Phase 1)

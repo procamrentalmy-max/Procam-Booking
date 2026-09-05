@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED_PREFIXES = ["/admin", "/staff", "/reception", "/post-login"];
+const PROTECTED_PREFIXES = ["/admin", "/staff", "/post-login"];
 
 /**
  * Refreshes the Supabase auth cookie on every request and gates the

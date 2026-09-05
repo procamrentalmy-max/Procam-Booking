@@ -32,10 +32,8 @@ export async function submitPreRentalConditionCheckAction(formData: FormData) {
   // CONFIRMED is allowed too: a booking scheduled ahead only gets its
   // asset catch-up-promoted to READY_FOR_PICKUP by the housekeeping cron
   // as its start time approaches (see lib/booking/confirm.ts), which can
-  // lag a guest showing up early. Reception can still physically hand over
-  // the pouch (they look the booking up by code, not by asset status —
-  // see app/reception/pickup/actions.ts), so the customer shouldn't be
-  // blocked from their own condition check either.
+  // lag a guest showing up early — the customer shouldn't be blocked from
+  // their own condition check just because that promotion hasn't run yet.
   if (booking.status === "CONFIRMED") {
     await promoteBookingToReadyForPickup(booking.id);
   } else if (booking.status !== "READY_FOR_PICKUP") {

@@ -11,10 +11,15 @@ import type { BookingStatus } from "@/lib/db/types";
 /**
  * Completes the return condition check (spec section 14) using the
  * booking's product's RETURN check_templates. Moves the booking ACTIVE ->
- * RETURN_STARTED — asset status does NOT change here. It only becomes
- * RETURNED_AWAITING_INSPECTION once reception physically confirms receipt
- * (app/reception/return/actions.ts); the deposit stays held throughout,
- * regardless of what the customer declares here.
+ * RETURN_STARTED — asset status does NOT change here; the deposit stays
+ * held throughout, regardless of what the customer declares here.
+ *
+ * What actually flips the asset to RETURNED_AWAITING_INSPECTION isn't
+ * wired up yet for the locker model (reception used to do this manually;
+ * there's no reception anymore). The locker/routing engine's collection
+ * logic (lib/locker-engine/collection.ts) already assumes an asset in
+ * that status is what the worker picks up, but nothing currently sets it
+ * — that's part of the not-yet-built locker return flow.
  */
 export async function submitReturnConditionCheckAction(formData: FormData) {
   const token = z.string().min(1).parse(formData.get("token"));
