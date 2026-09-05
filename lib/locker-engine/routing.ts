@@ -95,7 +95,13 @@ export type RoutePlan = {
  *    delays a confirmed-booking dropoff.
  * 3. Once every dropoff is handled, service whatever raw returns have
  *    piled up in the van — they become spare inventory for the next cycle.
- * 4. Visit any remaining pickup-only locations.
+ * 4. Visit any remaining location with a genuine uncollected return — a
+ *    location with ONLY surplus AVAILABLE cameras (fine sitting exactly
+ *    where they are, just not needed there soon) is never a reason on its
+ *    own to send the worker somewhere; only a real, uncollected return
+ *    counts (see returnOnlySpots()). Otherwise a day with zero bookings
+ *    would route the worker to strip every deployed camera from every
+ *    location for no operational reason — a real bug this fixes.
  *
  * Every physical camera can be moved at most once per plan — `movedAssetIds`
  * is the single source of truth for that, so a location visited for more
@@ -127,6 +133,28 @@ export function planRoute(
 
   function supplySpots(): string[] {
     return snapshot.locations.map((l) => l.partnerId).filter((id) => collectibleAt(id).length > 0);
+  }
+
+  /**
+   * Narrower than supplySpots(): a location with only surplus AVAILABLE
+   * cameras (not needed soon, but otherwise fine sitting exactly where
+   * they are) is NOT a reason on its own to send the worker there — that
+   * would mean routing the worker to strip every deployed camera from
+   * every location on a day with zero bookings, which is what happened
+   * before this existed. A genuine, uncollected return is a real
+   * operational need (it has to come in for inspection) and DOES justify
+   * a special trip; supplySpots() (surplus included) still applies once
+   * some OTHER need already justifies being there — via the top-up phase
+   * below, or by riding along at a stop already justified some other way.
+   */
+  function hasUncollectedReturn(partnerId: string): boolean {
+    return snapshot.assets.some(
+      (a) => a.partnerId === partnerId && a.status === "RETURNED_AWAITING_INSPECTION" && !movedAssetIds.has(a.id)
+    );
+  }
+
+  function returnOnlySpots(): string[] {
+    return snapshot.locations.map((l) => l.partnerId).filter((id) => hasUncollectedReturn(id));
   }
 
   const readyInventory: string[] = snapshot.assets
@@ -172,7 +200,7 @@ export function planRoute(
     return [...remainingDropoffs.values()].reduce((sum, n) => sum + n, 0);
   }
 
-  while (remainingDropoffs.size > 0 || supplySpots().length > 0) {
+  while (remainingDropoffs.size > 0 || returnOnlySpots().length > 0) {
     const needMoreSupply = readyInventory.length < totalRemainingShortfall();
     const unvisitedSupply = supplySpots();
 
@@ -202,9 +230,13 @@ export function planRoute(
       continue;
     }
 
-    // No dropoffs left: service what's piled up, then mop up pickup-only spots.
-    if (unvisitedSupply.length > 0) {
-      const next = nearest(snapshot, currentLocation, unvisitedSupply);
+    // No dropoffs left: mop up locations with a genuine uncollected return
+    // (surplus-available-only locations are never a reason to visit on
+    // their own — see returnOnlySpots()). Anything else collectible at
+    // the same stop rides along via doPickup, same as any other visit.
+    const unvisitedReturns = returnOnlySpots();
+    if (unvisitedReturns.length > 0) {
+      const next = nearest(snapshot, currentLocation, unvisitedReturns);
       if (!next) break;
       doPickup(next);
       serviceRawInventory(next);

@@ -40,6 +40,13 @@ export default async function StaffDashboard() {
 
   return (
     <div className="space-y-4 pb-8 pt-4">
+      <Link
+        href="/staff/route"
+        className="flex h-12 items-center justify-center rounded-full bg-black text-sm font-semibold text-white dark:bg-white dark:text-black"
+      >
+        My Next Stop
+      </Link>
+
       <Section title="Today's Pickups & Upcoming Bookings">
         {upcomingBookings?.length ? (
           <ul className="space-y-1 text-sm">

@@ -205,4 +205,38 @@ describe("planRoute", () => {
     expect(stop.actions).toContainEqual({ type: "DROPOFF", assetIds: ["returned-1"] });
     expect(plan.unmetDropoffs).toEqual([]);
   });
+
+  it("does nothing when there are zero bookings anywhere — surplus available cameras are not a reason to visit a spot on their own", () => {
+    // Confirmed real bug: before this was fixed, a fleet with no bookings
+    // at all still produced a full route stripping every camera from
+    // every location, since selectCamerasForCollection's "not needed
+    // soon" rule is true for literally everything when nothing is booked.
+    const snapshot: FleetSnapshot = {
+      ...baseSnapshot(),
+      assets: [
+        { id: "cam-1", humanId: "CAM-001", isHotSpare: false, partnerId: "loc-a", status: "AVAILABLE" },
+        { id: "cam-2", humanId: "CAM-002", isHotSpare: false, partnerId: "loc-b", status: "AVAILABLE" },
+        { id: "cam-3", humanId: "CAM-003", isHotSpare: false, partnerId: "loc-c", status: "AVAILABLE" },
+      ],
+    };
+    const plan = planRoute(snapshot, NOW);
+    expect(plan.stops).toEqual([]);
+    expect(plan.unmetDropoffs).toEqual([]);
+  });
+
+  it("still visits a location with a genuine uncollected return even with zero dropoff needs anywhere", () => {
+    const snapshot: FleetSnapshot = {
+      ...baseSnapshot(),
+      assets: [
+        { id: "cam-1", humanId: "CAM-001", isHotSpare: false, partnerId: "loc-a", status: "AVAILABLE" },
+        { id: "returned-1", humanId: "CAM-050", isHotSpare: false, partnerId: "loc-b", status: "RETURNED_AWAITING_INSPECTION" },
+      ],
+    };
+    const plan = planRoute(snapshot, NOW);
+    expect(plan.stops.map((s) => s.partnerId)).toEqual(["loc-b"]);
+    const stop = plan.stops[0];
+    expect(stop.actions.some((a) => a.type === "PICKUP" && a.assetIds.includes("returned-1"))).toBe(true);
+    // The surplus AVAILABLE camera at loc-a is never touched — no reason to visit loc-a at all.
+    expect(plan.stops.some((s) => s.partnerId === "loc-a")).toBe(false);
+  });
 });
