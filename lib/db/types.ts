@@ -53,7 +53,7 @@ export type BookingStatus =
   | "CANCELLED"
   | "EXPIRED";
 
-export type PaymentKind = "RENTAL_FEE";
+export type PaymentKind = "RENTAL_FEE" | "LATE_FEE";
 export type PaymentStatus = "PENDING" | "SUCCEEDED" | "FAILED" | "REFUNDED";
 export type DepositStatus = "AUTHORIZED" | "RELEASED" | "CAPTURED" | "PARTIALLY_CAPTURED" | "VOIDED" | "EXPIRED";
 
@@ -294,6 +294,7 @@ export type BookingRow = {
   end_time: string;
   actual_pickup_time: string | null;
   actual_return_time: string | null;
+  late_fee_myr: number;
   source: BookingSource;
   referral_code: string | null;
   created_at: string;

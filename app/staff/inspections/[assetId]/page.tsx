@@ -22,7 +22,7 @@ export default async function InspectionDetailPage({ params }: { params: Promise
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("id,human_id")
+    .select("id,human_id,late_fee_myr")
     .eq("asset_id", assetId)
     .eq("status", "AWAITING_INSPECTION")
     .order("created_at", { ascending: false })
@@ -108,6 +108,7 @@ export default async function InspectionDetailPage({ params }: { params: Promise
       checklistItems={(checklistTemplates ?? []).map((t) => ({ key: t.item_key, label: t.label }))}
       damageReported={returnCheck?.damage_reported ?? false}
       damageDescription={returnCheck?.damage_description ?? null}
+      lateFeeMyr={booking.late_fee_myr}
     />
   );
 }

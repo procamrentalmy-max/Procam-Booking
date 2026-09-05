@@ -11,10 +11,12 @@ export function ReturnCheckForm({
   token,
   photoSteps,
   ackSteps,
+  estimatedLateFeeMyr,
 }: {
   token: string;
   photoSteps: PhotoStep[];
   ackSteps: AckStep[];
+  estimatedLateFeeMyr: number;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(0); // 0..photoSteps.length-1 photos, then acks (if any), then damage declaration
@@ -74,6 +76,13 @@ export function ReturnCheckForm({
           {currentPhotoStep ? currentPhotoStep.label : isAckStep ? "Confirm" : "Any Issues?"}
         </h1>
       </div>
+
+      {estimatedLateFeeMyr > 0 && (
+        <p className="rounded-lg bg-amber-50 px-4 py-2 text-center text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+          This return is overdue — a late fee of at least RM{estimatedLateFeeMyr.toFixed(2)} will be deducted from
+          your deposit.
+        </p>
+      )}
 
       {error && <p className="text-center text-sm text-red-600">{error}</p>}
 

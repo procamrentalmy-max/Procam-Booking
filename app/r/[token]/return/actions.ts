@@ -5,6 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { uploadConditionPhoto, conditionPhotoPath } from "@/lib/storage";
 import { assertValidBookingTransition } from "@/lib/state-machine/booking";
 import { getCheckTemplates, getBookingProductId } from "@/lib/booking/checkTemplates";
+import { computeLateFeeMyr } from "@/lib/booking/lateFee";
 import { logAudit } from "@/lib/audit";
 import type { BookingStatus } from "@/lib/db/types";
 
@@ -23,6 +24,11 @@ import type { BookingStatus } from "@/lib/db/types";
  * deliberately doesn't have (spec section 1: no electronics, no API).
  * The deposit is unaffected either way: it stays held until staff
  * inspection regardless of what the customer declares here.
+ *
+ * Also fixes late_fee_myr on the booking from this exact moment's
+ * timestamp — the fee reflects when the customer actually says they
+ * returned it, not whenever staff later gets around to inspecting it.
+ * It's only settled (captured out of the deposit hold) at inspection time.
  */
 export async function submitReturnConditionCheckAction(formData: FormData) {
   const token = z.string().min(1).parse(formData.get("token"));
@@ -33,7 +39,7 @@ export async function submitReturnConditionCheckAction(formData: FormData) {
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("id,status,asset_id,rental_package_id")
+    .select("id,status,asset_id,rental_package_id,end_time")
     .eq("secure_token", token)
     .maybeSingle();
   if (!booking) throw new Error("Booking not found.");
@@ -96,9 +102,19 @@ export async function submitReturnConditionCheckAction(formData: FormData) {
   assertValidBookingTransition(booking.status as BookingStatus, "RETURN_STARTED");
   assertValidBookingTransition("RETURN_STARTED", "AWAITING_INSPECTION");
 
+  const { data: pkg } = await supabase
+    .from("rental_packages")
+    .select("late_fee_per_hour_myr")
+    .eq("id", booking.rental_package_id)
+    .single();
+  const actualReturnTime = new Date();
+  const lateFeeMyr = pkg
+    ? computeLateFeeMyr(new Date(booking.end_time), actualReturnTime, pkg.late_fee_per_hour_myr)
+    : 0;
+
   const { error: bookingError } = await supabase
     .from("bookings")
-    .update({ status: "AWAITING_INSPECTION", actual_return_time: new Date().toISOString() })
+    .update({ status: "AWAITING_INSPECTION", actual_return_time: actualReturnTime.toISOString(), late_fee_myr: lateFeeMyr })
     .eq("id", booking.id);
   if (bookingError) throw new Error(bookingError.message);
 

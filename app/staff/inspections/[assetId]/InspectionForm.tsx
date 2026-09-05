@@ -45,6 +45,7 @@ export function InspectionForm({
   checklistItems,
   damageReported,
   damageDescription,
+  lateFeeMyr,
 }: {
   assetId: string;
   assetHumanId: string;
@@ -56,6 +57,7 @@ export function InspectionForm({
   checklistItems: ChecklistItem[];
   damageReported: boolean;
   damageDescription: string | null;
+  lateFeeMyr: number;
 }) {
   const router = useRouter();
   const damageCategories = productSlug.includes("sealife") ? SEALIFE_DAMAGE_CATEGORIES : CAMERA_DAMAGE_CATEGORIES;
@@ -117,6 +119,12 @@ export function InspectionForm({
       {damageReported && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-200">
           Customer reported an issue on return: {damageDescription}
+        </div>
+      )}
+
+      {lateFeeMyr > 0 && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+          This booking was returned late — RM{lateFeeMyr.toFixed(2)} will be captured from the deposit on Pass.
         </div>
       )}
 

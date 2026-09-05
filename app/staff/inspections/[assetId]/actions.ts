@@ -5,7 +5,7 @@ import { z } from "zod";
 import { uuidSchema } from "@/lib/zod-helpers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAuthContext, hasStaffAccess } from "@/lib/auth/session";
-import { getStripe } from "@/lib/stripe/client";
+import { getStripe, toCents } from "@/lib/stripe/client";
 import { assertValidBookingTransition } from "@/lib/state-machine/booking";
 import { logAudit } from "@/lib/audit";
 import type { BookingStatus, DamageCategory } from "@/lib/db/types";
@@ -18,11 +18,14 @@ const baseSchema = z.object({
 });
 
 /**
- * PASS: releases the deposit hold, accrues the partner's commission on the
- * rental fee only (never on the deposit — spec section 2/22), and moves the
- * asset back into the fleet via CLEANING -> CHARGING -> AVAILABLE. Staff
- * can never do the DAMAGE side of this without an admin later — but PASS
- * itself is a normal staff decision, no admin step required.
+ * PASS: settles the deposit hold — captures whatever late fee accrued at
+ * return time (capped at the deposit amount) and releases the rest, or
+ * releases it in full if the booking wasn't late — accrues the partner's
+ * commission on the rental fee only (never on the deposit or the late fee
+ * — spec section 2/22), and moves the asset back into the fleet via
+ * CLEANING -> CHARGING -> AVAILABLE. Staff can never do the DAMAGE side of
+ * this without an admin later — but PASS itself is a normal staff
+ * decision, no admin step required.
  */
 export async function passInspectionAction(formData: FormData) {
   const ctx = await getAuthContext();
@@ -39,7 +42,7 @@ export async function passInspectionAction(formData: FormData) {
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("status,partner_id")
+    .select("status,partner_id,late_fee_myr")
     .eq("id", parsed.bookingId)
     .single();
   if (!booking) throw new Error("Booking not found.");
@@ -84,18 +87,53 @@ export async function passInspectionAction(formData: FormData) {
     after: { result: "PASS" },
   });
 
-  // Release the deposit hold.
+  // Resolve the deposit hold — capped by whatever late fee accrued at
+  // return time (see lib/booking/lateFee.ts). A late fee is the only
+  // charge this system ever settles out of the deposit automatically;
+  // damage-related capture is a separate, admin-only decision (not built
+  // in this pass) and untouched here.
   const { data: deposit } = await supabase
     .from("deposit_authorizations")
-    .select("id,provider_ref,status")
+    .select("id,provider_ref,status,amount_myr")
     .eq("booking_id", parsed.bookingId)
     .maybeSingle();
   if (deposit && deposit.status === "AUTHORIZED") {
-    await getStripe().paymentIntents.cancel(deposit.provider_ref);
-    await supabase
-      .from("deposit_authorizations")
-      .update({ status: "RELEASED", resolved_at: new Date().toISOString(), resolved_by: ctx.staffId })
-      .eq("id", deposit.id);
+    const lateFeeMyr = Math.min(booking.late_fee_myr, deposit.amount_myr);
+    const stripe = getStripe();
+
+    if (lateFeeMyr > 0) {
+      await stripe.paymentIntents.capture(deposit.provider_ref, { amount_to_capture: toCents(lateFeeMyr) });
+      await supabase.from("payments").insert({
+        booking_id: parsed.bookingId,
+        kind: "LATE_FEE",
+        provider: "stripe",
+        provider_ref: deposit.provider_ref,
+        amount_myr: lateFeeMyr,
+        status: "SUCCEEDED",
+      });
+      await supabase
+        .from("deposit_authorizations")
+        .update({
+          status: lateFeeMyr >= deposit.amount_myr ? "CAPTURED" : "PARTIALLY_CAPTURED",
+          resolved_at: new Date().toISOString(),
+          resolved_by: ctx.staffId,
+        })
+        .eq("id", deposit.id);
+      await logAudit({
+        actorType: ctx.kind === "admin" ? "ADMIN" : "STAFF",
+        actorId: ctx.staffId,
+        action: "LATE_FEE_CAPTURED",
+        entityType: "booking",
+        entityId: parsed.bookingId,
+        after: { lateFeeMyr },
+      });
+    } else {
+      await stripe.paymentIntents.cancel(deposit.provider_ref);
+      await supabase
+        .from("deposit_authorizations")
+        .update({ status: "RELEASED", resolved_at: new Date().toISOString(), resolved_by: ctx.staffId })
+        .eq("id", deposit.id);
+    }
   }
 
   // Accrue the partner's commission — rental fee only, never the deposit.

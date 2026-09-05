@@ -71,7 +71,7 @@ create type booking_status as enum (
   'COMPLETED', 'CANCELLED', 'EXPIRED'
 );
 
-create type payment_kind as enum ('RENTAL_FEE');
+create type payment_kind as enum ('RENTAL_FEE', 'LATE_FEE');
 create type payment_status as enum ('PENDING', 'SUCCEEDED', 'FAILED', 'REFUNDED');
 
 create type deposit_status as enum (
@@ -490,6 +490,11 @@ create table bookings (
   end_time timestamptz not null,
   actual_pickup_time timestamptz,
   actual_return_time timestamptz,
+  -- Computed once, at the moment actual_return_time is set (rental_package's
+  -- late_fee_per_hour_myr x hours late, rounded up) — a fixed fact about
+  -- that return, not recomputed later. Settled out of the deposit hold at
+  -- staff inspection time; there is no other charge mechanism for it.
+  late_fee_myr numeric(10, 2) not null default 0 check (late_fee_myr >= 0),
 
   source booking_source not null default 'PARTNER_QR',
   referral_code text,
