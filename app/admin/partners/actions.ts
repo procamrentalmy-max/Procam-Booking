@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuidSchema } from "@/lib/zod-helpers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const createPartnerSchema = z.object({
@@ -39,7 +40,7 @@ export async function createPartnerAction(formData: FormData) {
 }
 
 const updatePartnerSchema = z.object({
-  id: z.string().uuid(),
+  id: uuidSchema,
   commissionRate: z.coerce.number().min(0).max(1),
   status: z.enum(["ACTIVE", "INACTIVE"]),
 });

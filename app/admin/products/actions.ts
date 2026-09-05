@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuidSchema } from "@/lib/zod-helpers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const createProductSchema = z.object({
@@ -49,7 +50,7 @@ export async function createProductAction(formData: FormData) {
 }
 
 const updateProductSchema = z.object({
-  id: z.string().uuid(),
+  id: uuidSchema,
   customerFacingName: z.string().min(1),
   tagline: z.string().optional(),
   usesBatteries: z.coerce.boolean(),

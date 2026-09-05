@@ -28,11 +28,11 @@ insert into rental_packages (product_id, name, duration_minutes, price_myr, depo
 -- simulation (4/5/6hr won total revenue at every demand level tested;
 -- overnight modeled as a separate, unconflicted nightly slot). The only
 -- active packages in the system now.
-insert into rental_packages (product_id, name, duration_minutes, price_myr, deposit_myr, late_fee_per_hour_myr, active) values
-  ('40000000-0000-0000-0000-000000000001', 'Locker Quick (4hr)', 240, 59.00, 300.00, 20.00, true),
-  ('40000000-0000-0000-0000-000000000001', 'Locker Standard (5hr)', 300, 66.00, 300.00, 20.00, true),
-  ('40000000-0000-0000-0000-000000000001', 'Locker Extended (6hr)', 360, 72.00, 300.00, 20.00, true),
-  ('40000000-0000-0000-0000-000000000001', 'Locker Overnight (10pm-8am)', 600, 55.00, 300.00, 20.00, true);
+insert into rental_packages (product_id, name, duration_minutes, price_myr, deposit_myr, late_fee_per_hour_myr, active, is_overnight) values
+  ('40000000-0000-0000-0000-000000000001', 'Locker Quick (4hr)', 240, 59.00, 300.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000001', 'Locker Standard (5hr)', 300, 66.00, 300.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000001', 'Locker Extended (6hr)', 360, 72.00, 300.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000001', 'Locker Overnight (10pm-8am)', 600, 55.00, 300.00, 20.00, true, true);
 
 -- Check templates: what the customer/staff has to check at each phase, per
 -- product. Replaces what used to be one hardcoded photo/checklist set.

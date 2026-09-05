@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuidSchema } from "@/lib/zod-helpers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAuthContext, hasStaffAccess } from "@/lib/auth/session";
 import { getStripe } from "@/lib/stripe/client";
@@ -10,8 +11,8 @@ import { logAudit } from "@/lib/audit";
 import type { BookingStatus, DamageCategory } from "@/lib/db/types";
 
 const baseSchema = z.object({
-  assetId: z.string().uuid(),
-  bookingId: z.string().uuid(),
+  assetId: uuidSchema,
+  bookingId: uuidSchema,
   checklist: z.string(), // JSON-encoded Record<string, boolean>
   notes: z.string().optional(),
 });

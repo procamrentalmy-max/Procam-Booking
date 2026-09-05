@@ -1,16 +1,17 @@
 "use server";
 
 import { z } from "zod";
+import { uuidSchema } from "@/lib/zod-helpers";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getNotificationProvider } from "@/lib/notifications";
 import { generateOtpCode, hashOtpCode, otpCodeMatches, OTP_TTL_MINUTES, OTP_MAX_ATTEMPTS } from "@/lib/otp";
-import { createPendingBooking, NoAssetAvailableError, InvalidStartTimeError } from "@/lib/booking/create";
+import { createPendingLockerBooking, NoAssetAvailableError, InvalidBookingRequestError } from "@/lib/booking/createLockerBooking";
 import { isPhoneCompatible } from "@/lib/booking/phone-compatibility";
 import { recordBookingAcknowledgement } from "@/lib/booking/terms";
 import { bookingDashboardUrl } from "@/lib/urls";
 
 const phoneCompatibilitySchema = z.object({
-  productId: z.string().uuid(),
+  productId: uuidSchema,
   manufacturer: z.string().min(1, "Select a manufacturer"),
   model: z.string().min(1, "Enter a model"),
   variant: z.string().optional(),
@@ -76,7 +77,7 @@ export async function startVerificationAction(input: { name: string; phone: stri
 }
 
 const verifySchema = z.object({
-  verificationId: z.string().uuid(),
+  verificationId: uuidSchema,
   code: z.string().length(6, "Enter the 6-digit code"),
 });
 
@@ -113,13 +114,13 @@ export async function verifyOtpAction(input: { verificationId: string; code: str
 }
 
 const createBookingSchema = z.object({
-  customerId: z.string().uuid(),
-  verificationId: z.string().uuid(),
-  partnerId: z.string().uuid(),
-  rentalPackageId: z.string().uuid(),
+  customerId: uuidSchema,
+  verificationId: uuidSchema,
+  partnerId: uuidSchema,
+  rentalPackageId: uuidSchema,
   referralCode: z.string().nullable(),
   startTime: z.string().min(1),
-  termsVersionId: z.string().uuid().nullable(),
+  termsVersionId: uuidSchema.nullable(),
 });
 
 export async function createBookingAction(input: {
@@ -148,11 +149,11 @@ export async function createBookingAction(input: {
   if (Number.isNaN(startTime.getTime())) throw new Error("Please choose a valid date and time.");
 
   try {
-    const booking = await createPendingBooking({
+    const booking = await createPendingLockerBooking({
       customerId: parsed.customerId,
       partnerId: parsed.partnerId,
       rentalPackageId: parsed.rentalPackageId,
-      startTime,
+      earliestStartTime: startTime,
       source: "PARTNER_QR",
       referralCode: parsed.referralCode,
     });
@@ -165,9 +166,16 @@ export async function createBookingAction(input: {
       );
     }
 
-    return { secureToken: booking.secure_token as string, dashboardUrl: bookingDashboardUrl(booking.secure_token) };
+    return {
+      secureToken: booking.secure_token as string,
+      dashboardUrl: bookingDashboardUrl(booking.secure_token),
+      // The engine may have assigned a later slot than requested — the
+      // wizard shows this so the customer isn't surprised on the next page.
+      startTime: booking.start_time as string,
+      endTime: booking.end_time as string,
+    };
   } catch (err) {
-    if (err instanceof NoAssetAvailableError || err instanceof InvalidStartTimeError) throw new Error(err.message);
+    if (err instanceof NoAssetAvailableError || err instanceof InvalidBookingRequestError) throw new Error(err.message);
     throw err;
   }
 }

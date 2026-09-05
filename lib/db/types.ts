@@ -198,6 +198,7 @@ export type RentalPackageRow = {
   deposit_myr: number;
   late_fee_per_hour_myr: number;
   active: boolean;
+  is_overnight: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -286,7 +287,7 @@ export type BookingRow = {
   partner_id: string;
   rental_package_id: string;
   asset_id: string;
-  kit_id: string;
+  kit_id: string | null;
   battery_id: string | null;
   status: BookingStatus;
   start_time: string;

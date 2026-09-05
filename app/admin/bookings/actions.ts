@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
+import { uuidSchema } from "@/lib/zod-helpers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { assertValidBookingTransition } from "@/lib/state-machine/booking";
 import { logAudit } from "@/lib/audit";
@@ -20,7 +20,7 @@ import type { BookingStatus } from "@/lib/db/types";
  * separate role check in this function itself.
  */
 export async function forceConfirmBookingAction(formData: FormData) {
-  const id = z.string().uuid().parse(formData.get("id"));
+  const id = uuidSchema.parse(formData.get("id"));
   const supabase = await createServerSupabaseClient();
 
   const { data: booking } = await supabase.from("bookings").select("status,asset_id").eq("id", id).single();

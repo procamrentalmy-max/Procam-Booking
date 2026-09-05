@@ -37,7 +37,7 @@ export default async function BookPage({
   const [{ data: packages }, terms] = await Promise.all([
     supabase
       .from("rental_packages")
-      .select("id,name,price_myr,deposit_myr,duration_minutes")
+      .select("id,name,price_myr,deposit_myr,duration_minutes,is_overnight")
       .eq("product_id", product.id)
       .eq("active", true)
       .order("duration_minutes", { ascending: true }),

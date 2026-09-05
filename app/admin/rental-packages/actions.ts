@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuidSchema } from "@/lib/zod-helpers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const packageSchema = z.object({
-  productId: z.string().uuid(),
+  productId: uuidSchema,
   name: z.string().min(1),
   durationMinutes: z.coerce.number().int().positive(),
   priceMyr: z.coerce.number().min(0),
@@ -39,7 +40,7 @@ export async function createRentalPackageAction(formData: FormData) {
 }
 
 const updateSchema = packageSchema.extend({
-  id: z.string().uuid(),
+  id: uuidSchema,
   active: z.coerce.boolean(),
 });
 

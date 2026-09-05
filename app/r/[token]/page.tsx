@@ -21,9 +21,7 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select(
-      "human_id,status,start_time,end_time,partner_id,rental_package_id,asset_id,kit_id"
-    )
+    .select("human_id,status,start_time,end_time,partner_id,rental_package_id,asset_id")
     .eq("secure_token", token)
     .maybeSingle();
 
@@ -36,11 +34,10 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
       ? `You're all set. Come back at ${startTime.toLocaleString()} to pick up your equipment at reception.`
       : "You're all set. Show this page at reception to pick up your equipment.";
 
-  const [{ data: partner }, { data: pkg }, { data: asset }, { data: kit }] = await Promise.all([
+  const [{ data: partner }, { data: pkg }, { data: asset }] = await Promise.all([
     supabase.from("partners").select("name,address").eq("id", booking.partner_id).single(),
     supabase.from("rental_packages").select("name").eq("id", booking.rental_package_id).single(),
     supabase.from("rental_assets").select("human_id").eq("id", booking.asset_id).single(),
-    supabase.from("kits").select("human_id").eq("id", booking.kit_id).single(),
   ]);
 
   return (
@@ -93,7 +90,6 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
         <Row label="Property" value={partner?.name ?? "—"} />
         <Row label="Package" value={pkg?.name ?? "—"} />
         <Row label="Equipment" value={asset?.human_id ?? "—"} />
-        <Row label="Kit" value={kit?.human_id ?? "—"} />
         <Row label="Start" value={new Date(booking.start_time).toLocaleString()} />
         <Row label="Return by" value={new Date(booking.end_time).toLocaleString()} />
       </div>

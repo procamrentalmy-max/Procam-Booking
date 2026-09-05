@@ -2,13 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuidSchema } from "@/lib/zod-helpers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const uuidOrEmpty = z
   .string()
   .optional()
   .transform((v) => (v ? v : null))
-  .refine((v) => v === null || z.string().uuid().safeParse(v).success, "Invalid partner");
+  .refine((v) => v === null || uuidSchema.safeParse(v).success, "Invalid partner");
 
 function parseItems(raw: string | null): string[] {
   return (raw ?? "")
@@ -18,7 +19,7 @@ function parseItems(raw: string | null): string[] {
 }
 
 const createKitSchema = z.object({
-  productId: z.string().uuid(),
+  productId: uuidSchema,
   partnerId: uuidOrEmpty,
   items: z.string().optional(),
 });
@@ -48,7 +49,7 @@ export async function createKitAction(formData: FormData) {
 }
 
 const updateKitSchema = z.object({
-  id: z.string().uuid(),
+  id: uuidSchema,
   partnerId: uuidOrEmpty,
   status: z.enum(["AVAILABLE", "WITH_CUSTOMER", "AWAITING_INSPECTION", "MAINTENANCE", "RETIRED"]),
   items: z.string().optional(),

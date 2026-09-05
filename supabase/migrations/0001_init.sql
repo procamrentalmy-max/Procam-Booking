@@ -19,6 +19,23 @@
 create extension if not exists pgcrypto;
 create extension if not exists btree_gist;
 
+-- Standard Supabase default grants for the public schema, set up BEFORE any
+-- table exists so everything created below inherits them automatically.
+-- Necessary regardless of the "Automatically expose new tables" Data API
+-- setting — that toggle only controls whether the dashboard runs these
+-- grants for tables you create through it; a schema applied as raw SQL
+-- (like this file) needs them set explicitly, or NO role — not even
+-- service_role — can touch any table at all (RLS is a separate,
+-- second-stage check that never even gets reached without this).
+grant usage on schema public to postgres, anon, authenticated, service_role;
+alter default privileges in schema public grant all on tables to postgres, service_role;
+alter default privileges in schema public grant all on sequences to postgres, service_role;
+alter default privileges in schema public grant all on functions to postgres, service_role;
+alter default privileges in schema public grant select, insert, update, delete on tables to authenticated;
+alter default privileges in schema public grant select on tables to anon;
+alter default privileges in schema public grant usage, select on sequences to authenticated;
+alter default privileges in schema public grant execute on functions to authenticated, anon;
+
 -- ============================================================================
 -- ENUMS
 -- ============================================================================
@@ -273,6 +290,12 @@ create table rental_packages (
   deposit_myr numeric(10, 2) not null check (deposit_myr >= 0),
   late_fee_per_hour_myr numeric(10, 2) not null default 0 check (late_fee_per_hour_myr >= 0),
   active boolean not null default true,
+  -- Overnight packages use a fixed nightly window (10pm-8am) instead of an
+  -- hourly-aligned slot search, and deliberately skip the worker-schedule
+  -- feasibility check (see bookingGate.ts) — a distinct enough booking
+  -- shape that it needs its own flag rather than being inferred from
+  -- duration_minutes or name.
+  is_overnight boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -454,7 +477,11 @@ create table bookings (
   partner_id uuid not null references partners(id),
   rental_package_id uuid not null references rental_packages(id),
   asset_id uuid not null references rental_assets(id),
-  kit_id uuid not null references kits(id),
+  -- Nullable: kits are a reception-era concept (a numbered handover pouch)
+  -- that the self-service locker model has no use for — a locker booking
+  -- is just a camera. The no_overlapping_kit_bookings EXCLUDE constraint
+  -- below is unaffected: two NULL kit_id rows never collide under `=`.
+  kit_id uuid references kits(id),
   battery_id uuid references batteries(id),
 
   status booking_status not null default 'PENDING_PAYMENT',

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuidSchema } from "@/lib/zod-helpers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { ALL_ASSET_STATUSES } from "@/lib/state-machine/asset";
 
@@ -9,10 +10,10 @@ const uuidOrEmpty = z
   .string()
   .optional()
   .transform((v) => (v ? v : null))
-  .refine((v) => v === null || z.string().uuid().safeParse(v).success, "Invalid partner");
+  .refine((v) => v === null || uuidSchema.safeParse(v).success, "Invalid partner");
 
 const createAssetSchema = z.object({
-  productId: z.string().uuid(),
+  productId: uuidSchema,
   model: z.string().min(1),
   serialNumber: z.string().min(1),
   partnerId: uuidOrEmpty,
@@ -43,7 +44,7 @@ export async function createAssetAction(formData: FormData) {
 }
 
 const updateAssetSchema = z.object({
-  id: z.string().uuid(),
+  id: uuidSchema,
   partnerId: uuidOrEmpty,
   notes: z.string().optional(),
 });
@@ -68,7 +69,7 @@ export async function updateAssetAction(formData: FormData) {
 }
 
 const transitionSchema = z.object({
-  id: z.string().uuid(),
+  id: uuidSchema,
   toStatus: z.enum(ALL_ASSET_STATUSES as [string, ...string[]]),
 });
 

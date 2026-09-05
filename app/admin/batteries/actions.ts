@@ -2,13 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuidSchema } from "@/lib/zod-helpers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const uuidOrEmpty = z
   .string()
   .optional()
   .transform((v) => (v ? v : null))
-  .refine((v) => v === null || z.string().uuid().safeParse(v).success, "Invalid partner");
+  .refine((v) => v === null || uuidSchema.safeParse(v).success, "Invalid partner");
 
 export async function createBatteryAction(formData: FormData) {
   const parsed = z.object({ partnerId: uuidOrEmpty }).safeParse({ partnerId: formData.get("partnerId") });
@@ -22,7 +23,7 @@ export async function createBatteryAction(formData: FormData) {
 }
 
 const updateSchema = z.object({
-  id: z.string().uuid(),
+  id: uuidSchema,
   partnerId: uuidOrEmpty,
   status: z.enum(["CHARGED", "DEPLOYED", "CHARGING", "MAINTENANCE", "LOST", "RETIRED"]),
 });

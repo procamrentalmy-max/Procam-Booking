@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuidSchema } from "@/lib/zod-helpers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const addEntrySchema = z.object({
-  productId: z.string().uuid(),
+  productId: uuidSchema,
   manufacturer: z.string().min(1),
   model: z.string().min(1),
   variant: z.string().optional(),
@@ -39,8 +40,8 @@ export async function addPhoneCompatibilityAction(formData: FormData) {
 }
 
 const deleteEntrySchema = z.object({
-  id: z.string().uuid(),
-  productId: z.string().uuid(),
+  id: uuidSchema,
+  productId: uuidSchema,
 });
 
 export async function deletePhoneCompatibilityAction(formData: FormData) {
