@@ -48,7 +48,8 @@ export default async function DamageCasesPage() {
               className="block rounded-xl border border-red-200 p-4 hover:border-red-400 dark:border-red-900"
             >
               <p className="font-medium">
-                {assetLabel(c.booking_id)} — {bookingById.get(c.booking_id)?.human_id ?? "Unknown booking"}
+                {assetLabel(c.booking_id)} — {bookingById.get(c.booking_id)?.human_id ?? "Unknown booking"}{" "}
+                <span className="text-xs font-normal uppercase tracking-wide text-zinc-400">{c.status}</span>
               </p>
               <p className="text-sm text-zinc-500">
                 {c.category.replace(/_/g, " ")} — {c.description}

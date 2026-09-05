@@ -148,3 +148,38 @@ export async function resolveDamageCaseAction(formData: FormData) {
 
   revalidatePath("/admin/damage-cases");
 }
+
+/**
+ * Flags a case as actively being worked (e.g. waiting on a repair quote or
+ * a reply from the customer) rather than just sitting unopened — a purely
+ * informational status, not a state the resolution logic above branches
+ * on (resolveDamageCaseAction only cares whether status is already
+ * RESOLVED). Only meaningful coming from OPEN; RESOLVED is terminal.
+ */
+export async function markDamageCaseUnderReviewAction(formData: FormData) {
+  const ctx = await getAuthContext();
+  if (!isAdmin(ctx)) throw new Error("Not authorized.");
+
+  const damageCaseId = uuidSchema.parse(formData.get("damageCaseId"));
+  const supabase = await createServerSupabaseClient();
+
+  const { data: damageCase } = await supabase.from("damage_cases").select("status").eq("id", damageCaseId).single();
+  if (!damageCase) throw new Error("Damage case not found.");
+  if (damageCase.status !== "OPEN") throw new Error("Only an open case can be marked under review.");
+
+  const { error } = await supabase.from("damage_cases").update({ status: "UNDER_REVIEW" }).eq("id", damageCaseId);
+  if (error) throw new Error(error.message);
+
+  await logAudit({
+    actorType: "ADMIN",
+    actorId: ctx.staffId,
+    action: "DAMAGE_CASE_UNDER_REVIEW",
+    entityType: "damage_case",
+    entityId: damageCaseId,
+    before: { status: "OPEN" },
+    after: { status: "UNDER_REVIEW" },
+  });
+
+  revalidatePath(`/admin/damage-cases/${damageCaseId}`);
+  revalidatePath("/admin/damage-cases");
+}

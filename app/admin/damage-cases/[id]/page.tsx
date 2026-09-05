@@ -2,7 +2,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getConditionPhotoSignedUrl } from "@/lib/storage";
+import { primaryButtonClass } from "@/components/formStyles";
 import { DamageCaseResolutionForm } from "./DamageCaseResolutionForm";
+import { markDamageCaseUnderReviewAction } from "./actions";
 
 export default async function DamageCaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -54,13 +56,25 @@ export default async function DamageCaseDetailPage({ params }: { params: Promise
 
   return (
     <div className="space-y-6 pt-4 pb-10">
-      <div>
-        <h1 className="text-lg font-semibold">
-          {asset?.human_id ?? "Unknown asset"} — Booking {booking.human_id}
-        </h1>
-        <p className="text-sm text-zinc-500">
-          {customer?.name} — {customer?.email} — {customer?.phone}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-lg font-semibold">
+            {asset?.human_id ?? "Unknown asset"} — Booking {booking.human_id}
+          </h1>
+          <p className="text-sm text-zinc-500">
+            {customer?.name} — {customer?.email} — {customer?.phone}
+          </p>
+          <p className="mt-1 text-xs font-medium uppercase tracking-wide text-zinc-400">{damageCase.status}</p>
+        </div>
+
+        {damageCase.status === "OPEN" && (
+          <form action={markDamageCaseUnderReviewAction}>
+            <input type="hidden" name="damageCaseId" value={damageCase.id} />
+            <button type="submit" className={primaryButtonClass}>
+              Mark Under Review
+            </button>
+          </form>
+        )}
       </div>
 
       <section className="rounded-xl border border-red-200 p-4 dark:border-red-900">
