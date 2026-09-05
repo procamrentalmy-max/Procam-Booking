@@ -4,9 +4,9 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 
 const STATUS_MESSAGES: Record<string, string> = {
   PENDING_PAYMENT: "Payment hasn't been completed yet.",
-  READY_FOR_PICKUP: "Your equipment is ready. Show this page at reception to pick it up.",
+  READY_FOR_PICKUP: "Your equipment is ready for pickup at the locker.",
   ACTIVE: "Your rental is in progress. Enjoy!",
-  RETURN_STARTED: "Please hand the pouch to reception now.",
+  RETURN_STARTED: "Please place your equipment back into the locker now.",
   AWAITING_INSPECTION: "Thanks for returning your equipment. Your deposit is held until ProCam staff inspect it.",
   INSPECTION: "Your equipment is being inspected now.",
   DAMAGE_REVIEW: "An issue was found during inspection. Our team will be in touch about your deposit.",
@@ -31,8 +31,8 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
   const pickupIsAvailableNow = booking.status === "READY_FOR_PICKUP" || (booking.status === "CONFIRMED" && startTime <= new Date());
   const confirmedMessage =
     booking.status === "CONFIRMED" && !pickupIsAvailableNow
-      ? `You're all set. Come back at ${startTime.toLocaleString()} to pick up your equipment at reception.`
-      : "You're all set. Show this page at reception to pick up your equipment.";
+      ? `You're all set. Come back at ${startTime.toLocaleString()} to pick up your equipment at the locker.`
+      : "You're all set. Show this page at the locker to pick up your equipment.";
 
   const [{ data: partner }, { data: pkg }, { data: asset }] = await Promise.all([
     supabase.from("partners").select("name,address").eq("id", booking.partner_id).single(),

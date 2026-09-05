@@ -10,16 +10,19 @@ import type { BookingStatus } from "@/lib/db/types";
 
 /**
  * Completes the return condition check (spec section 14) using the
- * booking's product's RETURN check_templates. Moves the booking ACTIVE ->
- * RETURN_STARTED — asset status does NOT change here; the deposit stays
- * held throughout, regardless of what the customer declares here.
+ * booking's product's RETURN check_templates, then immediately carries
+ * the booking through RETURN_STARTED -> AWAITING_INSPECTION and the asset
+ * RENTED -> RETURNED_AWAITING_INSPECTION.
  *
- * What actually flips the asset to RETURNED_AWAITING_INSPECTION isn't
- * wired up yet for the locker model (reception used to do this manually;
- * there's no reception anymore). The locker/routing engine's collection
- * logic (lib/locker-engine/collection.ts) already assumes an asset in
- * that status is what the worker picks up, but nothing currently sets it
- * — that's part of the not-yet-built locker return flow.
+ * In the old reception model these were two separate, staff-mediated
+ * steps: the customer's own condition check, then reception physically
+ * confirming the pouch was handed back. There's no reception anymore, so
+ * the customer's own submission is the only signal the system has that
+ * the equipment has been physically placed back in the locker — there's
+ * no way to verify that independently without hardware this project
+ * deliberately doesn't have (spec section 1: no electronics, no API).
+ * The deposit is unaffected either way: it stays held until staff
+ * inspection regardless of what the customer declares here.
  */
 export async function submitReturnConditionCheckAction(formData: FormData) {
   const token = z.string().min(1).parse(formData.get("token"));
@@ -91,10 +94,11 @@ export async function submitReturnConditionCheckAction(formData: FormData) {
   }
 
   assertValidBookingTransition(booking.status as BookingStatus, "RETURN_STARTED");
+  assertValidBookingTransition("RETURN_STARTED", "AWAITING_INSPECTION");
 
   const { error: bookingError } = await supabase
     .from("bookings")
-    .update({ status: "RETURN_STARTED", actual_return_time: new Date().toISOString() })
+    .update({ status: "AWAITING_INSPECTION", actual_return_time: new Date().toISOString() })
     .eq("id", booking.id);
   if (bookingError) throw new Error(bookingError.message);
 
@@ -104,6 +108,15 @@ export async function submitReturnConditionCheckAction(formData: FormData) {
     entityType: "booking",
     entityId: booking.id,
     before: { status: "ACTIVE" },
-    after: { status: "RETURN_STARTED", damageReported },
+    after: { status: "AWAITING_INSPECTION", damageReported },
   });
+
+  const { error: assetError } = await supabase.rpc("system_transition_asset_status", {
+    p_asset_id: booking.asset_id,
+    p_to_status: "RETURNED_AWAITING_INSPECTION",
+    p_actor_type: "CUSTOMER",
+    p_booking_id: booking.id,
+    p_event_type: "CUSTOMER_RETURNED_TO_LOCKER",
+  });
+  if (assetError) throw new Error(assetError.message);
 }
