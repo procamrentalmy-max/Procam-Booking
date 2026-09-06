@@ -31,19 +31,19 @@ const NOW = new Date("2026-09-08T09:00:00Z");
 describe("checkLockerBookingFeasibility", () => {
   it("throws for a non-positive duration", () => {
     expect(() =>
-      checkLockerBookingFeasibility(baseSnapshot(), { partnerId: "loc-a", durationMinutes: 0, earliestStartTime: new Date(NOW.getTime() + 2 * 3_600_000) }, NOW)
+      checkLockerBookingFeasibility(baseSnapshot(), { partnerId: "loc-a", dropoffPartnerId: "loc-a", durationMinutes: 0, earliestStartTime: new Date(NOW.getTime() + 2 * 3_600_000) }, NOW)
     ).toThrow(InvalidBookingRequestError);
   });
 
   it("throws for a request inside the 1-hour minimum lead time", () => {
     expect(() =>
-      checkLockerBookingFeasibility(baseSnapshot(), { partnerId: "loc-a", durationMinutes: 240, earliestStartTime: new Date(NOW.getTime() + 30 * 60_000) }, NOW)
+      checkLockerBookingFeasibility(baseSnapshot(), { partnerId: "loc-a", dropoffPartnerId: "loc-a", durationMinutes: 240, earliestStartTime: new Date(NOW.getTime() + 30 * 60_000) }, NOW)
     ).toThrow(/at least 60 minutes ahead/);
   });
 
   it("confirms when both camera and worker schedule are free", () => {
     const desiredStart = new Date("2026-09-08T11:00:00Z"); // 7pm Malaysia time, well after NOW's lead time
-    const result = checkLockerBookingFeasibility(baseSnapshot(), { partnerId: "loc-a", durationMinutes: 240, earliestStartTime: desiredStart }, NOW);
+    const result = checkLockerBookingFeasibility(baseSnapshot(), { partnerId: "loc-a", dropoffPartnerId: "loc-a", durationMinutes: 240, earliestStartTime: desiredStart }, NOW);
     expect(result).toMatchObject({ outcome: "CONFIRM", startTime: desiredStart });
   });
 
@@ -60,6 +60,7 @@ describe("checkLockerBookingFeasibility", () => {
           id: "existing",
           assetId: "cam-2",
           partnerId: "loc-b",
+          dropoffPartnerId: "loc-b",
           status: "CONFIRMED",
           startTime: new Date("2026-09-08T06:00:00Z"),
           endTime: returnBlockStart, // return commitment starts exactly at 10:00 UTC at loc-b
@@ -70,7 +71,7 @@ describe("checkLockerBookingFeasibility", () => {
     // is free, but the worker's return commitment for the existing booking
     // is at loc-b at the same moment, and there's no travel-time room
     // between them.
-    const result = checkLockerBookingFeasibility(snapshot, { partnerId: "loc-a", durationMinutes: 240, earliestStartTime: returnBlockStart }, NOW);
+    const result = checkLockerBookingFeasibility(snapshot, { partnerId: "loc-a", dropoffPartnerId: "loc-a", durationMinutes: 240, earliestStartTime: returnBlockStart }, NOW);
     expect(result.outcome).toBe("NEXT_FEASIBLE_SLOT");
     if (result.outcome !== "INFEASIBLE") {
       expect(result.startTime.getTime()).toBeGreaterThan(returnBlockStart.getTime());
@@ -106,7 +107,7 @@ describe("checkOvernightBookingFeasibility", () => {
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
       bookings: [
-        { id: "existing", assetId: "cam-2", partnerId: "loc-b", status: "CONFIRMED", startTime: new Date("2026-09-08T18:00:00"), endTime: new Date("2026-09-08T22:00:00") },
+        { id: "existing", assetId: "cam-2", partnerId: "loc-b", dropoffPartnerId: "loc-b", status: "CONFIRMED", startTime: new Date("2026-09-08T18:00:00"), endTime: new Date("2026-09-08T22:00:00") },
       ],
     };
     const result = checkOvernightBookingFeasibility(snapshot, { partnerId: "loc-a", earliestNight: night }, NOW);
@@ -118,8 +119,8 @@ describe("checkOvernightBookingFeasibility", () => {
     const bothCamerasBooked: FleetSnapshot = {
       ...baseSnapshot(),
       bookings: [
-        { id: "b1", assetId: "cam-1", partnerId: "loc-a", status: "CONFIRMED", startTime: new Date("2026-09-08T22:00:00"), endTime: new Date("2026-09-09T08:00:00") },
-        { id: "b2", assetId: "cam-2", partnerId: "loc-a", status: "CONFIRMED", startTime: new Date("2026-09-08T22:00:00"), endTime: new Date("2026-09-09T08:00:00") },
+        { id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: new Date("2026-09-08T22:00:00"), endTime: new Date("2026-09-09T08:00:00") },
+        { id: "b2", assetId: "cam-2", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: new Date("2026-09-08T22:00:00"), endTime: new Date("2026-09-09T08:00:00") },
       ],
     };
     const result = checkOvernightBookingFeasibility(bothCamerasBooked, { partnerId: "loc-a", earliestNight: night }, NOW, 2);

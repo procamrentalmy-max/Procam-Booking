@@ -34,13 +34,17 @@ export default async function BookPage({
     .maybeSingle();
   if (!product) redirect(`/p/${partner.referral_code}`);
 
-  const [{ data: packages }, terms] = await Promise.all([
+  const [{ data: packages }, { data: lockerPartners }, terms] = await Promise.all([
     supabase
       .from("rental_packages")
       .select("id,name,price_myr,deposit_myr,duration_minutes,is_overnight")
       .eq("product_id", product.id)
       .eq("active", true)
       .order("duration_minutes", { ascending: true }),
+    // Every active locker location is a valid pickup/dropoff choice — the
+    // worker moves cameras between them, so a booking isn't limited to
+    // wherever this particular product's assets currently happen to sit.
+    supabase.from("partners").select("id,name").eq("pickup_method", "LOCKER").eq("status", "ACTIVE").order("name"),
     getActiveTermsVersion(product.id),
   ]);
 
@@ -52,6 +56,7 @@ export default async function BookPage({
       productName={product.customer_facing_name}
       requiresPhoneCompatibility={product.requires_phone_compatibility}
       packages={packages ?? []}
+      lockerPartners={lockerPartners ?? []}
       termsVersionId={terms?.id ?? null}
       termsBody={terms?.body ?? null}
     />

@@ -28,7 +28,7 @@ export async function buildLockerFleetSnapshot(productId: string): Promise<Fleet
   const { data: bookingRows } = assetIds.length
     ? await supabase
         .from("bookings")
-        .select("id,asset_id,partner_id,status,start_time,end_time")
+        .select("id,asset_id,partner_id,dropoff_partner_id,status,start_time,end_time")
         .in("asset_id", assetIds)
         .not("status", "in", "(CANCELLED,EXPIRED,COMPLETED)")
     : { data: [] };
@@ -45,6 +45,7 @@ export async function buildLockerFleetSnapshot(productId: string): Promise<Fleet
       id: b.id,
       assetId: b.asset_id,
       partnerId: b.partner_id,
+      dropoffPartnerId: b.dropoff_partner_id,
       status: b.status,
       startTime: new Date(b.start_time),
       endTime: new Date(b.end_time),

@@ -19,8 +19,10 @@ export type EngineAsset = {
 export type EngineBooking = {
   id: string;
   assetId: string;
-  /** Pickup location — which spot this booking needs a camera dropped off at. */
+  /** Pickup location — where the worker needs to have the camera ready for the customer. */
   partnerId: string;
+  /** Return location — where the customer will actually bring the camera back to; may differ from partnerId (one-way rentals). */
+  dropoffPartnerId: string;
   status: BookingStatus;
   startTime: Date;
   endTime: Date;

@@ -39,6 +39,8 @@ function generateSecureToken(): string {
 export async function createPendingLockerBooking(params: {
   customerId: string;
   partnerId: string;
+  /** Where the customer will return the camera — may differ from partnerId for a one-way rental. */
+  dropoffPartnerId: string;
   rentalPackageId: string;
   earliestStartTime: Date;
   source: BookingSource;
@@ -53,13 +55,16 @@ export async function createPendingLockerBooking(params: {
     .single();
   if (!pkg || !pkg.active) throw new Error("This rental package is no longer available.");
 
-  const { data: partner } = await supabase
+  const { data: locationPartners } = await supabase
     .from("partners")
-    .select("status,pickup_method")
-    .eq("id", params.partnerId)
-    .single();
-  if (!partner || partner.status !== "ACTIVE") throw new Error("This property is not currently active.");
-  if (partner.pickup_method !== "LOCKER") throw new Error("This location isn't a self-service locker.");
+    .select("id,status,pickup_method")
+    .in("id", [params.partnerId, params.dropoffPartnerId]);
+  const pickupPartner = locationPartners?.find((p) => p.id === params.partnerId);
+  const dropoffPartner = locationPartners?.find((p) => p.id === params.dropoffPartnerId);
+  if (!pickupPartner || pickupPartner.status !== "ACTIVE") throw new Error("This property is not currently active.");
+  if (pickupPartner.pickup_method !== "LOCKER") throw new Error("This location isn't a self-service locker.");
+  if (!dropoffPartner || dropoffPartner.status !== "ACTIVE") throw new Error("The dropoff property is not currently active.");
+  if (dropoffPartner.pickup_method !== "LOCKER") throw new Error("The dropoff location isn't a self-service locker.");
 
   const snapshot = await buildLockerFleetSnapshot(pkg.product_id);
 
@@ -67,6 +72,7 @@ export async function createPendingLockerBooking(params: {
     ? checkOvernightBookingFeasibility(snapshot, { partnerId: params.partnerId, earliestNight: params.earliestStartTime })
     : checkLockerBookingFeasibility(snapshot, {
         partnerId: params.partnerId,
+        dropoffPartnerId: params.dropoffPartnerId,
         durationMinutes: pkg.duration_minutes,
         earliestStartTime: params.earliestStartTime,
       });
@@ -84,6 +90,7 @@ export async function createPendingLockerBooking(params: {
     .rpc("create_locker_booking_atomic", {
       p_customer_id: params.customerId,
       p_partner_id: params.partnerId,
+      p_dropoff_partner_id: params.dropoffPartnerId,
       p_rental_package_id: params.rentalPackageId,
       p_asset_id: result.assetId,
       p_start_time: result.startTime.toISOString(),

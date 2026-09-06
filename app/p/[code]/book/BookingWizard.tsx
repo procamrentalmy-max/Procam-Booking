@@ -13,7 +13,9 @@ type RentalPackage = {
   is_overnight: boolean;
 };
 
-type Step = "package" | "contact" | "phone" | "otp" | "confirm" | "booked";
+type Step = "package" | "locations" | "contact" | "phone" | "otp" | "confirm" | "booked";
+
+type LockerPartner = { id: string; name: string };
 
 /** 8am-9pm — matches the locker network's operating hours; the server is the real authority on what's actually feasible. */
 const OPERATING_HOURS = Array.from({ length: 14 }, (_, i) => i + 8);
@@ -50,6 +52,7 @@ export function BookingWizard({
   productName,
   requiresPhoneCompatibility,
   packages,
+  lockerPartners,
   termsVersionId,
   termsBody,
 }: {
@@ -59,6 +62,7 @@ export function BookingWizard({
   productName: string;
   requiresPhoneCompatibility: boolean;
   packages: RentalPackage[];
+  lockerPartners: LockerPartner[];
   termsVersionId: string | null;
   termsBody: string | null;
 }) {
@@ -73,6 +77,10 @@ export function BookingWizard({
   const [date, setDate] = useState(initialDefault.date);
   const [startHour, setStartHour] = useState<number | null>(null);
   const [endHour, setEndHour] = useState<number | null>(null);
+  // Default to wherever the customer scanned in from — changeable to any
+  // other active locker location for a one-way rental.
+  const [pickupPartnerId, setPickupPartnerId] = useState(partnerId);
+  const [dropoffPartnerId, setDropoffPartnerId] = useState(partnerId);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -160,6 +168,15 @@ export function BookingWizard({
       setError(`Bookings need at least ${MIN_LEAD_MINUTES / 60} hour of notice — please choose a later time.`);
       return;
     }
+    setStep("locations");
+  }
+
+  function handleLocationsSubmit() {
+    setError(null);
+    if (!pickupPartnerId || !dropoffPartnerId) {
+      setError("Select a pickup and a dropoff location.");
+      return;
+    }
     setStep("contact");
   }
 
@@ -208,7 +225,8 @@ export function BookingWizard({
       const result = await createBookingAction({
         customerId,
         verificationId,
-        partnerId,
+        partnerId: pickupPartnerId,
+        dropoffPartnerId,
         rentalPackageId: packageId,
         referralCode,
         startTime: requested.toISOString(),
@@ -235,6 +253,7 @@ export function BookingWizard({
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
       <h1 className="text-center text-xl font-semibold text-black dark:text-zinc-50">
         {step === "package" && productName}
+        {step === "locations" && "Pickup & Dropoff"}
         {step === "contact" && "Your Details"}
         {step === "phone" && "Check Your Phone"}
         {step === "otp" && "Verify Your Phone"}
@@ -367,6 +386,52 @@ export function BookingWizard({
         </div>
       )}
 
+      {step === "locations" && (
+        <div className="space-y-4">
+          <p className="text-center text-sm text-zinc-500">
+            Pick up and drop off at the same spot, or choose different locations for a one-way rental.
+          </p>
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium uppercase tracking-wide text-zinc-400">Pickup</label>
+            <select
+              value={pickupPartnerId}
+              onChange={(e) => setPickupPartnerId(e.target.value)}
+              className="w-full rounded-lg border border-zinc-300 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
+            >
+              {lockerPartners.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium uppercase tracking-wide text-zinc-400">Dropoff</label>
+            <select
+              value={dropoffPartnerId}
+              onChange={(e) => setDropoffPartnerId(e.target.value)}
+              className="w-full rounded-lg border border-zinc-300 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
+            >
+              {lockerPartners.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            onClick={handleLocationsSubmit}
+            disabled={loading}
+            className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
+          >
+            Continue
+          </button>
+        </div>
+      )}
+
       {step === "contact" && (
         <div className="space-y-4">
           <input
@@ -491,6 +556,12 @@ export function BookingWizard({
           <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
             <p className="font-medium">{selectedPackage.name}</p>
             <p className="text-sm text-zinc-500">Requested pickup: {resolveEarliestStartTime().toLocaleString()}</p>
+            <p className="text-sm text-zinc-500">
+              Pickup: {lockerPartners.find((p) => p.id === pickupPartnerId)?.name ?? "—"}
+              {dropoffPartnerId !== pickupPartnerId && (
+                <> — Dropoff: {lockerPartners.find((p) => p.id === dropoffPartnerId)?.name ?? "—"}</>
+              )}
+            </p>
             <p className="text-sm text-zinc-500">Rental fee: RM{selectedPackage.price_myr}</p>
             <p className="text-sm text-zinc-500">Refundable security deposit: RM{selectedPackage.deposit_myr}</p>
           </div>

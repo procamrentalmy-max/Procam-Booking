@@ -39,7 +39,7 @@ export async function submitReturnConditionCheckAction(formData: FormData) {
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("id,status,asset_id,rental_package_id,end_time")
+    .select("id,status,asset_id,rental_package_id,end_time,dropoff_partner_id")
     .eq("secure_token", token)
     .maybeSingle();
   if (!booking) throw new Error("Booking not found.");
@@ -135,4 +135,15 @@ export async function submitReturnConditionCheckAction(formData: FormData) {
     p_event_type: "CUSTOMER_RETURNED_TO_LOCKER",
   });
   if (assetError) throw new Error(assetError.message);
+
+  // One-way rentals: the camera's current location moves to wherever the
+  // customer actually returned it, not back to wherever it was picked up.
+  // Everything downstream (staff inspection, worker routing/collection)
+  // already keys off rental_assets.partner_id as "current location", so
+  // this is the only place that fact needs updating.
+  const { error: locationError } = await supabase
+    .from("rental_assets")
+    .update({ partner_id: booking.dropoff_partner_id })
+    .eq("id", booking.asset_id);
+  if (locationError) throw new Error(locationError.message);
 }

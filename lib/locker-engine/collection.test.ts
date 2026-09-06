@@ -35,7 +35,7 @@ describe("selectCamerasForCollection", () => {
   it("leaves an AVAILABLE camera needed for a confirmed booking within the horizon", () => {
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
-      bookings: [{ id: "b1", assetId: "cam-1", partnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
+      bookings: [{ id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
     };
     const selected = selectCamerasForCollection(snapshot, "loc-a", NOW, HORIZON_MINUTES);
     expect(selected).not.toContain("cam-1");
@@ -44,7 +44,7 @@ describe("selectCamerasForCollection", () => {
   it("still collects a returned camera even if some future booking is attached to it", () => {
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
-      bookings: [{ id: "b1", assetId: "cam-2", partnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
+      bookings: [{ id: "b1", assetId: "cam-2", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
     };
     expect(selectCamerasForCollection(snapshot, "loc-a", NOW, HORIZON_MINUTES)).toContain("cam-2");
   });
@@ -52,7 +52,7 @@ describe("selectCamerasForCollection", () => {
   it("ignores a cancelled booking when deciding whether a camera is needed", () => {
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
-      bookings: [{ id: "b1", assetId: "cam-1", partnerId: "loc-a", status: "CANCELLED", startTime: SOON, endTime: LATER }],
+      bookings: [{ id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CANCELLED", startTime: SOON, endTime: LATER }],
     };
     expect(selectCamerasForCollection(snapshot, "loc-a", NOW, HORIZON_MINUTES)).toContain("cam-1");
   });
@@ -70,7 +70,7 @@ describe("selectCamerasForCollection", () => {
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
       bookings: [
-        { id: "b1", assetId: "cam-1", partnerId: "loc-a", status: "CONFIRMED", startTime: horizonEnd, endTime: new Date(horizonEnd.getTime() + 60 * 60_000) },
+        { id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: horizonEnd, endTime: new Date(horizonEnd.getTime() + 60 * 60_000) },
       ],
     };
     expect(selectCamerasForCollection(snapshot, "loc-a", NOW, HORIZON_MINUTES)).not.toContain("cam-1");
@@ -91,7 +91,7 @@ describe("collectCamerasAtPartner", () => {
   it("leaves a booked-soon camera in place", () => {
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
-      bookings: [{ id: "b1", assetId: "cam-1", partnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
+      bookings: [{ id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
     };
     const { snapshot: result, collectedAssetIds } = collectCamerasAtPartner(snapshot, "loc-a", NOW, HORIZON_MINUTES);
     expect(collectedAssetIds).not.toContain("cam-1");

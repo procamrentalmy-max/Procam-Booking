@@ -117,6 +117,7 @@ const createBookingSchema = z.object({
   customerId: uuidSchema,
   verificationId: uuidSchema,
   partnerId: uuidSchema,
+  dropoffPartnerId: uuidSchema,
   rentalPackageId: uuidSchema,
   referralCode: z.string().nullable(),
   startTime: z.string().min(1),
@@ -127,6 +128,7 @@ export async function createBookingAction(input: {
   customerId: string;
   verificationId: string;
   partnerId: string;
+  dropoffPartnerId: string;
   rentalPackageId: string;
   referralCode: string | null;
   startTime: string;
@@ -152,6 +154,7 @@ export async function createBookingAction(input: {
     const booking = await createPendingLockerBooking({
       customerId: parsed.customerId,
       partnerId: parsed.partnerId,
+      dropoffPartnerId: parsed.dropoffPartnerId,
       rentalPackageId: parsed.rentalPackageId,
       earliestStartTime: startTime,
       source: "PARTNER_QR",

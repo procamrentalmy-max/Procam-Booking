@@ -21,7 +21,7 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("human_id,status,start_time,end_time,partner_id,rental_package_id,asset_id")
+    .select("human_id,status,start_time,end_time,partner_id,dropoff_partner_id,rental_package_id,asset_id")
     .eq("secure_token", token)
     .maybeSingle();
 
@@ -34,8 +34,12 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
       ? `You're all set. Come back at ${startTime.toLocaleString()} to pick up your equipment at the locker.`
       : "You're all set. Show this page at the locker to pick up your equipment.";
 
-  const [{ data: partner }, { data: pkg }, { data: asset }] = await Promise.all([
+  const isOneWay = booking.dropoff_partner_id !== booking.partner_id;
+  const [{ data: partner }, { data: dropoffPartner }, { data: pkg }, { data: asset }] = await Promise.all([
     supabase.from("partners").select("name,address").eq("id", booking.partner_id).single(),
+    isOneWay
+      ? supabase.from("partners").select("name").eq("id", booking.dropoff_partner_id).single()
+      : Promise.resolve({ data: null }),
     supabase.from("rental_packages").select("name").eq("id", booking.rental_package_id).single(),
     supabase.from("rental_assets").select("human_id").eq("id", booking.asset_id).single(),
   ]);
@@ -87,7 +91,8 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
       )}
 
       <div className="space-y-2 rounded-xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">
-        <Row label="Property" value={partner?.name ?? "—"} />
+        <Row label="Pickup" value={partner?.name ?? "—"} />
+        {isOneWay && <Row label="Dropoff" value={dropoffPartner?.name ?? "—"} />}
         <Row label="Package" value={pkg?.name ?? "—"} />
         <Row label="Equipment" value={asset?.human_id ?? "—"} />
         <Row label="Start" value={new Date(booking.start_time).toLocaleString()} />

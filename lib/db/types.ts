@@ -268,6 +268,7 @@ export type BookingRow = {
   secure_token: string;
   customer_id: string;
   partner_id: string;
+  dropoff_partner_id: string;
   rental_package_id: string;
   asset_id: string;
   battery_id: string | null;
@@ -509,6 +510,7 @@ export interface Database {
         Args: {
           p_customer_id: string;
           p_partner_id: string;
+          p_dropoff_partner_id: string;
           p_rental_package_id: string;
           p_asset_id: string;
           p_start_time: string;

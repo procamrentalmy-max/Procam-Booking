@@ -22,24 +22,30 @@ export type WorkerCommitment = {
 /**
  * The two hard worker-presence commitments a single booking creates:
  *
- * - SETUP: must finish exactly at start_time — the camera has to be
- *   delivered and configured (PIN set) before the customer arrives, not
- *   handed over live.
- * - RETURN: starts at end_time and blocks the full grace period plus
+ * - SETUP: at the pickup location, must finish exactly at start_time — the
+ *   camera has to be delivered and configured (PIN set) before the
+ *   customer arrives, not handed over live.
+ * - RETURN: at the dropoff location (may differ from pickup — one-way
+ *   rentals), starts at end_time and blocks the full grace period plus
  *   processing time. The worker must already be at the location when the
  *   customer returns the camera, not start traveling there afterward
  *   (explicit product rule) — this worst-case window (grace + processing)
  *   is what gets blocked, since the exact return moment within the grace
  *   period isn't known in advance.
  */
-export function commitmentsForBooking(partnerId: string, startTime: Date, endTime: Date): WorkerCommitment[] {
+export function commitmentsForBooking(
+  pickupPartnerId: string,
+  dropoffPartnerId: string,
+  startTime: Date,
+  endTime: Date
+): WorkerCommitment[] {
   const setup: WorkerCommitment = {
-    partnerId,
+    partnerId: pickupPartnerId,
     start: new Date(startTime.getTime() - STOP_MINUTES * 60_000),
     end: startTime,
   };
   const returnCommitment: WorkerCommitment = {
-    partnerId,
+    partnerId: dropoffPartnerId,
     start: endTime,
     end: new Date(endTime.getTime() + (RETURN_GRACE_MINUTES + STOP_MINUTES) * 60_000),
   };
@@ -50,7 +56,7 @@ export function commitmentsForBooking(partnerId: string, startTime: Date, endTim
 export function existingCommitments(snapshot: FleetSnapshot): WorkerCommitment[] {
   return snapshot.bookings
     .filter((b) => !isTerminal(b.status))
-    .flatMap((b) => commitmentsForBooking(b.partnerId, b.startTime, b.endTime));
+    .flatMap((b) => commitmentsForBooking(b.partnerId, b.dropoffPartnerId, b.startTime, b.endTime));
 }
 
 function travelMinutesBetween(snapshot: FleetSnapshot, from: string, to: string): number {

@@ -56,8 +56,8 @@ describe("checkBookingFeasibility", () => {
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
       bookings: [
-        { id: "b1", assetId: "cam-1", partnerId: "loc-a", status: "CONFIRMED", startTime: ALIGNED_10AM, endTime: farFuture },
-        { id: "b2", assetId: "cam-2", partnerId: "loc-a", status: "CONFIRMED", startTime: ALIGNED_10AM, endTime: farFuture },
+        { id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: ALIGNED_10AM, endTime: farFuture },
+        { id: "b2", assetId: "cam-2", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: ALIGNED_10AM, endTime: farFuture },
       ],
     };
     const result = checkBookingFeasibility(snapshot, { durationMinutes: 240, earliestStartTime: ALIGNED_10AM }, ALIGNED_10AM, 5);
@@ -84,8 +84,8 @@ describe("checkBookingFeasibility", () => {
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
       bookings: [
-        { id: "b1", assetId: "cam-1", partnerId: "loc-a", status: "CONFIRMED", startTime: ALIGNED_10AM, endTime: bookingEnd },
-        { id: "b2", assetId: "cam-2", partnerId: "loc-a", status: "CONFIRMED", startTime: ALIGNED_10AM, endTime: bookingEnd },
+        { id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: ALIGNED_10AM, endTime: bookingEnd },
+        { id: "b2", assetId: "cam-2", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: ALIGNED_10AM, endTime: bookingEnd },
       ],
     };
     const result = checkBookingFeasibility(snapshot, { durationMinutes: 60, earliestStartTime: ALIGNED_10AM }, ALIGNED_10AM);
@@ -102,8 +102,8 @@ describe("checkBookingFeasibility", () => {
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
       bookings: [
-        { id: "b1", assetId: "cam-1", partnerId: "loc-a", status: "CONFIRMED", startTime: ALIGNED_10AM, endTime: farFuture },
-        { id: "b2", assetId: "cam-2", partnerId: "loc-a", status: "CONFIRMED", startTime: ALIGNED_10AM, endTime: farFuture },
+        { id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: ALIGNED_10AM, endTime: farFuture },
+        { id: "b2", assetId: "cam-2", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: ALIGNED_10AM, endTime: farFuture },
       ],
     };
     const result = checkBookingFeasibility(snapshot, { durationMinutes: 60, earliestStartTime: ALIGNED_10AM }, ALIGNED_10AM, 5);
@@ -114,7 +114,7 @@ describe("checkBookingFeasibility", () => {
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
       bookings: [
-        { id: "b1", assetId: "cam-1", partnerId: "loc-a", status: "CANCELLED", startTime: ALIGNED_10AM, endTime: new Date(ALIGNED_10AM.getTime() + 240 * 60_000) },
+        { id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CANCELLED", startTime: ALIGNED_10AM, endTime: new Date(ALIGNED_10AM.getTime() + 240 * 60_000) },
       ],
     };
     const result = checkBookingFeasibility(snapshot, { durationMinutes: 240, earliestStartTime: ALIGNED_10AM }, ALIGNED_10AM);

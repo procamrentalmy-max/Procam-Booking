@@ -9,6 +9,8 @@ export const MINIMUM_LEAD_MINUTES = 60;
 
 export type LockerBookingRequest = {
   partnerId: string;
+  /** Where the customer will return the camera — may differ from partnerId for a one-way rental. */
+  dropoffPartnerId: string;
   durationMinutes: number;
   earliestStartTime: Date;
 };
@@ -57,7 +59,7 @@ export function checkLockerBookingFeasibility(
     const assetId = findEligibleAsset(snapshot, startTime, endTime);
     if (!assetId) continue;
 
-    const candidateCommitments = commitmentsForBooking(request.partnerId, startTime, endTime);
+    const candidateCommitments = commitmentsForBooking(request.partnerId, request.dropoffPartnerId, startTime, endTime);
     if (!isWorkerScheduleFeasible(commitments, candidateCommitments, snapshot)) continue;
 
     return i === 0

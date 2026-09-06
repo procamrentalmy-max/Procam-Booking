@@ -447,7 +447,17 @@ create table bookings (
   secure_token text not null unique,
 
   customer_id uuid not null references customers(id),
+  -- Pickup location — where the worker needs the camera ready and where
+  -- referral/commission attribution follows. Independent of the QR code
+  -- that started the flow: a customer can pick up somewhere other than
+  -- where they scanned.
   partner_id uuid not null references partners(id),
+  -- Return location. Defaults to the same as partner_id but may differ —
+  -- a one-way rental. Purely a logistics fact: it drives the worker's
+  -- return-leg commitment (lib/locker-engine/workerSchedule.ts) and where
+  -- rental_assets.partner_id ends up after the customer returns it; it has
+  -- no bearing on commission, which always follows partner_id (pickup).
+  dropoff_partner_id uuid not null references partners(id),
   rental_package_id uuid not null references rental_packages(id),
   asset_id uuid not null references rental_assets(id),
   battery_id uuid references batteries(id),

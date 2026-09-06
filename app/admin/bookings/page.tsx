@@ -6,7 +6,7 @@ export default async function BookingsPage() {
   const supabase = await createServerSupabaseClient();
   const { data: bookings } = await supabase
     .from("bookings")
-    .select("id,human_id,status,start_time,end_time,customer_id,partner_id,asset_id")
+    .select("id,human_id,status,start_time,end_time,customer_id,partner_id,dropoff_partner_id,asset_id")
     .order("created_at", { ascending: false });
 
   const [{ data: customers }, { data: partners }, { data: assets }] = await Promise.all([
@@ -28,7 +28,11 @@ export default async function BookingsPage() {
           </p>
           <p className="text-sm text-zinc-500">
             {customerById.get(b.customer_id)?.name ?? "Unknown customer"} at{" "}
-            {partnerById.get(b.partner_id)?.name ?? "Unknown property"} — {assetById.get(b.asset_id)?.human_id}
+            {partnerById.get(b.partner_id)?.name ?? "Unknown property"}
+            {b.dropoff_partner_id !== b.partner_id && (
+              <> → {partnerById.get(b.dropoff_partner_id)?.name ?? "Unknown property"}</>
+            )}{" "}
+            — {assetById.get(b.asset_id)?.human_id}
           </p>
           <p className="text-xs text-zinc-400">
             {new Date(b.start_time).toLocaleString()} → {new Date(b.end_time).toLocaleString()}
