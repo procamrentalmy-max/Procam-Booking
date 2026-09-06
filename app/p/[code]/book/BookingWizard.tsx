@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { startVerificationAction, verifyOtpAction, createBookingAction, checkPhoneCompatibilityAction } from "./actions";
 
@@ -63,6 +63,7 @@ export function BookingWizard({
   termsBody: string | null;
 }) {
   const router = useRouter();
+  const dateInputRef = useRef<HTMLInputElement>(null);
   const daytimePackages = [...packages].filter((p) => !p.is_overnight).sort((a, b) => a.duration_minutes - b.duration_minutes);
   const overnightPackage = packages.find((p) => p.is_overnight) ?? null;
 
@@ -299,10 +300,17 @@ export function BookingWizard({
                 : "Pick a date, then a start time and an end time from the timetable — bookings need at least 1 hour of notice. If your exact slot isn't free, we'll offer the next available one."}
             </p>
             <input
+              ref={dateInputRef}
               type="date"
               value={date}
               min={toDateInputValue(new Date())}
               onChange={(e) => setDate(e.target.value)}
+              // Native <input type="date"> only opens its picker when you
+              // hit the small calendar icon — showPicker() makes a click
+              // anywhere on the field do it. Guarded: showPicker isn't in
+              // every browser (notably Safari), so a plain click still
+              // falls back to normal text-field behavior there.
+              onClick={() => dateInputRef.current?.showPicker?.()}
               className="w-full rounded-lg border border-zinc-300 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
             />
 
