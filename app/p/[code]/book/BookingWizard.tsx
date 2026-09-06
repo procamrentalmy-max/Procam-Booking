@@ -15,8 +15,8 @@ type RentalPackage = {
 
 type Step = "package" | "contact" | "phone" | "otp" | "confirm" | "booked";
 
-/** 8am-7pm — matches the locker network's operating hours; the server is the real authority on what's actually feasible. */
-const OPERATING_HOURS = Array.from({ length: 12 }, (_, i) => i + 8);
+/** 8am-9pm — matches the locker network's operating hours; the server is the real authority on what's actually feasible. */
+const OPERATING_HOURS = Array.from({ length: 14 }, (_, i) => i + 8);
 const MIN_LEAD_MINUTES = 60;
 
 function toDateInputValue(d: Date): string {
@@ -68,10 +68,10 @@ export function BookingWizard({
 
   const [step, setStep] = useState<Step>("package");
   const [mode, setMode] = useState<"daytime" | "overnight">(daytimePackages.length > 0 ? "daytime" : "overnight");
-  const [packageId, setPackageId] = useState(mode === "overnight" ? (overnightPackage?.id ?? "") : "");
   const initialDefault = defaultDateAndHour();
   const [date, setDate] = useState(initialDefault.date);
   const [startHour, setStartHour] = useState<number | null>(null);
+  const [endHour, setEndHour] = useState<number | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -88,7 +88,17 @@ export function BookingWizard({
   const [secureToken, setSecureToken] = useState<string | null>(null);
   const [assignedTime, setAssignedTime] = useState<{ start: string; end: string } | null>(null);
 
-  const selectedPackage = packages.find((p) => p.id === packageId);
+  // The customer picks a start hour and an end hour directly — the package
+  // (and so the price) is whichever one matches that exact duration. Every
+  // whole-hour duration from 1 to 13 hours has a seeded package (see
+  // seed.sql), so any start/end pair within OPERATING_HOURS resolves to a
+  // real, priced package rather than a fixed handful of named tiers.
+  const daytimeSelectedPackage =
+    startHour !== null && endHour !== null
+      ? daytimePackages.find((p) => p.duration_minutes === (endHour - startHour) * 60)
+      : undefined;
+  const selectedPackage = mode === "overnight" ? (overnightPackage ?? undefined) : daytimeSelectedPackage;
+  const packageId = selectedPackage?.id ?? "";
 
   /** Computed fresh at submit time — the server is the real authority; this is what we're requesting, not a guarantee. */
   function resolveEarliestStartTime(): Date {
@@ -100,23 +110,15 @@ export function BookingWizard({
     return Number.isNaN(combined.getTime()) ? new Date() : combined;
   }
 
-  /** The clock time (and whether it rolls into the next day) an end-time option would land on, given the chosen start hour. */
-  function endTimeLabel(pkg: RentalPackage): string {
-    if (startHour === null) return "";
-    const totalHour = startHour + pkg.duration_minutes / 60;
-    const displayHour = totalHour % 24;
-    return formatHour(displayHour) + (totalHour >= 24 ? " (+1 day)" : "");
-  }
-
   function selectMode(next: "daytime" | "overnight") {
     setMode(next);
     setStartHour(null);
-    setPackageId(next === "overnight" ? (overnightPackage?.id ?? "") : "");
+    setEndHour(null);
   }
 
   function selectStartHour(h: number) {
     setStartHour(h);
-    setPackageId(""); // end time (and so the package) must be re-picked for the new start
+    setEndHour(null); // end time must be re-picked for the new start
   }
 
   async function sendVerificationCode() {
@@ -231,22 +233,24 @@ export function BookingWizard({
         <div className="space-y-5">
           {/* Price chart — reference only; the actual pick happens in the timetable below. */}
           <div className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-zinc-50 dark:bg-zinc-900">
-                  <th className="px-4 py-2 text-left font-medium text-zinc-500">Duration</th>
-                  <th className="px-4 py-2 text-right font-medium text-zinc-500">Price</th>
-                </tr>
-              </thead>
-              <tbody>
-                {packages.map((pkg) => (
-                  <tr key={pkg.id} className="border-t border-zinc-100 dark:border-zinc-800">
-                    <td className="px-4 py-2">{pkg.name}</td>
-                    <td className="px-4 py-2 text-right font-semibold">RM{pkg.price_myr}</td>
+            <div className="max-h-56 overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-zinc-50 dark:bg-zinc-900">
+                    <th className="px-4 py-2 text-left font-medium text-zinc-500">Duration</th>
+                    <th className="px-4 py-2 text-right font-medium text-zinc-500">Price</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {[...daytimePackages, ...(overnightPackage ? [overnightPackage] : [])].map((pkg) => (
+                    <tr key={pkg.id} className="border-t border-zinc-100 dark:border-zinc-800">
+                      <td className="px-4 py-2">{pkg.name}</td>
+                      <td className="px-4 py-2 text-right font-semibold">RM{pkg.price_myr}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {daytimePackages.length > 0 && overnightPackage && (
@@ -315,19 +319,19 @@ export function BookingWizard({
                 {startHour !== null && (
                   <div>
                     <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-400">End Time</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      {daytimePackages.map((pkg) => (
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                      {OPERATING_HOURS.filter((h) => h > startHour).map((h) => (
                         <button
-                          key={pkg.id}
+                          key={h}
                           type="button"
-                          onClick={() => setPackageId(pkg.id)}
+                          onClick={() => setEndHour(h)}
                           className={`rounded-lg border py-2 text-sm ${
-                            packageId === pkg.id
+                            endHour === h
                               ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
                               : "border-zinc-300 dark:border-zinc-700"
                           }`}
                         >
-                          {endTimeLabel(pkg)}
+                          {formatHour(h)}
                         </button>
                       ))}
                     </div>
