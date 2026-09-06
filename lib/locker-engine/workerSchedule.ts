@@ -7,8 +7,11 @@ export const STOP_MINUTES = 15;
 /** Customer return grace period — the worker must stay available through this window, not just at the exact end_time. */
 export const RETURN_GRACE_MINUTES = 10;
 
-/** Worker's day starts at 7am; no commitment may ever require presence before this. */
+/** Worker's day starts at 7am Malaysia time; no commitment may ever require presence before this. */
 export const WORKER_START_HOUR = 7;
+
+/** Malaysia has no DST — a fixed UTC+8 offset covers it exactly, no timezone library needed. */
+const MALAYSIA_UTC_OFFSET_HOURS = 8;
 
 export type WorkerCommitment = {
   partnerId: string;
@@ -56,11 +59,21 @@ function travelMinutesBetween(snapshot: FleetSnapshot, from: string, to: string)
   return entry?.minutes ?? Infinity;
 }
 
-/** Same calendar day's 7am — a commitment before that on its own day violates the floor. */
+/**
+ * Same Malaysia-local calendar day's 7am — a commitment before that on its
+ * own day violates the floor. "The worker's day" belongs to a real person
+ * living in Malaysia, not to whatever timezone the server process happens
+ * to be in (UTC in production, but possibly anything on a developer's own
+ * machine) — using the server's local time here was a real, previously-
+ * latent bug (setHours instead of an explicit, fixed offset). Anchored to
+ * a fixed +8h offset rather than server/session local time; the DB-level
+ * worker-schedule check (0012_worker_schedule_lock.sql) mirrors this exact
+ * threshold via `at time zone 'Asia/Kuala_Lumpur'` and must agree with it.
+ */
 function workerStartFloorFor(date: Date): Date {
-  const floor = new Date(date);
-  floor.setHours(WORKER_START_HOUR, 0, 0, 0);
-  return floor;
+  const myt = new Date(date.getTime() + MALAYSIA_UTC_OFFSET_HOURS * 3_600_000);
+  myt.setUTCHours(WORKER_START_HOUR, 0, 0, 0);
+  return new Date(myt.getTime() - MALAYSIA_UTC_OFFSET_HOURS * 3_600_000);
 }
 
 /**

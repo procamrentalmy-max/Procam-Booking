@@ -20,8 +20,8 @@ function baseSnapshot(): FleetSnapshot {
 
 describe("commitmentsForBooking", () => {
   it("produces a setup window ending exactly at start_time and a return window starting exactly at end_time", () => {
-    const start = new Date("2026-09-10T10:00:00");
-    const end = new Date("2026-09-10T14:00:00");
+    const start = new Date("2026-09-10T10:00:00Z");
+    const end = new Date("2026-09-10T14:00:00Z");
     const [setup, ret] = commitmentsForBooking("loc-a", start, end);
 
     expect(setup.end.getTime()).toBe(start.getTime());
@@ -36,8 +36,8 @@ describe("existingCommitments", () => {
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
       bookings: [
-        { id: "b1", assetId: "cam-1", partnerId: "loc-a", status: "CONFIRMED", startTime: new Date("2026-09-10T10:00:00"), endTime: new Date("2026-09-10T14:00:00") },
-        { id: "b2", assetId: "cam-2", partnerId: "loc-a", status: "CANCELLED", startTime: new Date("2026-09-10T10:00:00"), endTime: new Date("2026-09-10T14:00:00") },
+        { id: "b1", assetId: "cam-1", partnerId: "loc-a", status: "CONFIRMED", startTime: new Date("2026-09-10T10:00:00Z"), endTime: new Date("2026-09-10T14:00:00Z") },
+        { id: "b2", assetId: "cam-2", partnerId: "loc-a", status: "CANCELLED", startTime: new Date("2026-09-10T10:00:00Z"), endTime: new Date("2026-09-10T14:00:00Z") },
       ],
     };
     expect(existingCommitments(snapshot)).toHaveLength(2); // 1 booking x 2 commitments
@@ -46,22 +46,39 @@ describe("existingCommitments", () => {
 
 describe("isWorkerScheduleFeasible", () => {
   it("allows a commitment on its own with no prior schedule", () => {
-    const start = new Date("2026-09-10T10:00:00");
-    const end = new Date("2026-09-10T14:00:00");
+    // 02:00-06:00 UTC = 10am-2pm Malaysia time — comfortably clear of the 7am floor either side.
+    const start = new Date("2026-09-10T02:00:00Z");
+    const end = new Date("2026-09-10T06:00:00Z");
     const candidate = commitmentsForBooking("loc-a", start, end);
     expect(isWorkerScheduleFeasible([], candidate, baseSnapshot())).toBe(true);
   });
 
-  it("rejects a commitment requiring presence before the worker's 7am start", () => {
-    const start = new Date("2026-09-10T07:05:00"); // setup would need to start 06:50
-    const end = new Date("2026-09-10T11:00:00");
+  it("rejects a commitment requiring presence before the worker's 7am Malaysia-time start", () => {
+    // 23:05 UTC = 07:05 MYT — setup would need to start 06:50 MYT.
+    const start = new Date("2026-09-09T23:05:00Z");
+    const end = new Date("2026-09-10T03:00:00Z");
+    const candidate = commitmentsForBooking("loc-a", start, end);
+    expect(isWorkerScheduleFeasible([], candidate, baseSnapshot())).toBe(false);
+  });
+
+  it("rejects a return commitment that lands in the middle of the Malaysia night, even though its UTC clock time looks like a normal afternoon", () => {
+    // 14:00-18:00 UTC looks like a perfectly ordinary daytime booking by UTC
+    // clock time, but is actually 10pm-2am Malaysia time — the return
+    // commitment falls after midnight, well before the next Malaysia day's
+    // 7am floor. Anchoring the floor to UTC (or worse, the host machine's
+    // own local time) instead of a fixed Malaysia offset misses this case
+    // entirely — this is the exact bug a real booking attempt surfaced.
+    const start = new Date("2026-09-08T14:00:00Z");
+    const end = new Date("2026-09-08T18:00:00Z");
     const candidate = commitmentsForBooking("loc-a", start, end);
     expect(isWorkerScheduleFeasible([], candidate, baseSnapshot())).toBe(false);
   });
 
   it("allows back-to-back same-location commitments with zero gap", () => {
-    const firstEnd = new Date("2026-09-10T12:00:00");
-    const first = commitmentsForBooking("loc-a", new Date("2026-09-10T08:00:00"), firstEnd);
+    // 01:00-05:00 UTC = 9am-1pm Malaysia time, leaving room for a second
+    // same-day booking afterward without crossing into the next MYT day.
+    const firstEnd = new Date("2026-09-10T05:00:00Z");
+    const first = commitmentsForBooking("loc-a", new Date("2026-09-10T01:00:00Z"), firstEnd);
     // Second booking's setup starts exactly when the first's return window ends.
     const secondStart = new Date(firstEnd.getTime() + (10 + 15) * 60_000 + 15 * 60_000);
     const second = commitmentsForBooking("loc-a", secondStart, new Date(secondStart.getTime() + 4 * 60 * 60_000));
@@ -69,7 +86,7 @@ describe("isWorkerScheduleFeasible", () => {
   });
 
   it("rejects two different-location commitments that overlap without enough travel buffer", () => {
-    const first = commitmentsForBooking("loc-a", new Date("2026-09-10T08:00:00"), new Date("2026-09-10T12:00:00"));
+    const first = commitmentsForBooking("loc-a", new Date("2026-09-10T01:00:00Z"), new Date("2026-09-10T05:00:00Z"));
     // loc-b setup needs to start right when loc-a's return window ends — but travel takes 15 min.
     const firstReturnEnd = first[1].end;
     const second = commitmentsForBooking("loc-b", new Date(firstReturnEnd.getTime() + 15 * 60_000), new Date(firstReturnEnd.getTime() + 4 * 60 * 60_000));
@@ -77,7 +94,7 @@ describe("isWorkerScheduleFeasible", () => {
   });
 
   it("allows two different-location commitments with enough travel buffer", () => {
-    const first = commitmentsForBooking("loc-a", new Date("2026-09-10T08:00:00"), new Date("2026-09-10T12:00:00"));
+    const first = commitmentsForBooking("loc-a", new Date("2026-09-10T01:00:00Z"), new Date("2026-09-10T05:00:00Z"));
     const firstReturnEnd = first[1].end;
     // Give it the full 15min travel time as buffer this time.
     const secondStart = new Date(firstReturnEnd.getTime() + 15 * 60_000 + 15 * 60_000);

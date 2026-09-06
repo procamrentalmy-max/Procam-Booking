@@ -73,35 +73,36 @@ export async function createPendingLockerBooking(params: {
 
   if (result.outcome === "INFEASIBLE") throw new NoAssetAvailableError();
 
+  // The RPC (0012_worker_schedule_lock.sql) is the real backstop, not this
+  // insert: it takes a global advisory lock and re-validates worker-schedule
+  // feasibility against the DB's actual current state before inserting, all
+  // inside one transaction — closing the race where two concurrent callers
+  // each pass the check above against a snapshot that doesn't include the
+  // other. The inventory half of the gate was already backed by the
+  // asset/kit EXCLUDE constraints; this closes the worker-schedule half.
   const { data: booking, error } = await supabase
-    .from("bookings")
-    .insert({
-      secure_token: generateSecureToken(),
-      customer_id: params.customerId,
-      partner_id: params.partnerId,
-      rental_package_id: params.rentalPackageId,
-      asset_id: result.assetId,
-      status: "PENDING_PAYMENT",
-      start_time: result.startTime.toISOString(),
-      end_time: result.endTime.toISOString(),
-      source: params.source,
-      referral_code: params.referralCode,
-    })
-    .select("*")
-    .single();
+    .rpc("create_locker_booking_atomic", {
+      p_customer_id: params.customerId,
+      p_partner_id: params.partnerId,
+      p_rental_package_id: params.rentalPackageId,
+      p_asset_id: result.assetId,
+      p_start_time: result.startTime.toISOString(),
+      p_end_time: result.endTime.toISOString(),
+      p_secure_token: generateSecureToken(),
+      p_source: params.source,
+      p_referral_code: params.referralCode,
+    });
 
   if (error) {
-    // 23P01 = exclusion_violation: the snapshot was stale — a concurrent
-    // booking took this exact camera/window between our read and this
-    // write. The DB is the real backstop for that, same as the reception
-    // model. The worker-schedule half of the gate has no equivalent
-    // database-level enforcement yet (a known, deliberately deferred gap —
-    // see the plan doc's advisory-lock serialization note); a race there
-    // wouldn't surface as a constraint violation at all. Acceptable at
-    // current traffic, not once real concurrent bookings are common.
-    if (error.code === "23P01") throw new NoAssetAvailableError();
+    // 23P01 = exclusion_violation (asset/kit double-booked — a concurrent
+    // booking won the race between our read and this write). P0001 = the
+    // RPC's own "INFEASIBLE: ..." raises for a worker-schedule conflict.
+    // Both mean the same thing to the customer: this slot didn't actually
+    // work out, not a real system error.
+    if (error.code === "23P01" || error.code === "P0001") throw new NoAssetAvailableError();
     throw new Error(error.message);
   }
+  if (!booking) throw new Error("Booking creation did not return a row.");
 
   if (!pkg.is_overnight && isImminent(result.startTime)) {
     const { error: transitionError } = await supabase.rpc("system_transition_asset_status", {

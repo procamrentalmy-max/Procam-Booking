@@ -505,6 +505,20 @@ export interface Database {
         };
         Returns: RentalAssetRow;
       };
+      create_locker_booking_atomic: {
+        Args: {
+          p_customer_id: string;
+          p_partner_id: string;
+          p_rental_package_id: string;
+          p_asset_id: string;
+          p_start_time: string;
+          p_end_time: string;
+          p_secure_token: string;
+          p_source: BookingSource;
+          p_referral_code?: string | null;
+        };
+        Returns: BookingRow;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

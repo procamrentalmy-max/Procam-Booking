@@ -25,8 +25,8 @@ function baseSnapshot(): FleetSnapshot {
   };
 }
 
-// A Tuesday at 09:00 local — well clear of the worker's 7am floor.
-const NOW = new Date("2026-09-08T09:00:00");
+// A Tuesday at 09:00 UTC — well clear of the worker's 7am UTC floor.
+const NOW = new Date("2026-09-08T09:00:00Z");
 
 describe("checkLockerBookingFeasibility", () => {
   it("throws for a non-positive duration", () => {
@@ -42,14 +42,17 @@ describe("checkLockerBookingFeasibility", () => {
   });
 
   it("confirms when both camera and worker schedule are free", () => {
-    const desiredStart = new Date("2026-09-08T14:00:00");
+    const desiredStart = new Date("2026-09-08T11:00:00Z"); // 7pm Malaysia time, well after NOW's lead time
     const result = checkLockerBookingFeasibility(baseSnapshot(), { partnerId: "loc-a", durationMinutes: 240, earliestStartTime: desiredStart }, NOW);
     expect(result).toMatchObject({ outcome: "CONFIRM", startTime: desiredStart });
   });
 
   it("pushes to a later hour when the requested hour has no worker-schedule room, even though a camera is free", () => {
-    // Existing booking at loc-b whose return commitment blocks 14:00 at loc-a (different location, 15min travel needed).
-    const returnBlockStart = new Date("2026-09-08T14:00:00");
+    // Existing booking at loc-b (6am-10am UTC = 2pm-6pm Malaysia time) whose
+    // return commitment blocks 10:00 UTC at loc-a (different location, 15min
+    // travel needed) — kept well within the same Malaysia calendar day so
+    // this test isolates the travel-time conflict, not the 7am floor.
+    const returnBlockStart = new Date("2026-09-08T10:00:00Z");
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
       bookings: [
@@ -58,14 +61,15 @@ describe("checkLockerBookingFeasibility", () => {
           assetId: "cam-2",
           partnerId: "loc-b",
           status: "CONFIRMED",
-          startTime: new Date("2026-09-08T10:00:00"),
-          endTime: returnBlockStart, // return commitment starts exactly at 14:00 at loc-b
+          startTime: new Date("2026-09-08T06:00:00Z"),
+          endTime: returnBlockStart, // return commitment starts exactly at 10:00 UTC at loc-b
         },
       ],
     };
-    // Requesting a NEW booking's setup at loc-a for 14:00 — camera cam-1 is free,
-    // but the worker's return commitment for the existing booking is at loc-b at
-    // the same moment, and there's no travel-time room between them.
+    // Requesting a NEW booking's setup at loc-a for 10:00 UTC — camera cam-1
+    // is free, but the worker's return commitment for the existing booking
+    // is at loc-b at the same moment, and there's no travel-time room
+    // between them.
     const result = checkLockerBookingFeasibility(snapshot, { partnerId: "loc-a", durationMinutes: 240, earliestStartTime: returnBlockStart }, NOW);
     expect(result.outcome).toBe("NEXT_FEASIBLE_SLOT");
     if (result.outcome !== "INFEASIBLE") {
