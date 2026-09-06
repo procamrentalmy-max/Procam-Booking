@@ -19,7 +19,7 @@ type LockerPartner = { id: string; name: string };
 
 /** 8am-9pm — matches the locker network's operating hours; the server is the real authority on what's actually feasible. */
 const OPERATING_HOURS = Array.from({ length: 14 }, (_, i) => i + 8);
-const MIN_LEAD_MINUTES = 60;
+const MIN_LEAD_MINUTES = 120;
 
 function toDateInputValue(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -165,7 +165,8 @@ export function BookingWizard({
       return;
     }
     if (resolveEarliestStartTime().getTime() < Date.now() + MIN_LEAD_MINUTES * 60_000 - 60_000) {
-      setError(`Bookings need at least ${MIN_LEAD_MINUTES / 60} hour of notice — please choose a later time.`);
+      const hours = MIN_LEAD_MINUTES / 60;
+      setError(`Bookings need at least ${hours} hour${hours === 1 ? "" : "s"} of notice — please choose a later time.`);
       return;
     }
     setStep("locations");
@@ -315,8 +316,8 @@ export function BookingWizard({
           <div className="space-y-2">
             <p className="text-xs text-zinc-500">
               {mode === "overnight"
-                ? "Pick up at 10pm, return by 8am — bookings need at least 1 hour of notice."
-                : "Pick a date, then a start time and an end time from the timetable — bookings need at least 1 hour of notice. If your exact slot isn't free, we'll offer the next available one."}
+                ? "Pick up at 10pm, return by 8am — bookings need at least 2 hours of notice."
+                : "Pick a date, then a start time and an end time from the timetable — bookings need at least 2 hours of notice. If your exact slot isn't free, we'll offer the next available one."}
             </p>
             <input
               ref={dateInputRef}

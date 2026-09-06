@@ -5,7 +5,7 @@ import type { FleetSnapshot } from "./types";
 export { InvalidBookingRequestError };
 
 /** Customers must request a daytime slot at least this far ahead. */
-export const MINIMUM_LEAD_MINUTES = 60;
+export const MINIMUM_LEAD_MINUTES = 120;
 
 export type LockerBookingRequest = {
   partnerId: string;
@@ -75,24 +75,32 @@ export const OVERNIGHT_START_HOUR = 22;
 export const OVERNIGHT_RETURN_HOUR = 8;
 export const OVERNIGHT_DURATION_MINUTES = (24 - OVERNIGHT_START_HOUR + OVERNIGHT_RETURN_HOUR) * 60;
 
-/** Customers must request an overnight slot at least this far ahead of its 10pm start (i.e. by 9pm). */
-export const OVERNIGHT_LEAD_MINUTES = 60;
+/** Customers must request an overnight slot at least this far ahead of its 10pm start (i.e. by 8pm). */
+export const OVERNIGHT_LEAD_MINUTES = 120;
 
 export type OvernightBookingRequest = {
   partnerId: string;
+  /** Where the customer will return the camera — may differ from partnerId for a one-way rental. */
+  dropoffPartnerId: string;
   /** Any Date on the desired night — only its calendar date is used; the start hour is always fixed at 10pm. */
   earliestNight: Date;
 };
 
 /**
  * Overnight is a separate, fixed nightly package (10pm-8am), priced and
- * marketed independently of the daytime menu. Per product decision, this
- * does NOT check worker-schedule feasibility against daytime bookings —
- * overnight is assumed to have its own dedicated handling, not something
- * proven safe by this function the way the daytime gate is. Camera
- * double-booking protection is never skipped for any booking type, so
- * this still runs the same `findEligibleAsset` check the daytime gate
- * uses — it only omits the worker-schedule half.
+ * marketed independently of the daytime menu, but it creates the exact
+ * same kind of hard worker-presence commitments as a daytime booking
+ * (setup finishing at start_time, return blocking the grace+processing
+ * window at end_time) — so it's checked the same way. This used to be
+ * skipped entirely for overnight, which allowed an overnight pickup to be
+ * accepted the same night a daytime booking had already committed the
+ * worker to a different, unreachable location (confirmed via simulation).
+ *
+ * Because every overnight booking shares the same fixed 10pm start
+ * network-wide, this means at most one overnight booking can be accepted
+ * per night unless its location is reachable from every other commitment
+ * ending near 10pm that night — a real capacity constraint of a
+ * single-worker fleet, not a bug in this check.
  */
 export function checkOvernightBookingFeasibility(
   snapshot: FleetSnapshot,
@@ -100,6 +108,8 @@ export function checkOvernightBookingFeasibility(
   now: Date = new Date(),
   maxLookaheadNights: number = 14
 ): BookingGateResult {
+  const commitments = existingCommitments(snapshot);
+
   for (let n = 0; n <= maxLookaheadNights; n++) {
     const startTime = new Date(request.earliestNight);
     startTime.setDate(startTime.getDate() + n);
@@ -111,6 +121,9 @@ export function checkOvernightBookingFeasibility(
     const endTime = new Date(startTime.getTime() + OVERNIGHT_DURATION_MINUTES * 60_000);
     const assetId = findEligibleAsset(snapshot, startTime, endTime);
     if (!assetId) continue;
+
+    const candidateCommitments = commitmentsForBooking(request.partnerId, request.dropoffPartnerId, startTime, endTime);
+    if (!isWorkerScheduleFeasible(commitments, candidateCommitments, snapshot)) continue;
 
     return n === 0
       ? { outcome: "CONFIRM", assetId, startTime, endTime }

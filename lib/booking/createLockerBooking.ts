@@ -69,7 +69,11 @@ export async function createPendingLockerBooking(params: {
   const snapshot = await buildLockerFleetSnapshot(pkg.product_id);
 
   const result = pkg.is_overnight
-    ? checkOvernightBookingFeasibility(snapshot, { partnerId: params.partnerId, earliestNight: params.earliestStartTime })
+    ? checkOvernightBookingFeasibility(snapshot, {
+        partnerId: params.partnerId,
+        dropoffPartnerId: params.dropoffPartnerId,
+        earliestNight: params.earliestStartTime,
+      })
     : checkLockerBookingFeasibility(snapshot, {
         partnerId: params.partnerId,
         dropoffPartnerId: params.dropoffPartnerId,
