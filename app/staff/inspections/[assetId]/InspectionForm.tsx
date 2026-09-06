@@ -69,6 +69,7 @@ export function InspectionForm({
   const [showDamageForm, setShowDamageForm] = useState(damageReported);
   const [category, setCategory] = useState<(typeof damageCategories)[number]>("OTHER");
   const [description, setDescription] = useState(damageDescription ?? "");
+  const [damagePhotos, setDamagePhotos] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -101,6 +102,7 @@ export function InspectionForm({
       const fd = buildBaseFormData();
       fd.set("category", category);
       fd.set("description", description);
+      for (const file of damagePhotos) fd.append("damagePhotos", file);
       await reportDamageAction(fd);
       router.push("/staff/inspections");
       router.refresh();
@@ -201,6 +203,19 @@ export function InspectionForm({
             className="w-full rounded-lg border border-zinc-300 px-4 py-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
             rows={3}
           />
+          <div className="space-y-2">
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              multiple
+              onChange={(e) => setDamagePhotos(Array.from(e.target.files ?? []))}
+              className="w-full text-sm"
+            />
+            {damagePhotos.length > 0 && (
+              <p className="text-xs text-zinc-500">{damagePhotos.length} photo(s) attached</p>
+            )}
+          </div>
           <button
             onClick={handleConfirmDamage}
             disabled={loading || !description}

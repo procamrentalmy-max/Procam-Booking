@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { getConditionPhotoSignedUrl } from "@/lib/storage";
+import { getEvidencePhotoSignedUrl } from "@/lib/storage";
 import { InspectionForm } from "./InspectionForm";
 
 export default async function InspectionDetailPage({ params }: { params: Promise<{ assetId: string }> }) {
@@ -72,7 +72,7 @@ export default async function InspectionDetailPage({ params }: { params: Promise
   const preSignedByKey: Record<string, string> = {};
   const returnSignedByKey: Record<string, string> = {};
   for (const photo of photos ?? []) {
-    const url = await getConditionPhotoSignedUrl(photo.storage_path);
+    const url = await getEvidencePhotoSignedUrl(photo.storage_path);
     if (photo.condition_check_id === preRentalCheck?.id) {
       const template = preTemplateById.get(photo.check_template_item_id);
       if (template) preSignedByKey[template.item_key] = url;

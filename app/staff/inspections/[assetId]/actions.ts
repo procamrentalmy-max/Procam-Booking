@@ -6,6 +6,7 @@ import { uuidSchema } from "@/lib/zod-helpers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAuthContext, hasStaffAccess } from "@/lib/auth/session";
 import { getStripe, toCents } from "@/lib/stripe/client";
+import { uploadEvidencePhoto, damagePhotoPath } from "@/lib/storage";
 import { assertValidBookingTransition } from "@/lib/state-machine/booking";
 import { logAudit } from "@/lib/audit";
 import type { BookingStatus, DamageCategory } from "@/lib/db/types";
@@ -190,7 +191,7 @@ const damageSchema = baseSchema.extend({
  * DAMAGE: asset goes to MAINTENANCE (never back to the fleet without a
  * staff member separately clearing it) and the booking to DAMAGE_REVIEW.
  * The deposit is untouched here — only an admin can capture or release it,
- * from the admin damage-case screen (not built in this pass).
+ * from the admin damage-case screen (app/admin/damage-cases).
  */
 export async function reportDamageAction(formData: FormData) {
   const ctx = await getAuthContext();
@@ -225,14 +226,25 @@ export async function reportDamageAction(formData: FormData) {
     .single();
   if (inspectionError || !inspection) throw new Error(inspectionError?.message ?? "Could not save inspection.");
 
-  const { error: damageError } = await supabase.from("damage_cases").insert({
-    inspection_id: inspection.id,
-    booking_id: parsed.bookingId,
-    category: parsed.category as DamageCategory,
-    description: parsed.description,
-    status: "OPEN",
-  });
-  if (damageError) throw new Error(damageError.message);
+  const { data: damageCase, error: damageError } = await supabase
+    .from("damage_cases")
+    .insert({
+      inspection_id: inspection.id,
+      booking_id: parsed.bookingId,
+      category: parsed.category as DamageCategory,
+      description: parsed.description,
+      status: "OPEN",
+    })
+    .select("id")
+    .single();
+  if (damageError || !damageCase) throw new Error(damageError?.message ?? "Could not save the damage case.");
+
+  const photos = formData.getAll("damagePhotos").filter((f): f is File => f instanceof File && f.size > 0);
+  for (const [index, file] of photos.entries()) {
+    const path = damagePhotoPath(damageCase.id, index);
+    await uploadEvidencePhoto(path, file);
+    await supabase.from("damage_case_photos").insert({ damage_case_id: damageCase.id, storage_path: path });
+  }
 
   await supabase.rpc("transition_asset_status", {
     p_asset_id: parsed.assetId,

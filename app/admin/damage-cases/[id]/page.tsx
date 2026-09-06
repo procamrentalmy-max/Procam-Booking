@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { getConditionPhotoSignedUrl } from "@/lib/storage";
+import { getEvidencePhotoSignedUrl } from "@/lib/storage";
 import { primaryButtonClass } from "@/components/formStyles";
 import { DamageCaseResolutionForm } from "./DamageCaseResolutionForm";
 import { markDamageCaseUnderReviewAction } from "./actions";
@@ -49,8 +49,14 @@ export default async function DamageCaseDetailPage({ params }: { params: Promise
       .from("condition_photos")
       .select("storage_path")
       .eq("condition_check_id", returnCheck.id);
-    photoUrls = await Promise.all((photos ?? []).map((p) => getConditionPhotoSignedUrl(p.storage_path)));
+    photoUrls = await Promise.all((photos ?? []).map((p) => getEvidencePhotoSignedUrl(p.storage_path)));
   }
+
+  const { data: damagePhotos } = await supabase
+    .from("damage_case_photos")
+    .select("storage_path")
+    .eq("damage_case_id", damageCase.id);
+  const damagePhotoUrls = await Promise.all((damagePhotos ?? []).map((p) => getEvidencePhotoSignedUrl(p.storage_path)));
 
   const resolved = damageCase.status === "RESOLVED";
 
@@ -82,6 +88,18 @@ export default async function DamageCaseDetailPage({ params }: { params: Promise
         <p className="font-medium">{damageCase.category.replace(/_/g, " ")}</p>
         <p className="text-sm">{damageCase.description}</p>
       </section>
+
+      {damagePhotoUrls.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold text-zinc-500">Damage Photos (from staff)</h2>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {damagePhotoUrls.map((url, i) => (
+              // eslint-disable-next-line @next/next/no-img-element -- signed Storage URL, not optimizable
+              <img key={i} src={url} alt="Reported damage" className="aspect-square w-full rounded-lg object-cover" />
+            ))}
+          </div>
+        </section>
+      )}
 
       {inspection?.notes && (
         <section className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">

@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { uploadConditionPhoto, conditionPhotoPath } from "@/lib/storage";
+import { uploadEvidencePhoto, conditionPhotoPath } from "@/lib/storage";
 import { assertValidBookingTransition } from "@/lib/state-machine/booking";
 import { promoteBookingToReadyForPickup } from "@/lib/booking/confirm";
 import { getCheckTemplates, getBookingProductId } from "@/lib/booking/checkTemplates";
@@ -85,7 +85,7 @@ export async function submitPreRentalConditionCheckAction(formData: FormData) {
     const file = photos[item.item_key];
     if (!file) continue;
     const path = conditionPhotoPath(booking.id, "pre-rental", item.item_key);
-    await uploadConditionPhoto(path, file);
+    await uploadEvidencePhoto(path, file);
     await supabase
       .from("condition_photos")
       .upsert(
