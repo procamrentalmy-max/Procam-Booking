@@ -13,7 +13,7 @@ type RentalPackage = {
   is_overnight: boolean;
 };
 
-type Step = "details" | "phone" | "otp" | "confirm" | "booked";
+type Step = "package" | "contact" | "phone" | "otp" | "confirm" | "booked";
 
 /** 8am-7pm — matches the locker network's operating hours; the server is the real authority on what's actually feasible. */
 const OPERATING_HOURS = Array.from({ length: 12 }, (_, i) => i + 8);
@@ -63,7 +63,7 @@ export function BookingWizard({
   termsBody: string | null;
 }) {
   const router = useRouter();
-  const [step, setStep] = useState<Step>("details");
+  const [step, setStep] = useState<Step>("package");
   const [packageId, setPackageId] = useState(packages[0]?.id ?? "");
   const initialDefault = defaultDateAndHour();
   const [date, setDate] = useState(initialDefault.date);
@@ -110,7 +110,7 @@ export function BookingWizard({
     }
   }
 
-  async function handleDetailsSubmit() {
+  function handlePackageSubmit() {
     setError(null);
     if (!packageId) {
       setError("Select a rental package.");
@@ -120,7 +120,11 @@ export function BookingWizard({
       setError(`Bookings need at least ${MIN_LEAD_MINUTES / 60} hour of notice — please choose a later time.`);
       return;
     }
+    setStep("contact");
+  }
 
+  async function handleContactSubmit() {
+    setError(null);
     if (requiresPhoneCompatibility) {
       setStep("phone");
       return;
@@ -190,7 +194,8 @@ export function BookingWizard({
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
       <h1 className="text-center text-xl font-semibold text-black dark:text-zinc-50">
-        {step === "details" && productName}
+        {step === "package" && productName}
+        {step === "contact" && "Your Details"}
         {step === "phone" && "Check Your Phone"}
         {step === "otp" && "Verify Your Phone"}
         {step === "confirm" && "Confirm Booking"}
@@ -199,7 +204,7 @@ export function BookingWizard({
 
       {error && <p className="text-center text-sm text-red-600">{error}</p>}
 
-      {step === "details" && (
+      {step === "package" && (
         <div className="space-y-4">
           <div className="space-y-2">
             {packages.map((pkg) => (
@@ -230,32 +235,47 @@ export function BookingWizard({
             <p className="text-xs text-zinc-500">
               {selectedPackage?.is_overnight
                 ? "Pick up at 10pm, return by 8am — bookings need at least 1 hour of notice."
-                : "Pick a pickup date and hour — bookings need at least 1 hour of notice. If your exact hour isn't free, we'll offer the next available one."}
+                : "Pick a pickup date, then a slot from the timetable below — bookings need at least 1 hour of notice. If your exact slot isn't free, we'll offer the next available one."}
             </p>
-            <div className="flex gap-2">
-              <input
-                type="date"
-                value={date}
-                min={toDateInputValue(new Date())}
-                onChange={(e) => setDate(e.target.value)}
-                className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
-              />
-              {!selectedPackage?.is_overnight && (
-                <select
-                  value={hour}
-                  onChange={(e) => setHour(Number(e.target.value))}
-                  className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
-                >
-                  {OPERATING_HOURS.map((h) => (
-                    <option key={h} value={h}>
-                      {formatHour(h)}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
+            <input
+              type="date"
+              value={date}
+              min={toDateInputValue(new Date())}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full rounded-lg border border-zinc-300 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
+            />
+            {!selectedPackage?.is_overnight && (
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {OPERATING_HOURS.map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    onClick={() => setHour(h)}
+                    className={`rounded-lg border py-2 text-sm ${
+                      hour === h
+                        ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                        : "border-zinc-300 dark:border-zinc-700"
+                    }`}
+                  >
+                    {formatHour(h)}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
+          <button
+            onClick={handlePackageSubmit}
+            disabled={loading}
+            className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
+          >
+            Continue
+          </button>
+        </div>
+      )}
+
+      {step === "contact" && (
+        <div className="space-y-4">
           <input
             placeholder="Full name"
             value={name}
@@ -277,7 +297,7 @@ export function BookingWizard({
           />
 
           <button
-            onClick={handleDetailsSubmit}
+            onClick={handleContactSubmit}
             disabled={loading || !name || !phone || !email}
             className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
           >

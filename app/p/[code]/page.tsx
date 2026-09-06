@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { countAvailableAssets } from "@/lib/booking/availability";
 
 export default async function PartnerLandingPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
@@ -32,13 +31,6 @@ export default async function PartnerLandingPage({ params }: { params: Promise<{
         .in("id", productIdsHere)
     : { data: [] };
 
-  const productsWithAvailability = await Promise.all(
-    (products ?? []).map(async (p) => ({
-      ...p,
-      availableNow: await countAvailableAssets(partner.id, p.id),
-    }))
-  );
-
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
       <div className="text-center">
@@ -47,7 +39,7 @@ export default async function PartnerLandingPage({ params }: { params: Promise<{
       </div>
 
       <div className="space-y-3">
-        {productsWithAvailability.map((product) => (
+        {(products ?? []).map((product) => (
           <Link
             key={product.id}
             href={`/p/${partner.referral_code}/book?product=${product.id}`}
@@ -55,20 +47,9 @@ export default async function PartnerLandingPage({ params }: { params: Promise<{
           >
             <p className="font-medium text-black dark:text-zinc-50">{product.customer_facing_name}</p>
             {product.tagline && <p className="text-sm text-zinc-500">{product.tagline}</p>}
-            {/*
-              Advisory only, not a hard gate: an asset busy right now can
-              still have a free slot later today, and the booking wizard
-              lets you pick any time. The real check happens when you
-              request a slot (createPendingBooking) — this is just a hint.
-            */}
-            <p className="mt-2 text-xs text-zinc-400">
-              {product.availableNow > 0
-                ? `${product.availableNow} available right now`
-                : "Out right now — you can still book a later time today"}
-            </p>
           </Link>
         ))}
-        {!productsWithAvailability.length && (
+        {!(products ?? []).length && (
           <p className="rounded-xl border border-zinc-200 p-4 text-center text-sm text-zinc-500 dark:border-zinc-800">
             No equipment is currently set up at this property.
           </p>
