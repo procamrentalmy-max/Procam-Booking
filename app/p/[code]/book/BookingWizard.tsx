@@ -63,11 +63,15 @@ export function BookingWizard({
   termsBody: string | null;
 }) {
   const router = useRouter();
+  const daytimePackages = [...packages].filter((p) => !p.is_overnight).sort((a, b) => a.duration_minutes - b.duration_minutes);
+  const overnightPackage = packages.find((p) => p.is_overnight) ?? null;
+
   const [step, setStep] = useState<Step>("package");
-  const [packageId, setPackageId] = useState(packages[0]?.id ?? "");
+  const [mode, setMode] = useState<"daytime" | "overnight">(daytimePackages.length > 0 ? "daytime" : "overnight");
+  const [packageId, setPackageId] = useState(mode === "overnight" ? (overnightPackage?.id ?? "") : "");
   const initialDefault = defaultDateAndHour();
   const [date, setDate] = useState(initialDefault.date);
-  const [hour, setHour] = useState(initialDefault.hour);
+  const [startHour, setStartHour] = useState<number | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -92,8 +96,27 @@ export function BookingWizard({
       const combined = new Date(`${date}T22:00`);
       return Number.isNaN(combined.getTime()) ? new Date() : combined;
     }
-    const combined = new Date(`${date}T${String(hour).padStart(2, "0")}:00`);
+    const combined = new Date(`${date}T${String(startHour ?? 0).padStart(2, "0")}:00`);
     return Number.isNaN(combined.getTime()) ? new Date() : combined;
+  }
+
+  /** The clock time (and whether it rolls into the next day) an end-time option would land on, given the chosen start hour. */
+  function endTimeLabel(pkg: RentalPackage): string {
+    if (startHour === null) return "";
+    const totalHour = startHour + pkg.duration_minutes / 60;
+    const displayHour = totalHour % 24;
+    return formatHour(displayHour) + (totalHour >= 24 ? " (+1 day)" : "");
+  }
+
+  function selectMode(next: "daytime" | "overnight") {
+    setMode(next);
+    setStartHour(null);
+    setPackageId(next === "overnight" ? (overnightPackage?.id ?? "") : "");
+  }
+
+  function selectStartHour(h: number) {
+    setStartHour(h);
+    setPackageId(""); // end time (and so the package) must be re-picked for the new start
   }
 
   async function sendVerificationCode() {
@@ -205,37 +228,59 @@ export function BookingWizard({
       {error && <p className="text-center text-sm text-red-600">{error}</p>}
 
       {step === "package" && (
-        <div className="space-y-4">
-          <div className="space-y-2">
-            {packages.map((pkg) => (
-              <label
-                key={pkg.id}
-                className={`flex cursor-pointer items-center justify-between rounded-xl border p-4 ${
-                  packageId === pkg.id
-                    ? "border-black dark:border-white"
-                    : "border-zinc-200 dark:border-zinc-800"
+        <div className="space-y-5">
+          {/* Price chart — reference only; the actual pick happens in the timetable below. */}
+          <div className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-zinc-50 dark:bg-zinc-900">
+                  <th className="px-4 py-2 text-left font-medium text-zinc-500">Duration</th>
+                  <th className="px-4 py-2 text-right font-medium text-zinc-500">Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                {packages.map((pkg) => (
+                  <tr key={pkg.id} className="border-t border-zinc-100 dark:border-zinc-800">
+                    <td className="px-4 py-2">{pkg.name}</td>
+                    <td className="px-4 py-2 text-right font-semibold">RM{pkg.price_myr}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {daytimePackages.length > 0 && overnightPackage && (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => selectMode("daytime")}
+                className={`flex-1 rounded-full border py-2 text-sm font-medium ${
+                  mode === "daytime"
+                    ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                    : "border-zinc-300 dark:border-zinc-700"
                 }`}
               >
-                <span>
-                  <input
-                    type="radio"
-                    name="package"
-                    className="mr-2"
-                    checked={packageId === pkg.id}
-                    onChange={() => setPackageId(pkg.id)}
-                  />
-                  {pkg.name}
-                </span>
-                <span className="font-semibold">RM{pkg.price_myr}</span>
-              </label>
-            ))}
-          </div>
+                Daytime
+              </button>
+              <button
+                type="button"
+                onClick={() => selectMode("overnight")}
+                className={`flex-1 rounded-full border py-2 text-sm font-medium ${
+                  mode === "overnight"
+                    ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                    : "border-zinc-300 dark:border-zinc-700"
+                }`}
+              >
+                Overnight
+              </button>
+            </div>
+          )}
 
           <div className="space-y-2">
             <p className="text-xs text-zinc-500">
-              {selectedPackage?.is_overnight
+              {mode === "overnight"
                 ? "Pick up at 10pm, return by 8am — bookings need at least 1 hour of notice."
-                : "Pick a pickup date, then a slot from the timetable below — bookings need at least 1 hour of notice. If your exact slot isn't free, we'll offer the next available one."}
+                : "Pick a date, then a start time and an end time from the timetable — bookings need at least 1 hour of notice. If your exact slot isn't free, we'll offer the next available one."}
             </p>
             <input
               type="date"
@@ -244,29 +289,65 @@ export function BookingWizard({
               onChange={(e) => setDate(e.target.value)}
               className="w-full rounded-lg border border-zinc-300 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
             />
-            {!selectedPackage?.is_overnight && (
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {OPERATING_HOURS.map((h) => (
-                  <button
-                    key={h}
-                    type="button"
-                    onClick={() => setHour(h)}
-                    className={`rounded-lg border py-2 text-sm ${
-                      hour === h
-                        ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-                        : "border-zinc-300 dark:border-zinc-700"
-                    }`}
-                  >
-                    {formatHour(h)}
-                  </button>
-                ))}
+
+            {mode === "daytime" && (
+              <div className="space-y-3">
+                <div>
+                  <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-400">Start Time</p>
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                    {OPERATING_HOURS.map((h) => (
+                      <button
+                        key={h}
+                        type="button"
+                        onClick={() => selectStartHour(h)}
+                        className={`rounded-lg border py-2 text-sm ${
+                          startHour === h
+                            ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                            : "border-zinc-300 dark:border-zinc-700"
+                        }`}
+                      >
+                        {formatHour(h)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {startHour !== null && (
+                  <div>
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-400">End Time</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {daytimePackages.map((pkg) => (
+                        <button
+                          key={pkg.id}
+                          type="button"
+                          onClick={() => setPackageId(pkg.id)}
+                          className={`rounded-lg border py-2 text-sm ${
+                            packageId === pkg.id
+                              ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                              : "border-zinc-300 dark:border-zinc-700"
+                          }`}
+                        >
+                          {endTimeLabel(pkg)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
+          {/* Price for the selected slot — shown at the bottom, right above Continue. */}
+          {selectedPackage && (
+            <div className="rounded-lg bg-zinc-50 p-3 text-center dark:bg-zinc-900">
+              <p className="text-sm text-zinc-500">{selectedPackage.name}</p>
+              <p className="text-lg font-semibold text-black dark:text-zinc-50">RM{selectedPackage.price_myr}</p>
+            </div>
+          )}
+
           <button
             onClick={handlePackageSubmit}
-            disabled={loading}
+            disabled={loading || !selectedPackage}
             className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
           >
             Continue
