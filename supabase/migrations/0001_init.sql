@@ -57,10 +57,6 @@ create type asset_status as enum (
   'MAINTENANCE', 'LOST', 'RETIRED'
 );
 
-create type kit_status as enum (
-  'AVAILABLE', 'WITH_CUSTOMER', 'AWAITING_INSPECTION', 'MAINTENANCE', 'RETIRED'
-);
-
 create type battery_status as enum (
   'CHARGED', 'DEPLOYED', 'CHARGING', 'MAINTENANCE', 'LOST', 'RETIRED'
 );
@@ -99,7 +95,7 @@ create type damage_case_status as enum ('OPEN', 'UNDER_REVIEW', 'RESOLVED');
 create type deposit_action as enum ('NONE', 'CAPTURED', 'PARTIALLY_CAPTURED');
 
 create type maintainable_asset_type as enum ('RENTAL_ASSET', 'BATTERY');
-create type tracked_asset_type as enum ('RENTAL_ASSET', 'BATTERY', 'KIT');
+create type tracked_asset_type as enum ('RENTAL_ASSET', 'BATTERY');
 
 create type actor_type as enum ('CUSTOMER', 'RECEPTION', 'STAFF', 'ADMIN', 'SYSTEM');
 
@@ -130,7 +126,6 @@ $$;
 create sequence partners_human_id_seq;
 create sequence customers_human_id_seq;
 create sequence rental_assets_human_id_seq;
-create sequence kits_human_id_seq;
 create sequence batteries_human_id_seq;
 create sequence bookings_human_id_seq;
 
@@ -205,7 +200,7 @@ create index idx_identity_verifications_customer on identity_verifications(custo
 -- ============================================================================
 
 -- The catalogue of rentable product lines. Everything product-specific
--- (packages, assets, kits, check templates, phone compatibility,
+-- (packages, assets, check templates, phone compatibility,
 -- instructions, terms) hangs off this table by product_id — the booking,
 -- payment, deposit, and inspection engines stay product-agnostic and never
 -- need to know which product they're moving through.
@@ -304,7 +299,7 @@ create trigger trg_rental_packages_updated_at before update on rental_packages
   for each row execute function set_updated_at();
 
 -- ============================================================================
--- PHYSICAL ASSETS: rental_assets, kits, batteries
+-- PHYSICAL ASSETS: rental_assets, batteries
 -- ============================================================================
 
 create table rental_assets (
@@ -357,28 +352,6 @@ end;
 $$;
 create trigger trg_rental_assets_human_id before insert on rental_assets
   for each row execute function set_rental_asset_human_id();
-
-create table kits (
-  id uuid primary key default gen_random_uuid(),
-  human_id text not null unique default next_human_id('kits_human_id_seq', 'KIT', 3),
-  product_id uuid not null references rental_products(id),
-  partner_id uuid references partners(id) on delete set null,
-  status kit_status not null default 'AVAILABLE',
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-create index idx_kits_partner on kits(partner_id);
-create index idx_kits_product on kits(product_id);
-create trigger trg_kits_updated_at before update on kits
-  for each row execute function set_updated_at();
-
--- Static contents list for a kit (selfie stick, strap, case, ...).
-create table kit_items (
-  id uuid primary key default gen_random_uuid(),
-  kit_id uuid not null references kits(id) on delete cascade,
-  item_name text not null
-);
-create index idx_kit_items_kit on kit_items(kit_id);
 
 create table batteries (
   id uuid primary key default gen_random_uuid(),
@@ -477,11 +450,6 @@ create table bookings (
   partner_id uuid not null references partners(id),
   rental_package_id uuid not null references rental_packages(id),
   asset_id uuid not null references rental_assets(id),
-  -- Nullable: kits are a reception-era concept (a numbered handover pouch)
-  -- that the self-service locker model has no use for — a locker booking
-  -- is just a camera. The no_overlapping_kit_bookings EXCLUDE constraint
-  -- below is unaffected: two NULL kit_id rows never collide under `=`.
-  kit_id uuid references kits(id),
   battery_id uuid references batteries(id),
 
   status booking_status not null default 'PENDING_PAYMENT',
@@ -526,16 +494,6 @@ alter table bookings
   add constraint no_overlapping_asset_bookings
   exclude using gist (
     asset_id with =,
-    tstzrange(start_time, end_time) with &&
-  )
-  where (status not in ('CANCELLED', 'EXPIRED', 'COMPLETED'));
-
--- Same guarantee for kits — the numbered pouch is a tracked asset too
--- (spec section 8) and must not be double-booked any more than the rental asset itself.
-alter table bookings
-  add constraint no_overlapping_kit_bookings
-  exclude using gist (
-    kit_id with =,
     tstzrange(start_time, end_time) with &&
   )
   where (status not in ('CANCELLED', 'EXPIRED', 'COMPLETED'));
@@ -822,8 +780,6 @@ alter table product_terms_versions enable row level security;
 alter table booking_acknowledgements enable row level security;
 alter table rental_packages enable row level security;
 alter table rental_assets enable row level security;
-alter table kits enable row level security;
-alter table kit_items enable row level security;
 alter table batteries enable row level security;
 alter table lockers enable row level security;
 alter table locker_compartments enable row level security;
@@ -857,8 +813,6 @@ create policy admin_all_product_terms_versions on product_terms_versions for all
 create policy admin_read_booking_acknowledgements on booking_acknowledgements for select using (is_admin());
 create policy admin_all_rental_packages on rental_packages for all using (is_admin()) with check (is_admin());
 create policy admin_all_rental_assets on rental_assets for all using (is_admin()) with check (is_admin());
-create policy admin_all_kits on kits for all using (is_admin()) with check (is_admin());
-create policy admin_all_kit_items on kit_items for all using (is_admin()) with check (is_admin());
 create policy admin_all_batteries on batteries for all using (is_admin()) with check (is_admin());
 create policy admin_all_lockers on lockers for all using (is_admin()) with check (is_admin());
 create policy admin_all_locker_compartments on locker_compartments for all using (is_admin()) with check (is_admin());
@@ -889,8 +843,6 @@ create policy staff_read_rental_products on rental_products for select using (is
 create policy staff_read_check_templates on check_templates for select using (is_procam_staff());
 create policy staff_read_rental_packages on rental_packages for select using (is_procam_staff());
 create policy staff_all_rental_assets on rental_assets for all using (is_procam_staff()) with check (is_procam_staff());
-create policy staff_all_kits on kits for all using (is_procam_staff()) with check (is_procam_staff());
-create policy staff_all_kit_items on kit_items for all using (is_procam_staff()) with check (is_procam_staff());
 create policy staff_all_batteries on batteries for all using (is_procam_staff()) with check (is_procam_staff());
 create policy staff_all_lockers on lockers for all using (is_procam_staff()) with check (is_procam_staff());
 create policy staff_all_locker_compartments on locker_compartments for all using (is_procam_staff()) with check (is_procam_staff());

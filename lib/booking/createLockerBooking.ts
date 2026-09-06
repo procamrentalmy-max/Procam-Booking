@@ -24,12 +24,11 @@ function generateSecureToken(): string {
 }
 
 /**
- * The real, wired-up replacement for the old reception-era
- * createPendingBooking: every partner is a self-service locker now, so
- * there's no kit, and the candidate camera comes from the pooled
- * fleet-wide search (checkLockerBookingFeasibility /
- * checkOvernightBookingFeasibility) rather than "whatever's sitting at
- * this exact property."
+ * Every partner is a self-service locker now — there's no separately
+ * tracked "kit" (see 0011_remove_kits.sql), just the camera itself, and the
+ * candidate camera comes from the pooled fleet-wide search
+ * (checkLockerBookingFeasibility / checkOvernightBookingFeasibility)
+ * rather than "whatever's sitting at this exact property."
  *
  * The customer's requested time is a request, not a guarantee — the
  * actual assigned startTime/endTime (returned here) may be later if the

@@ -37,7 +37,6 @@ export type AssetStatus =
   | "LOST"
   | "RETIRED";
 
-export type KitStatus = "AVAILABLE" | "WITH_CUSTOMER" | "AWAITING_INSPECTION" | "MAINTENANCE" | "RETIRED";
 export type BatteryStatus = "CHARGED" | "DEPLOYED" | "CHARGING" | "MAINTENANCE" | "LOST" | "RETIRED";
 
 export type BookingStatus =
@@ -85,7 +84,7 @@ export type DamageCaseStatus = "OPEN" | "UNDER_REVIEW" | "RESOLVED";
 export type DepositAction = "NONE" | "CAPTURED" | "PARTIALLY_CAPTURED";
 
 export type MaintainableAssetType = "RENTAL_ASSET" | "BATTERY";
-export type TrackedAssetType = "RENTAL_ASSET" | "BATTERY" | "KIT";
+export type TrackedAssetType = "RENTAL_ASSET" | "BATTERY";
 export type ActorType = "CUSTOMER" | "RECEPTION" | "STAFF" | "ADMIN" | "SYSTEM";
 export type NotificationChannel = "EMAIL" | "WHATSAPP" | "SMS";
 export type NotificationStatus = "PENDING" | "SENT" | "FAILED";
@@ -254,22 +253,6 @@ export type LocationTravelTimeRow = {
   updated_at: string;
 };
 
-export type KitRow = {
-  id: string;
-  human_id: string;
-  product_id: string;
-  partner_id: string | null;
-  status: KitStatus;
-  created_at: string;
-  updated_at: string;
-};
-
-export type KitItemRow = {
-  id: string;
-  kit_id: string;
-  item_name: string;
-};
-
 export type BatteryRow = {
   id: string;
   human_id: string;
@@ -287,7 +270,6 @@ export type BookingRow = {
   partner_id: string;
   rental_package_id: string;
   asset_id: string;
-  kit_id: string | null;
   battery_id: string | null;
   status: BookingStatus;
   start_time: string;
@@ -483,8 +465,6 @@ export interface Database {
       locker_compartments: TableDef<LockerCompartmentRow>;
       workers: TableDef<WorkerRow>;
       location_travel_times: TableDef<LocationTravelTimeRow>;
-      kits: TableDef<KitRow>;
-      kit_items: TableDef<KitItemRow>;
       batteries: TableDef<BatteryRow>;
       bookings: TableDef<BookingRow>;
       battery_exchanges: TableDef<BatteryExchangeRow>;

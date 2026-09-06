@@ -7,7 +7,6 @@ const SECTIONS = [
   { href: "/admin/products", label: "Products", note: "Rental product lines, phone compatibility" },
   { href: "/admin/rental-packages", label: "Rental Packages", note: "Durations, pricing, deposits" },
   { href: "/admin/rental-assets", label: "Rental Assets", note: "Fleet status by property" },
-  { href: "/admin/kits", label: "Kits", note: "Accessory pouches" },
   { href: "/admin/batteries", label: "Batteries", note: "Battery fleet by property" },
 ];
 
