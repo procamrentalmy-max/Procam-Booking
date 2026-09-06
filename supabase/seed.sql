@@ -25,27 +25,28 @@ insert into rental_packages (product_id, name, duration_minutes, price_myr, depo
   ('40000000-0000-0000-0000-000000000002', 'Full Day', 600, 89.00, 200.00, 15.00, false);
 
 -- Langkawi locker-network packages. Daytime packages cover every whole-hour
--- duration from 1 to 13 hours (8am-9pm operating window) at a flat
--- RM5-per-hour increment (RM35 base + RM5/hr) so the booking wizard's
--- start/end timetable can resolve a price for any start+end pair the
--- customer picks, not just a handful of named tiers. Overnight stays a
+-- duration from 1 to 13 hours (8am-9pm operating window) so the booking
+-- wizard's timetable can resolve a price for any start+end pair the
+-- customer picks, not just a handful of named tiers. Priced per an
+-- explicit rate card (steeper increments for the first few hours, then a
+-- flat RM5/hr from 7hr on), not a single formula. Overnight stays a
 -- separate, fixed nightly slot (10pm-8am) at its own flat rate. Named by
 -- plain duration ("4 Hours") — the wizard picks a package by duration, not
 -- by name. The only active packages in the system now.
 insert into rental_packages (product_id, name, duration_minutes, price_myr, deposit_myr, late_fee_per_hour_myr, active, is_overnight) values
-  ('40000000-0000-0000-0000-000000000001', '1 Hour', 60, 40.00, 300.00, 20.00, true, false),
-  ('40000000-0000-0000-0000-000000000001', '2 Hours', 120, 45.00, 300.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000001', '1 Hour', 60, 25.00, 300.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000001', '2 Hours', 120, 40.00, 300.00, 20.00, true, false),
   ('40000000-0000-0000-0000-000000000001', '3 Hours', 180, 50.00, 300.00, 20.00, true, false),
-  ('40000000-0000-0000-0000-000000000001', '4 Hours', 240, 55.00, 300.00, 20.00, true, false),
-  ('40000000-0000-0000-0000-000000000001', '5 Hours', 300, 60.00, 300.00, 20.00, true, false),
-  ('40000000-0000-0000-0000-000000000001', '6 Hours', 360, 65.00, 300.00, 20.00, true, false),
-  ('40000000-0000-0000-0000-000000000001', '7 Hours', 420, 70.00, 300.00, 20.00, true, false),
-  ('40000000-0000-0000-0000-000000000001', '8 Hours', 480, 75.00, 300.00, 20.00, true, false),
-  ('40000000-0000-0000-0000-000000000001', '9 Hours', 540, 80.00, 300.00, 20.00, true, false),
-  ('40000000-0000-0000-0000-000000000001', '10 Hours', 600, 85.00, 300.00, 20.00, true, false),
-  ('40000000-0000-0000-0000-000000000001', '11 Hours', 660, 90.00, 300.00, 20.00, true, false),
-  ('40000000-0000-0000-0000-000000000001', '12 Hours', 720, 95.00, 300.00, 20.00, true, false),
-  ('40000000-0000-0000-0000-000000000001', '13 Hours', 780, 100.00, 300.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000001', '4 Hours', 240, 60.00, 300.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000001', '5 Hours', 300, 68.00, 300.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000001', '6 Hours', 360, 75.00, 300.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000001', '7 Hours', 420, 80.00, 300.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000001', '8 Hours', 480, 85.00, 300.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000001', '9 Hours', 540, 90.00, 300.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000001', '10 Hours', 600, 95.00, 300.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000001', '11 Hours', 660, 100.00, 300.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000001', '12 Hours', 720, 105.00, 300.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000001', '13 Hours', 780, 110.00, 300.00, 20.00, true, false),
   ('40000000-0000-0000-0000-000000000001', 'Overnight (10pm-8am)', 600, 55.00, 300.00, 20.00, true, true);
 
 -- Check templates: what the customer/staff has to check at each phase, per

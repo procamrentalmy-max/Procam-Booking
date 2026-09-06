@@ -116,9 +116,23 @@ export function BookingWizard({
     setEndHour(null);
   }
 
-  function selectStartHour(h: number) {
-    setStartHour(h);
-    setEndHour(null); // end time must be re-picked for the new start
+  /**
+   * One shared set of hour slots for both ends of the range: the first tap
+   * (or a tap once a range is already complete) sets the start; a second
+   * tap on a later hour sets the end; a tap on an earlier hour restarts the
+   * range from there instead.
+   */
+  function tapHour(h: number) {
+    if (startHour === null || endHour !== null) {
+      setStartHour(h);
+      setEndHour(null);
+      return;
+    }
+    if (h > startHour) {
+      setEndHour(h);
+    } else if (h < startHour) {
+      setStartHour(h);
+    }
   }
 
   async function sendVerificationCode() {
@@ -231,26 +245,24 @@ export function BookingWizard({
 
       {step === "package" && (
         <div className="space-y-5">
-          {/* Price chart — reference only; the actual pick happens in the timetable below. */}
+          {/* Price chart — reference only; the actual pick happens in the timetable below. Full list, no scrolling. */}
           <div className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
-            <div className="max-h-56 overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-zinc-50 dark:bg-zinc-900">
-                    <th className="px-4 py-2 text-left font-medium text-zinc-500">Duration</th>
-                    <th className="px-4 py-2 text-right font-medium text-zinc-500">Price</th>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-zinc-50 dark:bg-zinc-900">
+                  <th className="px-4 py-2 text-left font-medium text-zinc-500">Duration</th>
+                  <th className="px-4 py-2 text-right font-medium text-zinc-500">Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...daytimePackages, ...(overnightPackage ? [overnightPackage] : [])].map((pkg) => (
+                  <tr key={pkg.id} className="border-t border-zinc-100 dark:border-zinc-800">
+                    <td className="px-4 py-2">{pkg.name}</td>
+                    <td className="px-4 py-2 text-right font-semibold">RM{pkg.price_myr}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {[...daytimePackages, ...(overnightPackage ? [overnightPackage] : [])].map((pkg) => (
-                    <tr key={pkg.id} className="border-t border-zinc-100 dark:border-zinc-800">
-                      <td className="px-4 py-2">{pkg.name}</td>
-                      <td className="px-4 py-2 text-right font-semibold">RM{pkg.price_myr}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
 
           {daytimePackages.length > 0 && overnightPackage && (
@@ -295,48 +307,36 @@ export function BookingWizard({
             />
 
             {mode === "daytime" && (
-              <div className="space-y-3">
-                <div>
-                  <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-400">Start Time</p>
-                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                    {OPERATING_HOURS.map((h) => (
+              <div>
+                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-400">
+                  {startHour === null
+                    ? "Tap a start time"
+                    : endHour === null
+                      ? "Now tap an end time"
+                      : "Tap any time to start over"}
+                </p>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {OPERATING_HOURS.map((h) => {
+                    const inRange = startHour !== null && endHour !== null && h >= startHour && h <= endHour;
+                    const isEdge = h === startHour || h === endHour;
+                    return (
                       <button
                         key={h}
                         type="button"
-                        onClick={() => selectStartHour(h)}
+                        onClick={() => tapHour(h)}
                         className={`rounded-lg border py-2 text-sm ${
-                          startHour === h
+                          isEdge
                             ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-                            : "border-zinc-300 dark:border-zinc-700"
+                            : inRange
+                              ? "border-zinc-400 bg-zinc-200 dark:border-zinc-500 dark:bg-zinc-700"
+                              : "border-zinc-300 dark:border-zinc-700"
                         }`}
                       >
                         {formatHour(h)}
                       </button>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
-
-                {startHour !== null && (
-                  <div>
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-400">End Time</p>
-                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                      {OPERATING_HOURS.filter((h) => h > startHour).map((h) => (
-                        <button
-                          key={h}
-                          type="button"
-                          onClick={() => setEndHour(h)}
-                          className={`rounded-lg border py-2 text-sm ${
-                            endHour === h
-                              ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-                              : "border-zinc-300 dark:border-zinc-700"
-                          }`}
-                        >
-                          {formatHour(h)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>
