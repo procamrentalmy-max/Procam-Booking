@@ -94,16 +94,12 @@ export async function submitPreRentalConditionCheckAction(formData: FormData) {
       );
   }
 
-  // The rental clock starts now, at actual pickup — not back when the
-  // booking/payment was created a few minutes earlier.
-  const { data: pkg } = await supabase
-    .from("rental_packages")
-    .select("duration_minutes")
-    .eq("id", booking.rental_package_id)
-    .single();
-
+  // The return deadline is whatever was booked (end_time), full stop —
+  // picking up early or late doesn't move it. actual_pickup_time is
+  // recorded purely for the record; late fees at return are computed
+  // against the booking's original end_time (lib/booking/lateFee.ts), not
+  // against actual_pickup_time + duration.
   const pickupTime = new Date();
-  const newEndTime = pkg ? new Date(pickupTime.getTime() + pkg.duration_minutes * 60_000) : null;
 
   // By this point the booking is guaranteed READY_FOR_PICKUP — either it
   // already was, or the promotion above just put it there.
@@ -114,11 +110,6 @@ export async function submitPreRentalConditionCheckAction(formData: FormData) {
     .update({
       status: "ACTIVE",
       actual_pickup_time: pickupTime.toISOString(),
-      // start_time must move to match -- the DB enforces end_time >
-      // start_time, and a pickup earlier than the originally scheduled
-      // start (or the worker-schedule commitments it still implies)
-      // would otherwise leave start_time stale.
-      ...(newEndTime ? { start_time: pickupTime.toISOString(), end_time: newEndTime.toISOString() } : {}),
     })
     .eq("id", booking.id);
   if (bookingError) throw new Error(bookingError.message);
