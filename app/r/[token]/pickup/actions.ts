@@ -114,7 +114,11 @@ export async function submitPreRentalConditionCheckAction(formData: FormData) {
     .update({
       status: "ACTIVE",
       actual_pickup_time: pickupTime.toISOString(),
-      ...(newEndTime ? { end_time: newEndTime.toISOString() } : {}),
+      // start_time must move to match -- the DB enforces end_time >
+      // start_time, and a pickup earlier than the originally scheduled
+      // start (or the worker-schedule commitments it still implies)
+      // would otherwise leave start_time stale.
+      ...(newEndTime ? { start_time: pickupTime.toISOString(), end_time: newEndTime.toISOString() } : {}),
     })
     .eq("id", booking.id);
   if (bookingError) throw new Error(bookingError.message);
