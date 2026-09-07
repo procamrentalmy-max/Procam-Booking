@@ -31,8 +31,8 @@ describe("computeDropoffNeeds", () => {
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
       bookings: [
-        { id: "b1", assetId: "any-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER },
-        { id: "b2", assetId: "any-2", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER },
+        { id: "b1", assetId: "any-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER, isOvernight: false },
+        { id: "b2", assetId: "any-2", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER, isOvernight: false },
       ],
     };
     expect(computeDropoffNeeds(snapshot, NOW).get("loc-a")).toBe(2);
@@ -42,7 +42,7 @@ describe("computeDropoffNeeds", () => {
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
       assets: [{ id: "cam-1", humanId: "CAM-001", isHotSpare: false, partnerId: "loc-a", status: "AVAILABLE" }],
-      bookings: [{ id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
+      bookings: [{ id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER, isOvernight: false }],
     };
     expect(computeDropoffNeeds(snapshot, NOW).has("loc-a")).toBe(false);
   });
@@ -50,7 +50,7 @@ describe("computeDropoffNeeds", () => {
   it("ignores a cancelled booking", () => {
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
-      bookings: [{ id: "b1", assetId: "any-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CANCELLED", startTime: SOON, endTime: LATER }],
+      bookings: [{ id: "b1", assetId: "any-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CANCELLED", startTime: SOON, endTime: LATER, isOvernight: false }],
     };
     expect(computeDropoffNeeds(snapshot, NOW).has("loc-a")).toBe(false);
   });
@@ -59,7 +59,7 @@ describe("computeDropoffNeeds", () => {
     const farOut = new Date(NOW.getTime() + 5 * 60 * 60_000);
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
-      bookings: [{ id: "b1", assetId: "any-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: farOut, endTime: new Date(farOut.getTime() + 60 * 60_000) }],
+      bookings: [{ id: "b1", assetId: "any-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: farOut, endTime: new Date(farOut.getTime() + 60 * 60_000), isOvernight: false }],
     };
     expect(computeDropoffNeeds(snapshot, NOW, 120).has("loc-a")).toBe(false);
   });
@@ -70,7 +70,7 @@ describe("planRoute", () => {
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
       assets: [{ id: "spare-1", humanId: "CAM-090", isHotSpare: false, partnerId: null, status: "AVAILABLE" }],
-      bookings: [{ id: "b1", assetId: "any-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
+      bookings: [{ id: "b1", assetId: "any-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER, isOvernight: false }],
     };
     const plan = planRoute(snapshot, NOW);
     expect(plan.unmetDropoffs).toEqual([]);
@@ -83,7 +83,7 @@ describe("planRoute", () => {
       assets: [
         { id: "returned-1", humanId: "CAM-050", isHotSpare: false, partnerId: "loc-b", status: "RETURNED_AWAITING_INSPECTION" },
       ],
-      bookings: [{ id: "b1", assetId: "any-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
+      bookings: [{ id: "b1", assetId: "any-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER, isOvernight: false }],
     };
     const plan = planRoute(snapshot, NOW);
     expect(plan.stops.map((s) => s.partnerId)).toEqual(["loc-b", "loc-a"]);
@@ -103,7 +103,7 @@ describe("planRoute", () => {
         { id: "returned-1", humanId: "CAM-050", isHotSpare: false, partnerId: "loc-b", status: "RETURNED_AWAITING_INSPECTION" },
       ],
       // loc-c needs a dropoff (15min away); loc-b is pickup-only and closer (12min) — dropoff still goes first.
-      bookings: [{ id: "b1", assetId: "any-1", partnerId: "loc-c", dropoffPartnerId: "loc-c", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
+      bookings: [{ id: "b1", assetId: "any-1", partnerId: "loc-c", dropoffPartnerId: "loc-c", status: "CONFIRMED", startTime: SOON, endTime: LATER, isOvernight: false }],
     };
     const plan = planRoute(snapshot, NOW);
     expect(plan.stops.map((s) => s.partnerId)).toEqual(["loc-c", "loc-b"]);
@@ -116,7 +116,7 @@ describe("planRoute", () => {
         { id: "spare-1", humanId: "CAM-090", isHotSpare: false, partnerId: null, status: "AVAILABLE" },
         { id: "returned-1", humanId: "CAM-050", isHotSpare: false, partnerId: "loc-a", status: "RETURNED_AWAITING_INSPECTION" },
       ],
-      bookings: [{ id: "b1", assetId: "any-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
+      bookings: [{ id: "b1", assetId: "any-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER, isOvernight: false }],
     };
     const plan = planRoute(snapshot, NOW);
     const stop = plan.stops.find((s) => s.partnerId === "loc-a")!;
@@ -137,7 +137,7 @@ describe("planRoute", () => {
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
       assets: [],
-      bookings: [{ id: "b1", assetId: "any-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
+      bookings: [{ id: "b1", assetId: "any-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: SOON, endTime: LATER, isOvernight: false }],
     };
     const plan = planRoute(snapshot, NOW);
     expect(plan.unmetDropoffs).toEqual([{ partnerId: "loc-a", shortfall: 1 }]);
@@ -153,8 +153,8 @@ describe("planRoute", () => {
       ],
       bookings: [
         // loc-b is 12min from loc-a (worker start), loc-c is 15min — loc-b should be visited first.
-        { id: "b1", assetId: "any-1", partnerId: "loc-b", dropoffPartnerId: "loc-b", status: "CONFIRMED", startTime: SOON, endTime: LATER },
-        { id: "b2", assetId: "any-2", partnerId: "loc-c", dropoffPartnerId: "loc-c", status: "CONFIRMED", startTime: SOON, endTime: LATER },
+        { id: "b1", assetId: "any-1", partnerId: "loc-b", dropoffPartnerId: "loc-b", status: "CONFIRMED", startTime: SOON, endTime: LATER, isOvernight: false },
+        { id: "b2", assetId: "any-2", partnerId: "loc-c", dropoffPartnerId: "loc-c", status: "CONFIRMED", startTime: SOON, endTime: LATER, isOvernight: false },
       ],
     };
     const plan = planRoute(snapshot, NOW);
@@ -171,7 +171,7 @@ describe("planRoute", () => {
         { id: "cam-3", humanId: "CAM-003", isHotSpare: false, partnerId: "loc-a", status: "AVAILABLE" },
         { id: "cam-4", humanId: "CAM-004", isHotSpare: false, partnerId: "loc-a", status: "AVAILABLE" },
       ],
-      bookings: [{ id: "b1", assetId: "any-1", partnerId: "loc-c", dropoffPartnerId: "loc-c", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
+      bookings: [{ id: "b1", assetId: "any-1", partnerId: "loc-c", dropoffPartnerId: "loc-c", status: "CONFIRMED", startTime: SOON, endTime: LATER, isOvernight: false }],
     };
     const plan = planRoute(snapshot, NOW);
     expect(plan.unmetDropoffs).toEqual([]);
@@ -193,7 +193,7 @@ describe("planRoute", () => {
       assets: [
         { id: "returned-1", humanId: "CAM-050", isHotSpare: false, partnerId: "loc-b", status: "RETURNED_AWAITING_INSPECTION" },
       ],
-      bookings: [{ id: "b1", assetId: "any-1", partnerId: "loc-b", dropoffPartnerId: "loc-b", status: "CONFIRMED", startTime: SOON, endTime: LATER }],
+      bookings: [{ id: "b1", assetId: "any-1", partnerId: "loc-b", dropoffPartnerId: "loc-b", status: "CONFIRMED", startTime: SOON, endTime: LATER, isOvernight: false }],
     };
     const plan = planRoute(snapshot, NOW);
     const stop = plan.stops.find((s) => s.partnerId === "loc-b")!;

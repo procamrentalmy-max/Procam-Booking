@@ -93,6 +93,7 @@ describe("SIMULATION: 100 tight sequential booking requests against a 3-camera f
         status: "CONFIRMED",
         startTime: result.startTime,
         endTime: result.endTime,
+        isOvernight: false,
       };
 
       // Re-check feasibility right before committing, exactly as a real
@@ -118,7 +119,7 @@ describe("SIMULATION: tight back-to-back bookings on purpose", () => {
     if (first.outcome === "INFEASIBLE") throw new Error("unreachable");
     snapshot = {
       ...snapshot,
-      bookings: [{ id: "b1", assetId: first.assetId, partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: first.startTime, endTime: first.endTime }],
+      bookings: [{ id: "b1", assetId: first.assetId, partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: first.startTime, endTime: first.endTime, isOvernight: false }],
     };
 
     // Second request starts exactly when the first ends, same camera pool.
@@ -129,7 +130,7 @@ describe("SIMULATION: tight back-to-back bookings on purpose", () => {
 
     snapshot = {
       ...snapshot,
-      bookings: [...snapshot.bookings, { id: "b2", assetId: second.assetId, partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: second.startTime, endTime: second.endTime }],
+      bookings: [...snapshot.bookings, { id: "b2", assetId: second.assetId, partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: second.startTime, endTime: second.endTime, isOvernight: false }],
     };
     assertNoOverbooking(snapshot.bookings);
   });
@@ -146,7 +147,7 @@ describe("SIMULATION: tight back-to-back bookings on purpose", () => {
         ...snapshot,
         bookings: [
           ...snapshot.bookings,
-          { id: `burst-${i}`, assetId: result.assetId, partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: result.startTime, endTime: result.endTime },
+          { id: `burst-${i}`, assetId: result.assetId, partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: result.startTime, endTime: result.endTime, isOvernight: false },
         ],
       };
       assertNoOverbooking(snapshot.bookings);

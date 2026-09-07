@@ -17,18 +17,20 @@ import type { FleetSnapshot } from "@/lib/locker-engine/types";
 export async function buildLockerFleetSnapshot(productId: string): Promise<FleetSnapshot> {
   const supabase = createServiceRoleClient();
 
-  const [{ data: assets }, { data: locationRows }, { data: travelTimeRows }, { data: workerRows }] = await Promise.all([
+  const [{ data: assets }, { data: locationRows }, { data: travelTimeRows }, { data: workerRows }, { data: overnightPackages }] = await Promise.all([
     supabase.from("rental_assets").select("id,human_id,is_hot_spare,partner_id,status").eq("product_id", productId),
     supabase.from("partners").select("id").eq("pickup_method", "LOCKER").eq("status", "ACTIVE"),
     supabase.from("location_travel_times").select("from_partner_id,to_partner_id,minutes"),
     supabase.from("workers").select("id,current_partner_id,active"),
+    supabase.from("rental_packages").select("id").eq("is_overnight", true),
   ]);
+  const overnightPackageIds = new Set((overnightPackages ?? []).map((p) => p.id));
 
   const assetIds = (assets ?? []).map((a) => a.id);
   const { data: bookingRows } = assetIds.length
     ? await supabase
         .from("bookings")
-        .select("id,asset_id,partner_id,dropoff_partner_id,status,start_time,end_time")
+        .select("id,asset_id,partner_id,dropoff_partner_id,rental_package_id,status,start_time,end_time")
         .in("asset_id", assetIds)
         .not("status", "in", "(CANCELLED,EXPIRED,COMPLETED)")
     : { data: [] };
@@ -49,6 +51,7 @@ export async function buildLockerFleetSnapshot(productId: string): Promise<Fleet
       status: b.status,
       startTime: new Date(b.start_time),
       endTime: new Date(b.end_time),
+      isOvernight: overnightPackageIds.has(b.rental_package_id),
     })),
     compartments: [],
     workers: (workerRows ?? []).map((w) => ({

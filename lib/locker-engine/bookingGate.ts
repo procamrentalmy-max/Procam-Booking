@@ -1,11 +1,20 @@
+import { isTerminal } from "@/lib/state-machine/booking";
 import { alignToNextHour, findEligibleAsset, InvalidBookingRequestError } from "./feasibility";
-import { commitmentsForBooking, existingCommitments, isWorkerScheduleFeasible } from "./workerSchedule";
+import { commitmentsForBooking, existingCommitments, isWorkerScheduleFeasible, isOvernightRoundFeasible, mytDayHour } from "./workerSchedule";
 import type { FleetSnapshot } from "./types";
 
 export { InvalidBookingRequestError };
 
 /** Customers must request a daytime slot at least this far ahead. */
 export const MINIMUM_LEAD_MINUTES = 120;
+
+/** Fixed nightly window: 10pm start, 8am return. */
+export const OVERNIGHT_START_HOUR = 22;
+export const OVERNIGHT_RETURN_HOUR = 8;
+export const OVERNIGHT_DURATION_MINUTES = (24 - OVERNIGHT_START_HOUR + OVERNIGHT_RETURN_HOUR) * 60;
+
+/** Customers must request an overnight slot at least this far ahead of its 10pm start (i.e. by 8pm). */
+export const OVERNIGHT_LEAD_MINUTES = 120;
 
 export type LockerBookingRequest = {
   partnerId: string;
@@ -20,6 +29,13 @@ export type BookingGateResult =
   | { outcome: "NEXT_FEASIBLE_SLOT"; assetId: string; startTime: Date; endTime: Date }
   | { outcome: "INFEASIBLE" };
 
+/** Every non-terminal overnight booking's pickup location whose fixed 10pm start falls on the same MYT night as `deadline`. */
+function overnightPickupsForNight(snapshot: FleetSnapshot, deadline: Date): string[] {
+  return snapshot.bookings
+    .filter((b) => !isTerminal(b.status) && b.isOvernight && b.startTime.getTime() === deadline.getTime())
+    .map((b) => b.partnerId);
+}
+
 /**
  * The real "can this booking actually happen" gate for a locker location:
  * inventory feasibility (Phase 3's `checkBookingFeasibility`) AND worker-
@@ -28,6 +44,12 @@ export type BookingGateResult =
  * to pass at the SAME candidate hour — a booking needs both gates, not
  * either one alone. Searches forward hour by hour exactly like Phase 3,
  * just with an extra check at each candidate slot.
+ *
+ * Also re-checks that same evening's overnight round (see
+ * `checkOvernightBookingFeasibility`) still has room for every overnight
+ * pickup already confirmed for that night — a late daytime booking
+ * shouldn't be able to silently strand an overnight customer who already
+ * has a confirmed pickup that same evening.
  *
  * Throws instead of silently accepting a request that violates a hard
  * rule: non-positive duration, or a start time inside the minimum lead
@@ -59,8 +81,15 @@ export function checkLockerBookingFeasibility(
     const assetId = findEligibleAsset(snapshot, startTime, endTime);
     if (!assetId) continue;
 
-    const candidateCommitments = commitmentsForBooking(request.partnerId, request.dropoffPartnerId, startTime, endTime);
+    const candidateCommitments = commitmentsForBooking(request.partnerId, request.dropoffPartnerId, startTime, endTime, false);
     if (!isWorkerScheduleFeasible(commitments, candidateCommitments, snapshot)) continue;
+
+    const nightDeadline = mytDayHour(startTime, OVERNIGHT_START_HOUR);
+    const roundPickups = overnightPickupsForNight(snapshot, nightDeadline);
+    if (roundPickups.length > 0) {
+      const mergedFixed = [...commitments, ...candidateCommitments];
+      if (!isOvernightRoundFeasible(mergedFixed, roundPickups, nightDeadline, snapshot)) continue;
+    }
 
     return i === 0
       ? { outcome: "CONFIRM", assetId, startTime, endTime }
@@ -69,14 +98,6 @@ export function checkLockerBookingFeasibility(
 
   return { outcome: "INFEASIBLE" };
 }
-
-/** Fixed nightly window: 10pm start, 8am return. */
-export const OVERNIGHT_START_HOUR = 22;
-export const OVERNIGHT_RETURN_HOUR = 8;
-export const OVERNIGHT_DURATION_MINUTES = (24 - OVERNIGHT_START_HOUR + OVERNIGHT_RETURN_HOUR) * 60;
-
-/** Customers must request an overnight slot at least this far ahead of its 10pm start (i.e. by 8pm). */
-export const OVERNIGHT_LEAD_MINUTES = 120;
 
 export type OvernightBookingRequest = {
   partnerId: string;
@@ -88,19 +109,22 @@ export type OvernightBookingRequest = {
 
 /**
  * Overnight is a separate, fixed nightly package (10pm-8am), priced and
- * marketed independently of the daytime menu, but it creates the exact
- * same kind of hard worker-presence commitments as a daytime booking
- * (setup finishing at start_time, return blocking the grace+processing
- * window at end_time) — so it's checked the same way. This used to be
- * skipped entirely for overnight, which allowed an overnight pickup to be
- * accepted the same night a daytime booking had already committed the
- * worker to a different, unreachable location (confirmed via simulation).
- *
- * Because every overnight booking shares the same fixed 10pm start
- * network-wide, this means at most one overnight booking can be accepted
- * per night unless its location is reachable from every other commitment
- * ending near 10pm that night — a real capacity constraint of a
- * single-worker fleet, not a bug in this check.
+ * marketed independently of the daytime menu. Its RETURN commitment is a
+ * fixed worker-presence commitment exactly like daytime's. Its SETUP is
+ * NOT — every overnight booking shares the same fixed network-wide 10pm
+ * start, and it's a self-service PIN pickup, so the worker can stage it
+ * any time earlier in the evening rather than needing to be live at the
+ * exact instant. `isOvernightRoundFeasible` checks whether the worker can
+ * visit every overnight pickup due that night (existing confirmed ones,
+ * plus this candidate), in some order, all finishing by 10pm — so capacity
+ * scales with however many pickups the worker can actually reach in time,
+ * not an arbitrary "one per night." This used to be skipped entirely,
+ * which allowed an overnight pickup to be accepted the same night a
+ * daytime booking had already committed the worker to a different,
+ * unreachable location (confirmed via simulation) — that's still caught,
+ * via the fixed-commitment chain check below plus the round check's own
+ * anchor, which is whatever fixed commitment (daytime or another night's
+ * overnight return) ends latest before 10pm.
  */
 export function checkOvernightBookingFeasibility(
   snapshot: FleetSnapshot,
@@ -122,8 +146,12 @@ export function checkOvernightBookingFeasibility(
     const assetId = findEligibleAsset(snapshot, startTime, endTime);
     if (!assetId) continue;
 
-    const candidateCommitments = commitmentsForBooking(request.partnerId, request.dropoffPartnerId, startTime, endTime);
+    const candidateCommitments = commitmentsForBooking(request.partnerId, request.dropoffPartnerId, startTime, endTime, true);
     if (!isWorkerScheduleFeasible(commitments, candidateCommitments, snapshot)) continue;
+
+    const roundPickups = [...overnightPickupsForNight(snapshot, startTime), request.partnerId];
+    const mergedFixed = [...commitments, ...candidateCommitments];
+    if (!isOvernightRoundFeasible(mergedFixed, roundPickups, startTime, snapshot)) continue;
 
     return n === 0
       ? { outcome: "CONFIRM", assetId, startTime, endTime }

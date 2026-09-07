@@ -26,6 +26,8 @@ export type EngineBooking = {
   status: BookingStatus;
   startTime: Date;
   endTime: Date;
+  /** Overnight (10pm-8am) self-service pickups don't need a worker present at the exact start — see workerSchedule.ts's isOvernightRoundFeasible. */
+  isOvernight: boolean;
 };
 
 /** A locker location the worker can visit. Kept minimal — the routing engine only needs the ID to key off of. */

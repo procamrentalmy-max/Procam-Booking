@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { commitmentsForBooking, existingCommitments, isWorkerScheduleFeasible, type WorkerCommitment } from "./workerSchedule";
+import { commitmentsForBooking, existingCommitments, isWorkerScheduleFeasible, isOvernightRoundFeasible, type WorkerCommitment } from "./workerSchedule";
 import type { FleetSnapshot } from "./types";
 
 const TRAVEL_TIMES = [
@@ -29,6 +29,12 @@ describe("commitmentsForBooking", () => {
     expect(ret.start.getTime()).toBe(end.getTime());
     expect(ret.end.getTime()).toBe(end.getTime() + (10 + 15) * 60_000);
   });
+
+  it("produces no fixed commitments for an overnight booking — both legs are self-service, checked elsewhere", () => {
+    const start = new Date("2026-09-10T14:00:00Z"); // 10pm MYT
+    const end = new Date("2026-09-11T00:00:00Z"); // 8am MYT
+    expect(commitmentsForBooking("loc-a", "loc-a", start, end, true)).toEqual([]);
+  });
 });
 
 describe("existingCommitments", () => {
@@ -36,8 +42,8 @@ describe("existingCommitments", () => {
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
       bookings: [
-        { id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: new Date("2026-09-10T10:00:00Z"), endTime: new Date("2026-09-10T14:00:00Z") },
-        { id: "b2", assetId: "cam-2", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CANCELLED", startTime: new Date("2026-09-10T10:00:00Z"), endTime: new Date("2026-09-10T14:00:00Z") },
+        { id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: new Date("2026-09-10T10:00:00Z"), endTime: new Date("2026-09-10T14:00:00Z"), isOvernight: false },
+        { id: "b2", assetId: "cam-2", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CANCELLED", startTime: new Date("2026-09-10T10:00:00Z"), endTime: new Date("2026-09-10T14:00:00Z"), isOvernight: false },
       ],
     };
     expect(existingCommitments(snapshot)).toHaveLength(2); // 1 booking x 2 commitments
@@ -122,5 +128,47 @@ describe("isWorkerScheduleFeasible", () => {
     const setup: WorkerCommitment = { partnerId: "loc-a", start: new Date("2026-09-10T04:45:00Z"), end: new Date("2026-09-10T05:00:00Z") };
     const ret: WorkerCommitment = { partnerId: "loc-b", start: new Date("2026-09-10T05:05:00Z"), end: new Date("2026-09-10T05:30:00Z") };
     expect(isWorkerScheduleFeasible([], [setup, ret], baseSnapshot())).toBe(false);
+  });
+});
+
+describe("isOvernightRoundFeasible", () => {
+  const DEADLINE = new Date("2026-09-10T14:00:00Z"); // 10pm MYT
+
+  it("is trivially feasible with no pickups", () => {
+    expect(isOvernightRoundFeasible([], [], DEADLINE, baseSnapshot())).toBe(true);
+  });
+
+  it("fits a single pickup with no prior commitments, anchored to the day's 7am floor", () => {
+    expect(isOvernightRoundFeasible([], ["loc-a"], DEADLINE, baseSnapshot())).toBe(true);
+  });
+
+  it("fits multiple pickups at different locations across a totally free day", () => {
+    expect(isOvernightRoundFeasible([], ["loc-a", "loc-b", "loc-a"], DEADLINE, baseSnapshot())).toBe(true);
+  });
+
+  it("fits when the last fixed commitment leaves comfortable slack before the deadline", () => {
+    const lastFixed: WorkerCommitment = { partnerId: "loc-b", start: new Date("2026-09-10T09:00:00Z"), end: new Date("2026-09-10T09:25:00Z") };
+    expect(isOvernightRoundFeasible([lastFixed], ["loc-a"], DEADLINE, baseSnapshot())).toBe(true);
+  });
+
+  it("rejects when the last fixed commitment doesn't finish until after the deadline", () => {
+    // Return commitment starts before the deadline but its processing
+    // window runs past it — the worker genuinely isn't free by 10pm.
+    const overrunning: WorkerCommitment = { partnerId: "loc-b", start: new Date("2026-09-10T13:55:00Z"), end: new Date("2026-09-10T14:20:00Z") };
+    expect(isOvernightRoundFeasible([overrunning], ["loc-a"], DEADLINE, baseSnapshot())).toBe(false);
+  });
+
+  it("rejects when there isn't enough time left to also reach a second, distant pickup", () => {
+    // Anchor ends 20 minutes before the deadline — enough for ONE pickup at
+    // the anchor's own location (0 travel), not enough to also reach a
+    // second one 15 minutes away.
+    const lastFixed: WorkerCommitment = { partnerId: "loc-b", start: new Date("2026-09-10T13:15:00Z"), end: new Date("2026-09-10T13:40:00Z") };
+    expect(isOvernightRoundFeasible([lastFixed], ["loc-b"], DEADLINE, baseSnapshot())).toBe(true);
+    expect(isOvernightRoundFeasible([lastFixed], ["loc-b", "loc-a"], DEADLINE, baseSnapshot())).toBe(false);
+  });
+
+  it("rejects a pickup location with no travel-time route from the anchor", () => {
+    const lastFixed: WorkerCommitment = { partnerId: "loc-b", start: new Date("2026-09-10T09:00:00Z"), end: new Date("2026-09-10T09:25:00Z") };
+    expect(isOvernightRoundFeasible([lastFixed], ["loc-unreachable"], DEADLINE, baseSnapshot())).toBe(false);
   });
 });

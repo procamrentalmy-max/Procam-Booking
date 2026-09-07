@@ -65,6 +65,7 @@ describe("checkLockerBookingFeasibility", () => {
           status: "CONFIRMED",
           startTime: new Date("2026-09-08T08:00:00Z"),
           endTime: returnBlockStart, // return commitment starts exactly at 12:00 UTC at loc-b
+          isOvernight: false,
         },
       ],
     };
@@ -101,16 +102,20 @@ describe("checkOvernightBookingFeasibility", () => {
     }
   });
 
-  it("now checks worker-schedule feasibility — pushed to the next night when a same-night daytime return conflicts with tonight's overnight setup", () => {
+  it("now checks worker-schedule feasibility — pushed to the next night when the worker is still tied up past 10pm on a same-night daytime return", () => {
     const night = new Date("2026-09-08T00:00:00");
-    // A daytime booking's return commitment at loc-b runs right up to 22:00 —
-    // the exact moment tonight's overnight setup needs to finish at loc-a,
-    // 15 minutes away. Physically impossible for one worker; this used to
-    // slip through when overnight skipped the worker-schedule check entirely.
+    // Overnight setup is flexible (can happen any time before 10pm), so a
+    // daytime commitment that FINISHES before 10pm no longer blocks it —
+    // the worker can detour to stage the overnight locker beforehand. But
+    // if the daytime return's processing window itself doesn't finish
+    // until AFTER 10pm (21:55 start + 25min grace/processing = 22:20), the
+    // worker genuinely isn't free by the 10pm deadline, regardless of
+    // where the overnight pickup is. This used to slip through entirely
+    // when overnight skipped the worker-schedule check.
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
       bookings: [
-        { id: "existing", assetId: "cam-2", partnerId: "loc-b", dropoffPartnerId: "loc-b", status: "CONFIRMED", startTime: new Date("2026-09-08T18:00:00"), endTime: new Date("2026-09-08T22:00:00") },
+        { id: "existing", assetId: "cam-2", partnerId: "loc-b", dropoffPartnerId: "loc-b", status: "CONFIRMED", startTime: new Date("2026-09-08T18:00:00"), endTime: new Date("2026-09-08T21:55:00"), isOvernight: false },
       ],
     };
     const result = checkOvernightBookingFeasibility(snapshot, { partnerId: "loc-a", dropoffPartnerId: "loc-a", earliestNight: night }, NOW);
@@ -118,6 +123,42 @@ describe("checkOvernightBookingFeasibility", () => {
     if (result.outcome !== "INFEASIBLE") {
       expect(result.startTime.getDate()).toBe(9); // tonight is blocked; pushed to the next night
     }
+  });
+
+  it("allows a daytime booking that finishes with time to spare before 10pm — the worker can detour to stage the overnight locker first", () => {
+    const night = new Date("2026-09-08T00:00:00");
+    // Return commitment [17:15,17:40]@loc-b finishes hours before 10pm —
+    // plenty of room for the worker to also visit loc-a and back.
+    const snapshot: FleetSnapshot = {
+      ...baseSnapshot(),
+      bookings: [
+        { id: "existing", assetId: "cam-2", partnerId: "loc-b", dropoffPartnerId: "loc-b", status: "CONFIRMED", startTime: new Date("2026-09-08T13:00:00"), endTime: new Date("2026-09-08T17:15:00"), isOvernight: false },
+      ],
+    };
+    const result = checkOvernightBookingFeasibility(snapshot, { partnerId: "loc-a", dropoffPartnerId: "loc-a", earliestNight: night }, NOW);
+    expect(result).toMatchObject({ outcome: "CONFIRM" });
+  });
+
+  it("scales capacity to however many overnight pickups the worker can actually reach by 10pm, not a flat cap of one", () => {
+    const night = new Date("2026-09-08T00:00:00");
+    // Two DIFFERENT overnight bookings already confirmed for tonight, at
+    // loc-a and loc-b (15 min apart) — nothing else on the schedule, so
+    // the worker has the whole day to stage both. A third pickup at loc-a
+    // (same location as the first, so no extra travel) should still fit.
+    const snapshot: FleetSnapshot = {
+      ...baseSnapshot(),
+      assets: [
+        { id: "cam-1", humanId: "CAM-001", isHotSpare: false, partnerId: "loc-a", status: "AVAILABLE" },
+        { id: "cam-2", humanId: "CAM-002", isHotSpare: false, partnerId: "loc-a", status: "AVAILABLE" },
+        { id: "cam-3", humanId: "CAM-003", isHotSpare: false, partnerId: "loc-a", status: "AVAILABLE" },
+      ],
+      bookings: [
+        { id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: new Date("2026-09-08T22:00:00"), endTime: new Date("2026-09-09T08:00:00"), isOvernight: true },
+        { id: "b2", assetId: "cam-2", partnerId: "loc-b", dropoffPartnerId: "loc-b", status: "CONFIRMED", startTime: new Date("2026-09-08T22:00:00"), endTime: new Date("2026-09-09T08:00:00"), isOvernight: true },
+      ],
+    };
+    const result = checkOvernightBookingFeasibility(snapshot, { partnerId: "loc-a", dropoffPartnerId: "loc-a", earliestNight: night }, NOW);
+    expect(result).toMatchObject({ outcome: "CONFIRM", assetId: "cam-3" });
   });
 
   it("still enforces camera double-booking protection", () => {
@@ -135,7 +176,7 @@ describe("checkOvernightBookingFeasibility", () => {
         { id: "cam-2", humanId: "CAM-002", isHotSpare: false, partnerId: "loc-a", status: "MAINTENANCE" },
       ],
       bookings: [
-        { id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: new Date("2026-09-08T22:00:00"), endTime: new Date("2026-09-09T08:00:00") },
+        { id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: new Date("2026-09-08T22:00:00"), endTime: new Date("2026-09-09T08:00:00"), isOvernight: true },
       ],
     };
     const result = checkOvernightBookingFeasibility(oneEligibleCameraSnapshot, { partnerId: "loc-a", dropoffPartnerId: "loc-a", earliestNight: night }, NOW, 2);
