@@ -47,7 +47,11 @@ export async function passInspectionAction(formData: FormData) {
     .eq("id", parsed.bookingId)
     .single();
   if (!booking) throw new Error("Booking not found.");
-  assertValidBookingTransition(booking.status as BookingStatus, "COMPLETED");
+  // Logically two transitions (AWAITING_INSPECTION -> INSPECTION ->
+  // COMPLETED), but only the final status is ever persisted -- same
+  // pattern as return/actions.ts's RETURN_STARTED check.
+  assertValidBookingTransition(booking.status as BookingStatus, "INSPECTION");
+  assertValidBookingTransition("INSPECTION", "COMPLETED");
 
   const { error: inspectionError } = await supabase.from("inspections").insert({
     booking_id: parsed.bookingId,
@@ -210,7 +214,11 @@ export async function reportDamageAction(formData: FormData) {
 
   const { data: booking } = await supabase.from("bookings").select("status").eq("id", parsed.bookingId).single();
   if (!booking) throw new Error("Booking not found.");
-  assertValidBookingTransition(booking.status as BookingStatus, "DAMAGE_REVIEW");
+  // Logically two transitions (AWAITING_INSPECTION -> INSPECTION ->
+  // DAMAGE_REVIEW), but only the final status is ever persisted -- same
+  // pattern as return/actions.ts's RETURN_STARTED check.
+  assertValidBookingTransition(booking.status as BookingStatus, "INSPECTION");
+  assertValidBookingTransition("INSPECTION", "DAMAGE_REVIEW");
 
   const { data: inspection, error: inspectionError } = await supabase
     .from("inspections")
