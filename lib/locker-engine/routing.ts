@@ -5,6 +5,16 @@ import type { FleetSnapshot } from "./types";
 /** "Next or next 2 hours" — how far ahead a location's confirmed bookings count toward its dropoff need. */
 export const DEFAULT_DROPOFF_LOOKAHEAD_MINUTES = 120;
 
+/**
+ * "Next hour" — the strict top priority tier. Every dropoff-need location
+ * with a booking due this soon is visited, nearest-first among themselves,
+ * before the worker touches ANY location whose only need falls in the
+ * next-2-hours (but not next-hour) tier — regardless of which is physically
+ * closer. Only once every next-hour spot is covered does distance-only
+ * nearest-first resume for the remaining next-2-hours spots.
+ */
+export const URGENT_DROPOFF_LOOKAHEAD_MINUTES = 60;
+
 /** ~5-7 minutes to service one camera and set its locker PIN — midpoint used for planning. */
 export const SERVICE_MINUTES_PER_CAMERA = 6;
 
@@ -89,10 +99,13 @@ export type RoutePlan = {
  *    demand can supply a spot that's short, not just returns). Anything
  *    already AVAILABLE goes straight into ready inventory — it's already
  *    serviced; only raw returns need the SERVICE step.
- * 2. Visit every location that needs a dropoff, nearest-first, before any
- *    location that's pickup-only. Anything collectible along the way is
- *    picked up but NOT serviced yet — servicing is deferred so it never
- *    delays a confirmed-booking dropoff.
+ * 2. Visit every location that needs a dropoff before any location that's
+ *    pickup-only. Within the dropoffs, next-hour-urgent locations are
+ *    visited first (nearest-first among themselves), then the remaining
+ *    next-2-hours locations (nearest-first among themselves) — urgency tier
+ *    always beats distance. Anything collectible along the way is picked up
+ *    but NOT serviced yet — servicing is deferred so it never delays a
+ *    confirmed-booking dropoff.
  * 3. Once every dropoff is handled, service whatever raw returns have
  *    piled up in the van — they become spare inventory for the next cycle.
  * 4. Visit any remaining location with a genuine uncollected return — a
@@ -110,17 +123,23 @@ export type RoutePlan = {
  *
  * Deterministic greedy nearest-first chaining via the (mock) travel-time
  * matrix, not a full route optimizer — matches the rest of this engine's
- * "simple, testable, correct" approach over "provably optimal."
+ * "simple, testable, correct" approach over "provably optimal." The one
+ * place distance is NOT the deciding factor is which dropoff-need spot to
+ * visit next: next-hour need beats next-2-hours need beats distance (see
+ * urgentDropoffs below), matching the priority the business actually wants.
  */
 export function planRoute(
   snapshot: FleetSnapshot,
   now: Date,
-  lookaheadMinutes: number = DEFAULT_DROPOFF_LOOKAHEAD_MINUTES
+  lookaheadMinutes: number = DEFAULT_DROPOFF_LOOKAHEAD_MINUTES,
+  urgentLookaheadMinutes: number = URGENT_DROPOFF_LOOKAHEAD_MINUTES
 ): RoutePlan {
   const worker = snapshot.workers.find((w) => w.active);
   let currentLocation: string | null = worker?.currentPartnerId ?? null;
 
   const remainingDropoffs = computeDropoffNeeds(snapshot, now, lookaheadMinutes);
+  /** Locations whose shortfall includes a booking due within the urgent (next-hour) window — takes priority over distance when picking the next dropoff stop. */
+  const urgentDropoffs = computeDropoffNeeds(snapshot, now, urgentLookaheadMinutes);
   const assetById = new Map(snapshot.assets.map((a) => [a.id, a]));
 
   const movedAssetIds = new Set<string>();
@@ -200,6 +219,12 @@ export function planRoute(
     return [...remainingDropoffs.values()].reduce((sum, n) => sum + n, 0);
   }
 
+  /** Among the given dropoff-need locations, next-hour-urgent ones (if any) win outright; distance only breaks ties within a tier. */
+  function pickDropoffTarget(candidates: string[]): string | null {
+    const urgent = candidates.filter((id) => urgentDropoffs.has(id));
+    return nearest(snapshot, currentLocation, urgent.length > 0 ? urgent : candidates);
+  }
+
   while (remainingDropoffs.size > 0 || returnOnlySpots().length > 0) {
     const needMoreSupply = readyInventory.length < totalRemainingShortfall();
     const unvisitedSupply = supplySpots();
@@ -214,7 +239,7 @@ export function planRoute(
     }
 
     if (remainingDropoffs.size > 0) {
-      const next = nearest(snapshot, currentLocation, [...remainingDropoffs.keys()]);
+      const next = pickDropoffTarget([...remainingDropoffs.keys()]);
       if (!next) break;
       const shortfall = remainingDropoffs.get(next)!;
       const toDrop = readyInventory.splice(0, shortfall);

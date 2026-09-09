@@ -4,6 +4,8 @@ import type { FleetSnapshot } from "./types";
 
 const NOW = new Date("2026-09-02T10:00:00Z");
 const SOON = new Date(NOW.getTime() + 30 * 60_000);
+/** Inside the 2h dropoff lookahead but past the 1h urgent tier. */
+const WITHIN_TWO_HOURS = new Date(NOW.getTime() + 110 * 60_000);
 const LATER = new Date(NOW.getTime() + 4 * 60 * 60_000);
 
 const TRAVEL_TIMES = [
@@ -222,6 +224,44 @@ describe("planRoute", () => {
     const plan = planRoute(snapshot, NOW);
     expect(plan.stops).toEqual([]);
     expect(plan.unmetDropoffs).toEqual([]);
+  });
+
+  it("visits a next-hour-urgent dropoff before a nearer next-2-hours-only dropoff", () => {
+    const snapshot: FleetSnapshot = {
+      ...baseSnapshot(),
+      assets: [
+        { id: "spare-1", humanId: "CAM-090", isHotSpare: false, partnerId: null, status: "AVAILABLE" },
+        { id: "spare-2", humanId: "CAM-091", isHotSpare: false, partnerId: null, status: "AVAILABLE" },
+      ],
+      bookings: [
+        // loc-b is 12min away and due in 30min (urgent). loc-c is 15min away
+        // (only 3min further) but due in 110min -- still within the 2h
+        // lookahead, but NOT urgent. Urgency must win over the tiny distance gap.
+        { id: "b1", assetId: "any-1", partnerId: "loc-c", dropoffPartnerId: "loc-c", status: "CONFIRMED", startTime: WITHIN_TWO_HOURS, endTime: LATER, isOvernight: false },
+        { id: "b2", assetId: "any-2", partnerId: "loc-b", dropoffPartnerId: "loc-b", status: "CONFIRMED", startTime: SOON, endTime: LATER, isOvernight: false },
+      ],
+    };
+    const plan = planRoute(snapshot, NOW);
+    expect(plan.stops.map((s) => s.partnerId)).toEqual(["loc-b", "loc-c"]);
+  });
+
+  it("prefers a farther next-hour-urgent dropoff over a nearer next-2-hours-only one", () => {
+    const snapshot: FleetSnapshot = {
+      ...baseSnapshot(),
+      assets: [
+        { id: "spare-1", humanId: "CAM-090", isHotSpare: false, partnerId: null, status: "AVAILABLE" },
+        { id: "spare-2", humanId: "CAM-091", isHotSpare: false, partnerId: null, status: "AVAILABLE" },
+      ],
+      bookings: [
+        // loc-b (12min, nearer) is only due within 2h. loc-c (15min, farther)
+        // is urgent (due in 30min). Distance alone would pick loc-b first;
+        // the urgency tier must override that.
+        { id: "b1", assetId: "any-1", partnerId: "loc-b", dropoffPartnerId: "loc-b", status: "CONFIRMED", startTime: WITHIN_TWO_HOURS, endTime: LATER, isOvernight: false },
+        { id: "b2", assetId: "any-2", partnerId: "loc-c", dropoffPartnerId: "loc-c", status: "CONFIRMED", startTime: SOON, endTime: LATER, isOvernight: false },
+      ],
+    };
+    const plan = planRoute(snapshot, NOW);
+    expect(plan.stops.map((s) => s.partnerId)).toEqual(["loc-c", "loc-b"]);
   });
 
   it("still visits a location with a genuine uncollected return even with zero dropoff needs anywhere", () => {
