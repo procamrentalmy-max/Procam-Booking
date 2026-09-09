@@ -1,5 +1,6 @@
 import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { ASSET_TURNAROUND_MINUTES } from "@/lib/locker-engine/feasibility";
 import type { FleetSnapshot } from "@/lib/locker-engine/types";
 
 /**
@@ -26,13 +27,24 @@ export async function buildLockerFleetSnapshot(productId: string): Promise<Fleet
   ]);
   const overnightPackageIds = new Set((overnightPackages ?? []).map((p) => p.id));
 
+  // Unlike lib/worker/fleetSnapshot.ts, this snapshot feeds
+  // checkLockerBookingFeasibility -> findEligibleAsset -> isAssetReadyFor,
+  // which needs to see COMPLETED bookings to enforce the 2-hour turnaround
+  // buffer (a booking that's fully finished is exactly the case that buffer
+  // exists for). Only CANCELLED/EXPIRED never occupied the asset at all.
+  // Bounded to bookings whose end_time is still within (or after) the
+  // buffer window, since nothing older can affect either the buffer check
+  // or a real time-overlap — keeps this from re-growing into an unbounded
+  // full-history fetch as COMPLETED bookings pile up.
+  const snapshotCutoff = new Date(Date.now() - ASSET_TURNAROUND_MINUTES * 60_000).toISOString();
   const assetIds = (assets ?? []).map((a) => a.id);
   const { data: bookingRows } = assetIds.length
     ? await supabase
         .from("bookings")
         .select("id,asset_id,partner_id,dropoff_partner_id,rental_package_id,status,start_time,end_time")
         .in("asset_id", assetIds)
-        .not("status", "in", "(CANCELLED,EXPIRED,COMPLETED)")
+        .not("status", "in", "(CANCELLED,EXPIRED)")
+        .gte("end_time", snapshotCutoff)
     : { data: [] };
 
   return {
