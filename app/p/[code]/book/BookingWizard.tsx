@@ -1,8 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { startVerificationAction, verifyOtpAction, createBookingAction, checkPhoneCompatibilityAction } from "./actions";
+import {
+  startVerificationAction,
+  verifyOtpAction,
+  createBookingAction,
+  checkPhoneCompatibilityAction,
+  getUnavailableStartsAction,
+} from "./actions";
 
 type RentalPackage = {
   id: string;
@@ -23,6 +29,11 @@ const MIN_LEAD_MINUTES = 120;
 
 function toDateInputValue(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** The Date a given operating hour resolves to on the selected day — shared by the availability check and the final submitted request so they always mean the same instant. */
+function hourStart(date: string, hour: number): Date {
+  return new Date(`${date}T${String(hour).padStart(2, "0")}:00`);
 }
 
 /** A same-or-next-day, operating-hours default at least MIN_LEAD_MINUTES out — a starting point, not a guarantee; the server re-validates and may push it further. */
@@ -96,6 +107,41 @@ export function BookingWizard({
   const [loading, setLoading] = useState(false);
   const [secureToken, setSecureToken] = useState<string | null>(null);
   const [assignedTime, setAssignedTime] = useState<{ start: string; end: string } | null>(null);
+  // null while the check is in flight (or hasn't run yet) — treated as "don't know
+  // yet" rather than "all unavailable", so the grid doesn't flash fully dulled.
+  const [engineUnavailableHours, setEngineUnavailableHours] = useState<Set<number> | null>(null);
+
+  // Re-checked whenever the date changes: which hours currently have zero
+  // eligible camera for even the shortest (1hr) rental. A cheap proxy for
+  // "don't bother tapping this one" — the real gate is still whatever
+  // createBookingAction's checkLockerBookingFeasibility decides at submit.
+  useEffect(() => {
+    if (mode !== "daytime") return;
+    let cancelled = false;
+    setEngineUnavailableHours(null);
+    const starts = OPERATING_HOURS.map((h) => ({ hour: h, iso: hourStart(date, h).toISOString() }));
+    getUnavailableStartsAction({ productId, starts: starts.map((s) => s.iso) })
+      .then((result) => {
+        if (cancelled) return;
+        const unavailableIsos = new Set(result.unavailable);
+        setEngineUnavailableHours(new Set(starts.filter((s) => unavailableIsos.has(s.iso)).map((s) => s.hour)));
+      })
+      .catch(() => {
+        // Fail open — an unknown availability check shouldn't block booking.
+        if (!cancelled) setEngineUnavailableHours(new Set());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [date, mode, productId]);
+
+  function isPastLeadTime(hour: number): boolean {
+    return hourStart(date, hour).getTime() < Date.now() + MIN_LEAD_MINUTES * 60_000 - 60_000;
+  }
+
+  function isHourUnavailable(hour: number): boolean {
+    return isPastLeadTime(hour) || (engineUnavailableHours?.has(hour) ?? false);
+  }
 
   // The customer picks a start hour and an end hour directly — the package
   // (and so the price) is whichever one matches that exact duration. Every
@@ -115,7 +161,7 @@ export function BookingWizard({
       const combined = new Date(`${date}T22:00`);
       return Number.isNaN(combined.getTime()) ? new Date() : combined;
     }
-    const combined = new Date(`${date}T${String(startHour ?? 0).padStart(2, "0")}:00`);
+    const combined = hourStart(date, startHour ?? 0);
     return Number.isNaN(combined.getTime()) ? new Date() : combined;
   }
 
@@ -132,6 +178,7 @@ export function BookingWizard({
    * range from there instead.
    */
   function tapHour(h: number) {
+    if (isHourUnavailable(h)) return;
     if (startHour === null || endHour !== null) {
       setStartHour(h);
       setEndHour(null);
@@ -345,6 +392,7 @@ export function BookingWizard({
                 </p>
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                   {OPERATING_HOURS.map((h) => {
+                    const unavailable = isHourUnavailable(h);
                     const inRange = startHour !== null && endHour !== null && h >= startHour && h <= endHour;
                     const isEdge = h === startHour || h === endHour;
                     return (
@@ -352,12 +400,16 @@ export function BookingWizard({
                         key={h}
                         type="button"
                         onClick={() => tapHour(h)}
+                        disabled={unavailable}
+                        aria-disabled={unavailable}
                         className={`rounded-lg border py-2 text-sm ${
-                          isEdge
-                            ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-                            : inRange
-                              ? "border-zinc-400 bg-zinc-200 dark:border-zinc-500 dark:bg-zinc-700"
-                              : "border-zinc-300 dark:border-zinc-700"
+                          unavailable
+                            ? "cursor-not-allowed border-zinc-300 bg-zinc-300 text-black line-through dark:border-zinc-700 dark:bg-zinc-700 dark:text-zinc-500"
+                            : isEdge
+                              ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                              : inRange
+                                ? "border-zinc-400 bg-zinc-200 dark:border-zinc-500 dark:bg-zinc-700"
+                                : "border-zinc-300 dark:border-zinc-700"
                         }`}
                       >
                         {formatHour(h)}

@@ -6,6 +6,8 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getNotificationProvider } from "@/lib/notifications";
 import { generateOtpCode, hashOtpCode, otpCodeMatches, OTP_TTL_MINUTES, OTP_MAX_ATTEMPTS } from "@/lib/otp";
 import { createPendingLockerBooking, NoAssetAvailableError, InvalidBookingRequestError } from "@/lib/booking/createLockerBooking";
+import { buildLockerFleetSnapshot } from "@/lib/booking/lockerSnapshot";
+import { findEligibleAsset } from "@/lib/locker-engine/feasibility";
 import { isPhoneCompatible } from "@/lib/booking/phone-compatibility";
 import { recordBookingAcknowledgement } from "@/lib/booking/terms";
 import { bookingDashboardUrl } from "@/lib/urls";
@@ -111,6 +113,35 @@ export async function verifyOtpAction(input: { verificationId: string; code: str
     .eq("id", verification.id);
 
   return { verified: true as const };
+}
+
+const hourAvailabilitySchema = z.object({
+  productId: uuidSchema,
+  starts: z.array(z.string().min(1)).max(24),
+});
+
+/**
+ * Which of the given candidate start times (each checked as a bare 1-hour
+ * window) currently have no eligible camera at all — used to dull those
+ * slots in the timetable before the customer picks one. This is a cheap
+ * proxy, not the real gate: a hour can look free here for a 1-hour rental
+ * and still turn out infeasible once the customer's actual end hour makes
+ * it a longer window, since the shared start/end grid doesn't know the
+ * duration until both taps happen. createBookingAction's own call into
+ * checkLockerBookingFeasibility remains the real authority.
+ */
+export async function getUnavailableStartsAction(input: { productId: string; starts: string[] }): Promise<{ unavailable: string[] }> {
+  const parsed = hourAvailabilitySchema.parse(input);
+  const snapshot = await buildLockerFleetSnapshot(parsed.productId);
+
+  const unavailable = parsed.starts.filter((iso) => {
+    const start = new Date(iso);
+    if (Number.isNaN(start.getTime())) return true;
+    const end = new Date(start.getTime() + 60 * 60_000);
+    return !findEligibleAsset(snapshot, start, end);
+  });
+
+  return { unavailable };
 }
 
 const createBookingSchema = z.object({
