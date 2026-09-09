@@ -2,6 +2,16 @@ import { hasOverlappingBooking } from "./bookingWindow";
 import type { FleetSnapshot } from "./types";
 
 /**
+ * A booking in either of these statuses never actually occupied its
+ * asset — a CANCELLED/EXPIRED booking shouldn't impose a turnaround delay
+ * on the camera it was assigned to. Every other status, terminal or not
+ * (including COMPLETED — a booking that finished its full lifecycle is
+ * exactly the case the turnaround buffer exists for, since the asset's own
+ * status may still be CLEANING/CHARGING rather than AVAILABLE yet), counts.
+ */
+const NEVER_OCCUPIED_STATUSES = ["CANCELLED", "EXPIRED"] as const;
+
+/**
  * Same exclusion list `lib/booking/availability.ts` already uses for the
  * reception flow: MAINTENANCE/LOST/RETIRED are the only statuses that
  * disqualify a camera as a *future* candidate — everything else (CLEANING,
@@ -9,6 +19,41 @@ import type { FleetSnapshot } from "./types";
  * so it's still a valid candidate for a slot that isn't right now.
  */
 const INELIGIBLE_STATUSES = ["MAINTENANCE", "LOST", "RETIRED"] as const;
+
+/**
+ * How long the worker is assumed to need to collect, inspect, and
+ * redeliver a camera after a rental ends — a flat scheduling buffer, not a
+ * travel-time computation. A camera is treated as ready for a new booking
+ * once this much time has passed since its last rental ended, whether or
+ * not it has actually made it through inspection/cleaning/charging in the
+ * database yet. If it's already sitting AVAILABLE, it's ready regardless
+ * of how much or little time has elapsed — that status already means the
+ * real-world turnaround is done. Location/travel time plays no part in
+ * this at all; the worker's actual routing (see routing.ts) is a separate,
+ * downstream execution problem, not a gate on whether a booking exists.
+ */
+export const ASSET_TURNAROUND_MINUTES = 120;
+
+/**
+ * Whether `asset` can be promised for a booking starting at `start`: either
+ * it's already AVAILABLE, or nothing rented it recently enough to still be
+ * mid-turnaround (no booking that actually occupied it ended within the
+ * last `ASSET_TURNAROUND_MINUTES`). An asset that's never been booked, or
+ * whose last booking ended long ago, clears this even if its current
+ * status hasn't caught up to AVAILABLE yet.
+ */
+export function isAssetReadyFor(snapshot: FleetSnapshot, assetId: string, status: string, start: Date): boolean {
+  if (status === "AVAILABLE") return true;
+  const cutoff = new Date(start.getTime() - ASSET_TURNAROUND_MINUTES * 60_000);
+  const stillTurningAround = snapshot.bookings.some(
+    (b) =>
+      b.assetId === assetId &&
+      !(NEVER_OCCUPIED_STATUSES as readonly string[]).includes(b.status) &&
+      b.endTime <= start &&
+      b.endTime > cutoff
+  );
+  return !stillTurningAround;
+}
 
 export type BookingRequest = {
   durationMinutes: number;
@@ -43,6 +88,7 @@ export function findEligibleAsset(snapshot: FleetSnapshot, start: Date, end: Dat
     .filter((a) => !a.isHotSpare)
     .filter((a) => !(INELIGIBLE_STATUSES as readonly string[]).includes(a.status))
     .filter((a) => !hasOverlappingBooking(snapshot, a.id, start, end))
+    .filter((a) => isAssetReadyFor(snapshot, a.id, a.status, start))
     .sort((a, b) => a.humanId.localeCompare(b.humanId));
   return candidates[0]?.id ?? null;
 }

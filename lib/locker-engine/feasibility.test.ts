@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { InvalidBookingRequestError, alignToNextHour, checkBookingFeasibility } from "./feasibility";
+import { ASSET_TURNAROUND_MINUTES, InvalidBookingRequestError, alignToNextHour, checkBookingFeasibility, isAssetReadyFor } from "./feasibility";
 import type { FleetSnapshot } from "./types";
 
 const ALIGNED_10AM = new Date("2026-09-02T10:00:00Z");
@@ -33,6 +33,66 @@ describe("alignToNextHour", () => {
   it("rounds a time 1ms past the hour up to the next hour", () => {
     const t = new Date("2026-09-02T10:00:00.001Z");
     expect(alignToNextHour(t).toISOString()).toBe("2026-09-02T11:00:00.000Z");
+  });
+});
+
+describe("isAssetReadyFor", () => {
+  const START = new Date("2026-09-02T14:00:00Z");
+
+  it("is always ready when its status is AVAILABLE, regardless of booking history", () => {
+    const snapshot: FleetSnapshot = {
+      ...baseSnapshot(),
+      bookings: [{ id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "COMPLETED", startTime: new Date(START.getTime() - 3_600_000), endTime: new Date(START.getTime() - 60_000), isOvernight: false }],
+    };
+    expect(isAssetReadyFor(snapshot, "cam-1", "AVAILABLE", START)).toBe(true);
+  });
+
+  it("is ready when nothing has occupied it at all", () => {
+    expect(isAssetReadyFor(baseSnapshot(), "cam-1", "CLEANING", START)).toBe(true);
+  });
+
+  it("is not ready when its last occupying booking ended less than the turnaround buffer ago", () => {
+    const snapshot: FleetSnapshot = {
+      ...baseSnapshot(),
+      bookings: [{ id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "COMPLETED", startTime: new Date(START.getTime() - 3_600_000), endTime: new Date(START.getTime() - 60_000), isOvernight: false }],
+    };
+    expect(isAssetReadyFor(snapshot, "cam-1", "CLEANING", START)).toBe(false);
+  });
+
+  it("is ready at exactly the turnaround buffer boundary", () => {
+    const endTime = new Date(START.getTime() - ASSET_TURNAROUND_MINUTES * 60_000);
+    const snapshot: FleetSnapshot = {
+      ...baseSnapshot(),
+      bookings: [{ id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "COMPLETED", startTime: new Date(endTime.getTime() - 3_600_000), endTime, isOvernight: false }],
+    };
+    expect(isAssetReadyFor(snapshot, "cam-1", "CLEANING", START)).toBe(true);
+  });
+
+  it("counts a COMPLETED booking toward the buffer — a booking that finished its full lifecycle is exactly the case the buffer exists for", () => {
+    const snapshot: FleetSnapshot = {
+      ...baseSnapshot(),
+      bookings: [{ id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "COMPLETED", startTime: new Date(START.getTime() - 3_600_000), endTime: new Date(START.getTime() - 60_000), isOvernight: false }],
+    };
+    expect(isAssetReadyFor(snapshot, "cam-1", "CHARGING", START)).toBe(false);
+  });
+
+  it("ignores a CANCELLED or EXPIRED booking — it never actually occupied the camera", () => {
+    const snapshot: FleetSnapshot = {
+      ...baseSnapshot(),
+      bookings: [
+        { id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CANCELLED", startTime: new Date(START.getTime() - 3_600_000), endTime: new Date(START.getTime() - 60_000), isOvernight: false },
+        { id: "b2", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "EXPIRED", startTime: new Date(START.getTime() - 3_600_000), endTime: new Date(START.getTime() - 60_000), isOvernight: false },
+      ],
+    };
+    expect(isAssetReadyFor(snapshot, "cam-1", "AVAILABLE", START)).toBe(true);
+  });
+
+  it("ignores location entirely — a different partnerId on the prior booking has no bearing", () => {
+    const snapshot: FleetSnapshot = {
+      ...baseSnapshot(),
+      bookings: [{ id: "b1", assetId: "cam-1", partnerId: "loc-b", dropoffPartnerId: "loc-b", status: "COMPLETED", startTime: new Date(START.getTime() - 3 * 3_600_000), endTime: new Date(START.getTime() - ASSET_TURNAROUND_MINUTES * 60_000), isOvernight: false }],
+    };
+    expect(isAssetReadyFor(snapshot, "cam-1", "CLEANING", START)).toBe(true);
   });
 });
 

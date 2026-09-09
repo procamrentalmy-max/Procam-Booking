@@ -25,7 +25,6 @@ function baseSnapshot(): FleetSnapshot {
   };
 }
 
-// A Tuesday at 09:00 UTC — well clear of the worker's 7am UTC floor.
 const NOW = new Date("2026-09-08T09:00:00Z");
 
 describe("checkLockerBookingFeasibility", () => {
@@ -41,43 +40,61 @@ describe("checkLockerBookingFeasibility", () => {
     ).toThrow(/at least 120 minutes ahead/);
   });
 
-  it("confirms when both camera and worker schedule are free", () => {
-    const desiredStart = new Date("2026-09-08T11:00:00Z"); // 7pm Malaysia time, well after NOW's lead time
+  it("confirms when a camera is free", () => {
+    const desiredStart = new Date("2026-09-08T11:00:00Z");
     const result = checkLockerBookingFeasibility(baseSnapshot(), { partnerId: "loc-a", dropoffPartnerId: "loc-a", durationMinutes: 240, earliestStartTime: desiredStart }, NOW);
     expect(result).toMatchObject({ outcome: "CONFIRM", startTime: desiredStart });
   });
 
-  it("pushes to a later hour when the requested hour has no worker-schedule room, even though a camera is free", () => {
-    // Existing booking at loc-b (8am-12pm UTC = 4pm-8pm Malaysia time) whose
-    // return commitment blocks 12:00 UTC at loc-a (different location, 15min
-    // travel needed) — kept well within the same Malaysia calendar day so
-    // this test isolates the travel-time conflict, not the 7am floor. Set 3
-    // hours after NOW to clear the 2-hour minimum lead time.
-    const returnBlockStart = new Date("2026-09-08T12:00:00Z");
+  it("ignores location and travel time entirely — a camera whose prior booking was at a different location is still eligible once its turnaround buffer clears", () => {
+    // Only camera in the fleet: previously at loc-b, ending exactly 2h
+    // before this request at loc-a. Under the old engine this would have
+    // needed extra travel-time room; now location plays no part at all.
+    const priorEnd = new Date("2026-09-08T11:00:00Z");
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
+      assets: [{ id: "cam-1", humanId: "CAM-001", isHotSpare: false, partnerId: "loc-b", status: "RETURNED_AWAITING_INSPECTION" }],
       bookings: [
-        {
-          id: "existing",
-          assetId: "cam-2",
-          partnerId: "loc-b",
-          dropoffPartnerId: "loc-b",
-          status: "CONFIRMED",
-          startTime: new Date("2026-09-08T08:00:00Z"),
-          endTime: returnBlockStart, // return commitment starts exactly at 12:00 UTC at loc-b
-          isOvernight: false,
-        },
+        { id: "existing", assetId: "cam-1", partnerId: "loc-b", dropoffPartnerId: "loc-b", status: "COMPLETED", startTime: new Date("2026-09-08T09:00:00Z"), endTime: priorEnd, isOvernight: false },
       ],
     };
-    // Requesting a NEW booking's setup at loc-a for 12:00 UTC — camera cam-1
-    // is free, but the worker's return commitment for the existing booking
-    // is at loc-b at the same moment, and there's no travel-time room
-    // between them.
-    const result = checkLockerBookingFeasibility(snapshot, { partnerId: "loc-a", dropoffPartnerId: "loc-a", durationMinutes: 240, earliestStartTime: returnBlockStart }, NOW);
+    const requestedStart = new Date(priorEnd.getTime() + 120 * 60_000); // exactly 2h later, at loc-a
+    const result = checkLockerBookingFeasibility(snapshot, { partnerId: "loc-a", dropoffPartnerId: "loc-a", durationMinutes: 120, earliestStartTime: requestedStart }, NOW);
+    expect(result).toMatchObject({ outcome: "CONFIRM", assetId: "cam-1" });
+  });
+
+  it("pushes to a later hour when the only camera's prior booking ended less than 2 hours before the requested (hour-aligned) start", () => {
+    const priorEnd = new Date("2026-09-08T11:00:00Z");
+    const snapshot: FleetSnapshot = {
+      ...baseSnapshot(),
+      assets: [{ id: "cam-1", humanId: "CAM-001", isHotSpare: false, partnerId: "loc-a", status: "CLEANING" }],
+      bookings: [
+        { id: "existing", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "COMPLETED", startTime: new Date("2026-09-08T09:00:00Z"), endTime: priorEnd, isOvernight: false },
+      ],
+    };
+    // Requesting 11:30 aligns to the 12:00 slot — only 1h after the prior
+    // booking ended, short of the 2h buffer. The next hour that clears it
+    // is 13:00 (exactly 2h after priorEnd).
+    const requestedStart = new Date(priorEnd.getTime() + 30 * 60_000);
+    const result = checkLockerBookingFeasibility(snapshot, { partnerId: "loc-a", dropoffPartnerId: "loc-a", durationMinutes: 60, earliestStartTime: requestedStart }, NOW);
     expect(result.outcome).toBe("NEXT_FEASIBLE_SLOT");
     if (result.outcome !== "INFEASIBLE") {
-      expect(result.startTime.getTime()).toBeGreaterThan(returnBlockStart.getTime());
+      expect(result.startTime.toISOString()).toBe("2026-09-08T13:00:00.000Z");
     }
+  });
+
+  it("treats an AVAILABLE camera as eligible immediately, even seconds after its prior booking ended", () => {
+    const priorEnd = new Date("2026-09-08T11:00:00Z");
+    const snapshot: FleetSnapshot = {
+      ...baseSnapshot(),
+      assets: [{ id: "cam-1", humanId: "CAM-001", isHotSpare: false, partnerId: "loc-a", status: "AVAILABLE" }],
+      bookings: [
+        { id: "existing", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "COMPLETED", startTime: new Date("2026-09-08T09:00:00Z"), endTime: priorEnd, isOvernight: false },
+      ],
+    };
+    const requestedStart = new Date(priorEnd.getTime() + 60_000); // 1 minute later
+    const result = checkLockerBookingFeasibility(snapshot, { partnerId: "loc-a", dropoffPartnerId: "loc-a", durationMinutes: 60, earliestStartTime: requestedStart }, NOW);
+    expect(result).toMatchObject({ outcome: "CONFIRM", assetId: "cam-1" });
   });
 });
 
@@ -93,58 +110,21 @@ describe("checkOvernightBookingFeasibility", () => {
   });
 
   it("pushes to the next night when requested after the 8pm cutoff for tonight", () => {
-    const lateRequestTime = new Date("2026-09-08T20:30:00"); // past the 2-hour-ahead 8pm cutoff
+    const lateRequestTime = new Date("2026-09-08T20:30:00");
     const night = new Date("2026-09-08T00:00:00");
     const result = checkOvernightBookingFeasibility(baseSnapshot(), { partnerId: "loc-a", dropoffPartnerId: "loc-a", earliestNight: night }, lateRequestTime);
     expect(result.outcome).toBe("NEXT_FEASIBLE_SLOT");
     if (result.outcome !== "INFEASIBLE") {
-      expect(result.startTime.getDate()).toBe(9); // the 9th, not the 8th
+      expect(result.startTime.getDate()).toBe(9);
     }
   });
 
-  it("now checks worker-schedule feasibility — pushed to the next night when the worker is still tied up past 10pm on a same-night daytime return", () => {
-    const night = new Date("2026-09-08T00:00:00");
-    // Overnight setup is flexible (can happen any time before 10pm), so a
-    // daytime commitment that FINISHES before 10pm no longer blocks it —
-    // the worker can detour to stage the overnight locker beforehand. But
-    // if the daytime return's processing window itself doesn't finish
-    // until AFTER 10pm (21:55 start + 25min grace/processing = 22:20), the
-    // worker genuinely isn't free by the 10pm deadline, regardless of
-    // where the overnight pickup is. This used to slip through entirely
-    // when overnight skipped the worker-schedule check.
-    const snapshot: FleetSnapshot = {
-      ...baseSnapshot(),
-      bookings: [
-        { id: "existing", assetId: "cam-2", partnerId: "loc-b", dropoffPartnerId: "loc-b", status: "CONFIRMED", startTime: new Date("2026-09-08T18:00:00"), endTime: new Date("2026-09-08T21:55:00"), isOvernight: false },
-      ],
-    };
-    const result = checkOvernightBookingFeasibility(snapshot, { partnerId: "loc-a", dropoffPartnerId: "loc-a", earliestNight: night }, NOW);
-    expect(result.outcome).toBe("NEXT_FEASIBLE_SLOT");
-    if (result.outcome !== "INFEASIBLE") {
-      expect(result.startTime.getDate()).toBe(9); // tonight is blocked; pushed to the next night
-    }
-  });
-
-  it("allows a daytime booking that finishes with time to spare before 10pm — the worker can detour to stage the overnight locker first", () => {
-    const night = new Date("2026-09-08T00:00:00");
-    // Return commitment [17:15,17:40]@loc-b finishes hours before 10pm —
-    // plenty of room for the worker to also visit loc-a and back.
-    const snapshot: FleetSnapshot = {
-      ...baseSnapshot(),
-      bookings: [
-        { id: "existing", assetId: "cam-2", partnerId: "loc-b", dropoffPartnerId: "loc-b", status: "CONFIRMED", startTime: new Date("2026-09-08T13:00:00"), endTime: new Date("2026-09-08T17:15:00"), isOvernight: false },
-      ],
-    };
-    const result = checkOvernightBookingFeasibility(snapshot, { partnerId: "loc-a", dropoffPartnerId: "loc-a", earliestNight: night }, NOW);
-    expect(result).toMatchObject({ outcome: "CONFIRM" });
-  });
-
-  it("scales capacity to however many overnight pickups the worker can actually reach by 10pm, not a flat cap of one", () => {
+  it("scales capacity to however many cameras are actually free that night, with no travel-time cross-check between different overnight pickups", () => {
     const night = new Date("2026-09-08T00:00:00");
     // Two DIFFERENT overnight bookings already confirmed for tonight, at
-    // loc-a and loc-b (15 min apart) — nothing else on the schedule, so
-    // the worker has the whole day to stage both. A third pickup at loc-a
-    // (same location as the first, so no extra travel) should still fit.
+    // loc-a and loc-b — under the old engine this needed a reachability
+    // check; now it's pure inventory count, so a third pickup at either
+    // location is fine as long as a camera is free.
     const snapshot: FleetSnapshot = {
       ...baseSnapshot(),
       assets: [
@@ -163,12 +143,6 @@ describe("checkOvernightBookingFeasibility", () => {
 
   it("still enforces camera double-booking protection", () => {
     const night = new Date("2026-09-08T00:00:00");
-    // Only one eligible camera (cam-2 is under MAINTENANCE) and it's already
-    // booked for tonight elsewhere. Note: two DIFFERENT bookings both
-    // claiming tonight's fixed 22:00 overnight slot would now also collide
-    // on worker-schedule grounds (one worker can't run two simultaneous
-    // setups), so that's no longer a state real usage could ever produce —
-    // this isolates pure inventory exhaustion instead.
     const oneEligibleCameraSnapshot: FleetSnapshot = {
       ...baseSnapshot(),
       assets: [

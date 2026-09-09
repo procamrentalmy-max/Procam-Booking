@@ -26,7 +26,7 @@ export type EngineBooking = {
   status: BookingStatus;
   startTime: Date;
   endTime: Date;
-  /** Overnight (10pm-8am) self-service pickups don't need a worker present at the exact start — see workerSchedule.ts's isOvernightRoundFeasible. */
+  /** Overnight (10pm-8am) fixed nightly slot vs a daytime, per-customer-chosen hour — not used by booking acceptance (feasibility.ts's turnaround rule is the same for both), but relevant to the worker's routing/priority planning (routing.ts). */
   isOvernight: boolean;
 };
 
