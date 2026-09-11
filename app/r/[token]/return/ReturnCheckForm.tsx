@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { CameraCaptureField } from "@/components/CameraCaptureField";
 import { submitReturnConditionCheckAction } from "./actions";
 
 type PhotoStep = { key: string; label: string; instruction: string | null };
@@ -92,25 +93,10 @@ export function ReturnCheckForm({
             <p className="text-center text-sm text-zinc-500">{currentPhotoStep.instruction}</p>
           )}
 
-          <label className="flex aspect-square w-full cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-zinc-300 dark:border-zinc-700">
-            {currentPhoto ? (
-              // eslint-disable-next-line @next/next/no-img-element -- local object URL, not optimizable
-              <img
-                src={URL.createObjectURL(currentPhoto)}
-                alt={currentPhotoStep.label}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <span className="text-sm text-zinc-400">Tap to take photo</span>
-            )}
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={(e) => handleFileChange(currentPhotoStep.key, e.target.files?.[0] ?? null)}
-            />
-          </label>
+          <CameraCaptureField
+            photos={currentPhoto ? [currentPhoto] : []}
+            onChange={(files) => handleFileChange(currentPhotoStep.key, files[0] ?? null)}
+          />
 
           <button
             onClick={() => setStep((s) => s + 1)}

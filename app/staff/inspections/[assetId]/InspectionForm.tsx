@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { CameraCaptureField } from "@/components/CameraCaptureField";
 import { passInspectionAction, reportDamageAction } from "./actions";
 
 const CAMERA_DAMAGE_CATEGORIES = [
@@ -203,19 +204,7 @@ export function InspectionForm({
             className="w-full rounded-lg border border-zinc-300 px-4 py-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
             rows={3}
           />
-          <div className="space-y-2">
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              multiple
-              onChange={(e) => setDamagePhotos(Array.from(e.target.files ?? []))}
-              className="w-full text-sm"
-            />
-            {damagePhotos.length > 0 && (
-              <p className="text-xs text-zinc-500">{damagePhotos.length} photo(s) attached</p>
-            )}
-          </div>
+          <CameraCaptureField photos={damagePhotos} onChange={setDamagePhotos} multiple />
           <button
             onClick={handleConfirmDamage}
             disabled={loading || !description}
