@@ -7,10 +7,10 @@ const PROTECTED_PREFIXES = ["/admin", "/staff", "/post-login"];
  * Refreshes the Supabase auth cookie on every request and gates the
  * staff/reception route tree to signed-in users. Role-specific checks
  * (admin vs staff vs reception) happen in each area's layout.tsx via
- * lib/auth/session.ts, since that needs a DB lookup this middleware
+ * lib/auth/session.ts, since that needs a DB lookup this proxy
  * deliberately skips to stay cheap.
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
