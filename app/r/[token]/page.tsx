@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { RatingPrompt } from "./RatingPrompt";
+
+const RATEABLE_STATUSES = ["AWAITING_INSPECTION", "INSPECTION", "DAMAGE_REVIEW", "COMPLETED"];
 
 const STATUS_MESSAGES: Record<string, string> = {
   PENDING_PAYMENT: "Payment hasn't been completed yet.",
@@ -21,7 +24,7 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("human_id,status,start_time,end_time,partner_id,dropoff_partner_id,rental_package_id,asset_id")
+    .select("human_id,status,start_time,end_time,partner_id,dropoff_partner_id,rental_package_id,asset_id,rating")
     .eq("secure_token", token)
     .maybeSingle();
 
@@ -89,6 +92,8 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
           </Link>
         </>
       )}
+
+      {RATEABLE_STATUSES.includes(booking.status) && booking.rating === null && <RatingPrompt token={token} />}
 
       <div className="space-y-2 rounded-xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">
         <Row label="Pickup" value={partner?.name ?? "—"} />

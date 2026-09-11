@@ -278,6 +278,7 @@ export type BookingRow = {
   actual_pickup_time: string | null;
   actual_return_time: string | null;
   late_fee_myr: number;
+  rating: number | null;
   source: BookingSource;
   referral_code: string | null;
   created_at: string;
