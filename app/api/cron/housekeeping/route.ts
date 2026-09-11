@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { promoteBookingToReadyForPickup } from "@/lib/booking/confirm";
+import { pruneOldConditionPhotos } from "@/lib/booking/photoRetention";
 import { PENDING_PAYMENT_TIMEOUT_MINUTES } from "@/lib/state-machine/booking";
 import { logAudit } from "@/lib/audit";
 
 /**
- * Two time-driven jobs that don't belong on any request path:
+ * Three time-driven jobs that don't belong on any request path:
  *
  * 1. Expire PENDING_PAYMENT bookings older than PENDING_PAYMENT_TIMEOUT_MINUTES
  *    and free the asset they were holding — otherwise an abandoned
@@ -14,6 +15,9 @@ import { logAudit } from "@/lib/audit";
  *    READY_FOR_PICKUP (see lib/booking/confirm.ts) — bookings made well
  *    ahead of time stop at CONFIRMED and don't touch their asset's status
  *    until this catches up with them.
+ * 3. Prune condition photos beyond each camera's 5 most recent bookings
+ *    (see lib/booking/photoRetention.ts) — the only thing in this schema
+ *    that grows storage usage without bound.
  *
  * Schedule this with Vercel Cron (vercel.json) or any external scheduler
  * hitting this URL every few minutes with the CRON_SECRET bearer token.
@@ -27,7 +31,7 @@ export async function GET(req: Request) {
   }
 
   const supabase = createServiceRoleClient();
-  const result = { expired: 0, promoted: 0, errors: [] as string[] };
+  const result = { expired: 0, promoted: 0, prunedPhotos: 0, errors: [] as string[] };
 
   const staleCutoff = new Date(Date.now() - PENDING_PAYMENT_TIMEOUT_MINUTES * 60_000).toISOString();
   const { data: staleBookings } = await supabase
@@ -80,6 +84,14 @@ export async function GET(req: Request) {
     } catch (err) {
       result.errors.push(`promote ${booking.id}: ${(err as Error).message}`);
     }
+  }
+
+  try {
+    const pruneResult = await pruneOldConditionPhotos();
+    result.prunedPhotos = pruneResult.deletedPhotos;
+    result.errors.push(...pruneResult.errors);
+  } catch (err) {
+    result.errors.push(`prune photos: ${(err as Error).message}`);
   }
 
   return NextResponse.json(result);
