@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { primaryButtonClass } from "@/components/formStyles";
 import { forceConfirmBookingAction } from "./actions";
@@ -24,7 +25,10 @@ export default async function BookingsPage() {
       {(bookings ?? []).map((b) => (
         <div key={b.id} className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
           <p className="font-medium">
-            {b.human_id} — <span className="font-normal text-zinc-500">{b.status}</span>
+            <Link href={`/admin/bookings/${b.id}`} className="underline underline-offset-2">
+              {b.human_id}
+            </Link>{" "}
+            — <span className="font-normal text-zinc-500">{b.status}</span>
           </p>
           <p className="text-sm text-zinc-500">
             {customerById.get(b.customer_id)?.name ?? "Unknown customer"} at{" "}
