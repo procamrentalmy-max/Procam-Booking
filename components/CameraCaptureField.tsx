@@ -67,6 +67,17 @@ export function CameraCaptureField({
 
   useEffect(() => stopCamera, []);
 
+  // The <video> element only mounts once `live` is true, so it doesn't
+  // exist yet at the point openCamera() gets the stream — attaching
+  // srcObject has to happen here, after that mount actually commits,
+  // otherwise the stream sits unused and the video shows black.
+  useEffect(() => {
+    if (!live || !videoRef.current || !streamRef.current) return;
+    const video = videoRef.current;
+    video.srcObject = streamRef.current;
+    video.play().catch(() => {});
+  }, [live]);
+
   async function openCamera() {
     setCameraError(null);
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -79,10 +90,6 @@ export function CameraCaptureField({
         audio: false,
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
       setLive(true);
     } catch {
       setCameraError("Couldn't access the camera. Check your browser's camera permission and try again.");
