@@ -250,6 +250,13 @@ export type WorkerLockerAssignmentRow = {
   created_at: string;
 };
 
+export type FunnelEventRow = {
+  id: string;
+  event_type: "LANDING_VIEWED" | "WIZARD_OPENED" | "OTP_REQUESTED" | "OTP_VERIFIED" | "BOOKING_CREATED" | "PAYMENT_CONFIRMED";
+  partner_id: string | null;
+  created_at: string;
+};
+
 export type LocationTravelTimeRow = {
   id: string;
   from_partner_id: string;
@@ -473,6 +480,7 @@ export interface Database {
       locker_compartments: TableDef<LockerCompartmentRow>;
       workers: TableDef<WorkerRow>;
       worker_locker_assignments: TableDef<WorkerLockerAssignmentRow>;
+      funnel_events: TableDef<FunnelEventRow>;
       location_travel_times: TableDef<LocationTravelTimeRow>;
       batteries: TableDef<BatteryRow>;
       bookings: TableDef<BookingRow>;

@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getActiveTermsVersion } from "@/lib/booking/terms";
+import { logFunnelEvent } from "@/lib/funnel";
 import { BookingWizard } from "./BookingWizard";
 
 export default async function BookPage({
@@ -47,6 +48,8 @@ export default async function BookPage({
     supabase.from("partners").select("id,name").eq("pickup_method", "LOCKER").eq("status", "ACTIVE").order("name"),
     getActiveTermsVersion(product.id),
   ]);
+
+  await logFunnelEvent("WIZARD_OPENED", partner.id);
 
   return (
     <BookingWizard

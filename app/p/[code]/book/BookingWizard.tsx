@@ -194,7 +194,7 @@ export function BookingWizard({
   async function sendVerificationCode() {
     setLoading(true);
     try {
-      const result = await startVerificationAction({ name, phone, email });
+      const result = await startVerificationAction({ name, phone, email, partnerId: pickupPartnerId });
       setCustomerId(result.customerId);
       setVerificationId(result.verificationId);
       setStep("otp");
@@ -255,7 +255,7 @@ export function BookingWizard({
     setError(null);
     setLoading(true);
     try {
-      await verifyOtpAction({ verificationId, code: otpCode });
+      await verifyOtpAction({ verificationId, code: otpCode, partnerId: pickupPartnerId });
       setStep("confirm");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");

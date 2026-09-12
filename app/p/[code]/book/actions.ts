@@ -11,6 +11,7 @@ import { findEligibleAsset } from "@/lib/locker-engine/feasibility";
 import { isPhoneCompatible } from "@/lib/booking/phone-compatibility";
 import { recordBookingAcknowledgement } from "@/lib/booking/terms";
 import { bookingDashboardUrl } from "@/lib/urls";
+import { logFunnelEvent } from "@/lib/funnel";
 
 const phoneCompatibilitySchema = z.object({
   productId: uuidSchema,
@@ -35,12 +36,15 @@ const startSchema = z.object({
   name: z.string().min(1, "Name is required"),
   phone: z.string().min(6, "Enter a valid phone number"),
   email: z.string().email("Enter a valid email"),
+  partnerId: uuidSchema,
 });
 
-export async function startVerificationAction(input: { name: string; phone: string; email: string }) {
+export async function startVerificationAction(input: { name: string; phone: string; email: string; partnerId: string }) {
   const parsed = startSchema.parse(input);
   const supabase = createServiceRoleClient();
   const email = parsed.email.toLowerCase();
+
+  await logFunnelEvent("OTP_REQUESTED", parsed.partnerId);
 
   const { data: existing } = await supabase.from("customers").select("id").eq("email", email).maybeSingle();
 
@@ -81,9 +85,10 @@ export async function startVerificationAction(input: { name: string; phone: stri
 const verifySchema = z.object({
   verificationId: uuidSchema,
   code: z.string().length(6, "Enter the 6-digit code"),
+  partnerId: uuidSchema,
 });
 
-export async function verifyOtpAction(input: { verificationId: string; code: string }) {
+export async function verifyOtpAction(input: { verificationId: string; code: string; partnerId: string }) {
   const parsed = verifySchema.parse(input);
   const supabase = createServiceRoleClient();
 
@@ -111,6 +116,8 @@ export async function verifyOtpAction(input: { verificationId: string; code: str
     .from("identity_verifications")
     .update({ status: "VERIFIED", otp_verified_at: new Date().toISOString() })
     .eq("id", verification.id);
+
+  await logFunnelEvent("OTP_VERIFIED", parsed.partnerId);
 
   return { verified: true as const };
 }
@@ -199,6 +206,8 @@ export async function createBookingAction(input: {
         console.error("[booking] failed to record terms acknowledgement", err)
       );
     }
+
+    await logFunnelEvent("BOOKING_CREATED", parsed.partnerId);
 
     return {
       secureToken: booking.secure_token as string,

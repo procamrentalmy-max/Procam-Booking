@@ -2,6 +2,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { assertValidBookingTransition, isImminent } from "@/lib/state-machine/booking";
 import { logAudit } from "@/lib/audit";
+import { logFunnelEvent } from "@/lib/funnel";
 import type { BookingStatus, AssetStatus } from "@/lib/db/types";
 
 /**
@@ -18,7 +19,7 @@ export async function confirmBookingAfterPayment(bookingId: string): Promise<voi
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("status,asset_id,start_time")
+    .select("status,asset_id,start_time,partner_id")
     .eq("id", bookingId)
     .single();
   if (!booking) throw new Error(`Booking ${bookingId} not found`);
@@ -38,6 +39,8 @@ export async function confirmBookingAfterPayment(bookingId: string): Promise<voi
     before: { status: "PENDING_PAYMENT" },
     after: { status: "CONFIRMED" },
   });
+
+  await logFunnelEvent("PAYMENT_CONFIRMED", booking.partner_id);
 
   if (isImminent(new Date(booking.start_time))) {
     await promoteBookingToReadyForPickup(bookingId);

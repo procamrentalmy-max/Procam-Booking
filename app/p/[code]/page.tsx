@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { logFunnelEvent } from "@/lib/funnel";
 
 export default async function PartnerLandingPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
@@ -13,6 +14,8 @@ export default async function PartnerLandingPage({ params }: { params: Promise<{
     .maybeSingle();
 
   if (!partner || partner.status !== "ACTIVE") notFound();
+
+  await logFunnelEvent("LANDING_VIEWED", partner.id);
 
   // Only products with actual deployed inventory at this property are
   // offered — a property with no SeaLife units never shows that card,
