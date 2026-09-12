@@ -279,4 +279,43 @@ describe("planRoute", () => {
     // The surplus AVAILABLE camera at loc-a is never touched — no reason to visit loc-a at all.
     expect(plan.stops.some((s) => s.partnerId === "loc-a")).toBe(false);
   });
+
+  it("picks the shortest total route through same-tier dropoffs, not just the nearest single stop", () => {
+    // Deliberately adversarial travel times: "loc-far" is tied for nearest
+    // from the start, but committing to it first forces two expensive legs
+    // afterward. Plain nearest-first (the old behavior) picks "loc-far"
+    // first and totals 25 minutes; the actual shortest full route visits
+    // "loc-mid" first and totals 18.
+    const snapshot: FleetSnapshot = {
+      ...baseSnapshot(),
+      workers: [{ id: "worker-1", currentPartnerId: "start", active: true }],
+      locations: [{ partnerId: "loc-far" }, { partnerId: "loc-mid" }, { partnerId: "loc-near" }],
+      travelTimes: [
+        { fromPartnerId: "start", toPartnerId: "loc-near", minutes: 18 },
+        { fromPartnerId: "start", toPartnerId: "loc-far", minutes: 4 },
+        { fromPartnerId: "start", toPartnerId: "loc-mid", minutes: 4 },
+        { fromPartnerId: "loc-near", toPartnerId: "loc-far", minutes: 7 },
+        { fromPartnerId: "loc-near", toPartnerId: "loc-mid", minutes: 19 },
+        { fromPartnerId: "loc-far", toPartnerId: "loc-near", minutes: 2 },
+        { fromPartnerId: "loc-far", toPartnerId: "loc-mid", minutes: 8 },
+        { fromPartnerId: "loc-mid", toPartnerId: "loc-near", minutes: 17 },
+        { fromPartnerId: "loc-mid", toPartnerId: "loc-far", minutes: 12 },
+      ],
+      assets: [
+        { id: "spare-1", humanId: "CAM-091", isHotSpare: false, partnerId: null, status: "AVAILABLE" },
+        { id: "spare-2", humanId: "CAM-092", isHotSpare: false, partnerId: null, status: "AVAILABLE" },
+        { id: "spare-3", humanId: "CAM-093", isHotSpare: false, partnerId: null, status: "AVAILABLE" },
+      ],
+      // All three within the 2h lookahead but past the 1h urgent tier, so
+      // urgency ties and the choice comes down purely to total distance.
+      bookings: [
+        { id: "b1", assetId: "any-1", partnerId: "loc-far", dropoffPartnerId: "loc-far", status: "CONFIRMED", startTime: WITHIN_TWO_HOURS, endTime: LATER, isOvernight: false },
+        { id: "b2", assetId: "any-2", partnerId: "loc-mid", dropoffPartnerId: "loc-mid", status: "CONFIRMED", startTime: WITHIN_TWO_HOURS, endTime: LATER, isOvernight: false },
+        { id: "b3", assetId: "any-3", partnerId: "loc-near", dropoffPartnerId: "loc-near", status: "CONFIRMED", startTime: WITHIN_TWO_HOURS, endTime: LATER, isOvernight: false },
+      ],
+    };
+    const plan = planRoute(snapshot, NOW);
+    expect(plan.stops.map((s) => s.partnerId)).toEqual(["loc-mid", "loc-far", "loc-near"]);
+    expect(plan.unmetDropoffs).toEqual([]);
+  });
 });

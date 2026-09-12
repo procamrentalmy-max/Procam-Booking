@@ -100,6 +100,7 @@ export type PartnerRow = {
   referral_code: string;
   status: PartnerStatus;
   pickup_method: PickupMethod;
+  google_maps_url: string | null;
   created_at: string;
   updated_at: string;
 };

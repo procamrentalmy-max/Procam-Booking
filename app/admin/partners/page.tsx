@@ -34,6 +34,12 @@ export default async function PartnersPage() {
             className={inputClass}
           />
           <input name="referralCode" placeholder="Referral code, e.g. ABC123" required className={inputClass} />
+          <input
+            name="googleMapsUrl"
+            type="url"
+            placeholder="Google Maps link (optional)"
+            className={`${inputClass} sm:col-span-2`}
+          />
           <button type="submit" className={`${primaryButtonClass} sm:col-span-2`}>
             Create Partner
           </button>
@@ -54,8 +60,28 @@ export default async function PartnersPage() {
               </p>
               <p className="text-sm text-zinc-500">{p.address}</p>
               <p className="text-xs text-zinc-400">{p.url}</p>
+              {p.google_maps_url && (
+                <a
+                  href={p.google_maps_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-zinc-400 underline underline-offset-2"
+                >
+                  Google Maps
+                </a>
+              )}
             </div>
-            <form action={updatePartnerAction} className="flex items-center gap-2">
+            {/*
+              Keyed on every editable field: the outer row's key (p.id)
+              never changes across a save, so without this React reuses the
+              same input/select DOM nodes and never re-applies their
+              defaultValue from fresh server data after a successful save.
+            */}
+            <form
+              key={`${p.commission_rate}:${p.status}:${p.google_maps_url ?? ""}`}
+              action={updatePartnerAction}
+              className="flex flex-wrap items-center gap-2"
+            >
               <input type="hidden" name="id" value={p.id} />
               <input
                 name="commissionRate"
@@ -70,6 +96,13 @@ export default async function PartnersPage() {
                 <option value="ACTIVE">ACTIVE</option>
                 <option value="INACTIVE">INACTIVE</option>
               </select>
+              <input
+                name="googleMapsUrl"
+                type="url"
+                placeholder="Google Maps link"
+                defaultValue={p.google_maps_url ?? ""}
+                className={`${inputClass} w-48`}
+              />
               <button type="submit" className={primaryButtonClass}>
                 Save
               </button>

@@ -6,6 +6,7 @@ const SECTIONS = [
   { href: "/admin/funnel", label: "Funnel", note: "QR scans through to paid — where people drop off" },
   { href: "/admin/damage-cases", label: "Damage Cases", note: "Deposit decisions on damage reports" },
   { href: "/admin/partners", label: "Partners", note: "Properties, commission rates, QR codes" },
+  { href: "/admin/travel-times", label: "Travel Times", note: "Drive times between lockers, for route planning" },
   { href: "/admin/products", label: "Products", note: "Rental product lines, phone compatibility" },
   { href: "/admin/rental-packages", label: "Rental Packages", note: "Durations, pricing, deposits" },
   { href: "/admin/rental-assets", label: "Rental Assets", note: "Fleet status by property" },

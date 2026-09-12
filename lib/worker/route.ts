@@ -19,7 +19,12 @@ export type WorkerLookupError = "NO_WORKER_ROW" | "WORKER_INACTIVE";
 
 export type NextStopResult =
   | { error: WorkerLookupError }
-  | { error: null; nextStop: NextStop | null; unmetDropoffs: { partnerId: string; shortfall: number }[] };
+  | {
+      error: null;
+      nextStop: NextStop | null;
+      unmetDropoffs: { partnerId: string; shortfall: number }[];
+      currentPartnerId: string | null;
+    };
 
 async function findWorker(staffId: string) {
   const supabase = createServiceRoleClient();
@@ -67,7 +72,7 @@ export async function getNextStopForStaff(staffId: string): Promise<NextStopResu
   const plan = planRoute(scopedSnapshot, new Date());
 
   if (plan.stops.length === 0) {
-    return { error: null, nextStop: null, unmetDropoffs: plan.unmetDropoffs };
+    return { error: null, nextStop: null, unmetDropoffs: plan.unmetDropoffs, currentPartnerId: worker.current_partner_id };
   }
 
   const stop = plan.stops[0];
@@ -91,5 +96,6 @@ export async function getNextStopForStaff(staffId: string): Promise<NextStopResu
       })),
     },
     unmetDropoffs: plan.unmetDropoffs,
+    currentPartnerId: worker.current_partner_id,
   };
 }

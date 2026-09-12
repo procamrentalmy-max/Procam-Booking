@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { getAuthContext } from "@/lib/auth/session";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getNextStopForStaff } from "@/lib/worker/route";
 import { RouteStopView } from "./RouteStopView";
+import { UpdateLocationForm } from "./UpdateLocationForm";
 
 export default async function WorkerRoutePage() {
   const ctx = await getAuthContext();
@@ -19,7 +21,20 @@ export default async function WorkerRoutePage() {
     );
   }
 
-  return <RouteStopView nextStop={result.nextStop} unmetDropoffs={result.unmetDropoffs} />;
+  const supabase = await createServerSupabaseClient();
+  const { data: lockers } = await supabase
+    .from("partners")
+    .select("id,name")
+    .eq("pickup_method", "LOCKER")
+    .eq("status", "ACTIVE")
+    .order("name");
+
+  return (
+    <>
+      <UpdateLocationForm lockers={lockers ?? []} currentPartnerId={result.currentPartnerId} />
+      <RouteStopView nextStop={result.nextStop} unmetDropoffs={result.unmetDropoffs} />
+    </>
+  );
 }
 
 function Message({ children }: { children: React.ReactNode }) {

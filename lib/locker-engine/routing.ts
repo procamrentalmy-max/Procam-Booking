@@ -18,6 +18,12 @@ export const URGENT_DROPOFF_LOOKAHEAD_MINUTES = 60;
 /** ~5-7 minutes to service one camera and set its locker PIN — midpoint used for planning. */
 export const SERVICE_MINUTES_PER_CAMERA = 6;
 
+/** Assumed travel time between two locations with no entry in location_travel_times yet — a starting default until a real Google Maps time is entered for that pair. */
+export const DEFAULT_TRAVEL_MINUTES = 15;
+
+/** Above this many simultaneous candidates, permutation search is skipped in favor of plain nearest-first — the locker network is small enough that this never actually triggers today, it's just a safety cap against factorial blowup if it grows a lot. */
+const MAX_PERMUTATION_CANDIDATES = 8;
+
 function countUpcomingBookingsAt(
   snapshot: FleetSnapshot,
   partnerId: string,
@@ -62,14 +68,56 @@ export function computeDropoffNeeds(
 function travelMinutes(snapshot: FleetSnapshot, from: string | null, to: string): number {
   if (from === null || from === to) return 0;
   const entry = snapshot.travelTimes.find((t) => t.fromPartnerId === from && t.toPartnerId === to);
-  return entry?.minutes ?? Infinity;
+  return entry?.minutes ?? DEFAULT_TRAVEL_MINUTES;
 }
 
-function nearest(snapshot: FleetSnapshot, from: string | null, candidates: string[]): string | null {
+function* permutations<T>(items: T[]): Generator<T[]> {
+  if (items.length <= 1) {
+    yield items;
+    return;
+  }
+  for (let i = 0; i < items.length; i++) {
+    const rest = [...items.slice(0, i), ...items.slice(i + 1)];
+    for (const tail of permutations(rest)) {
+      yield [items[i], ...tail];
+    }
+  }
+}
+
+/**
+ * The one candidate to visit first — chosen not just by which is nearest,
+ * but by which full visiting order of ALL the given candidates has the
+ * lowest total travel time starting from `from` (e.g. for candidates
+ * [A, B, C], compares current→A→B→C vs current→A→C→B vs every other
+ * ordering). Plain nearest-first can strand the worker far from the rest
+ * of a same-priority batch even when a different first hop gets the whole
+ * batch done sooner; this is the actual "shortest total route" the
+ * business wants, computed fresh over whatever the current candidate set
+ * is (which itself can change stop to stop as the simulation progresses).
+ */
+function nearestInOptimalOrder(snapshot: FleetSnapshot, from: string | null, candidates: string[]): string | null {
   if (candidates.length === 0) return null;
-  return candidates.reduce((best, id) =>
-    travelMinutes(snapshot, from, id) < travelMinutes(snapshot, from, best) ? id : best
-  );
+  if (candidates.length === 1 || candidates.length > MAX_PERMUTATION_CANDIDATES) {
+    return candidates.reduce((best, id) =>
+      travelMinutes(snapshot, from, id) < travelMinutes(snapshot, from, best) ? id : best
+    );
+  }
+
+  let bestFirstStop = candidates[0];
+  let bestTotal = Infinity;
+  for (const order of permutations(candidates)) {
+    let total = 0;
+    let cursor = from;
+    for (const stop of order) {
+      total += travelMinutes(snapshot, cursor, stop);
+      cursor = stop;
+    }
+    if (total < bestTotal) {
+      bestTotal = total;
+      bestFirstStop = order[0];
+    }
+  }
+  return bestFirstStop;
 }
 
 export type RouteStopAction =
@@ -121,12 +169,15 @@ export type RoutePlan = {
  * than one reason (e.g. a top-up source that's also a dropoff-need spot)
  * never gets "picked up" twice for the same camera.
  *
- * Deterministic greedy nearest-first chaining via the (mock) travel-time
- * matrix, not a full route optimizer — matches the rest of this engine's
- * "simple, testable, correct" approach over "provably optimal." The one
- * place distance is NOT the deciding factor is which dropoff-need spot to
- * visit next: next-hour need beats next-2-hours need beats distance (see
- * urgentDropoffs below), matching the priority the business actually wants.
+ * Chains stop to stop using nearestInOptimalOrder(), which picks the first
+ * hop of whichever full visiting order of the current candidate batch has
+ * the lowest total travel time (a small permutation search, not plain
+ * nearest-first) — so a same-priority batch of several locations gets the
+ * actual shortest route through all of them, not just whichever's closest
+ * right now. The one place distance is NOT the deciding factor at all is
+ * which dropoff-need spot to visit next: next-hour need beats next-2-hours
+ * need beats distance (see urgentDropoffs below), matching the priority the
+ * business actually wants; distance only orders within a tier.
  */
 export function planRoute(
   snapshot: FleetSnapshot,
@@ -222,7 +273,7 @@ export function planRoute(
   /** Among the given dropoff-need locations, next-hour-urgent ones (if any) win outright; distance only breaks ties within a tier. */
   function pickDropoffTarget(candidates: string[]): string | null {
     const urgent = candidates.filter((id) => urgentDropoffs.has(id));
-    return nearest(snapshot, currentLocation, urgent.length > 0 ? urgent : candidates);
+    return nearestInOptimalOrder(snapshot, currentLocation, urgent.length > 0 ? urgent : candidates);
   }
 
   while (remainingDropoffs.size > 0 || returnOnlySpots().length > 0) {
@@ -230,7 +281,7 @@ export function planRoute(
     const unvisitedSupply = supplySpots();
 
     if (needMoreSupply && unvisitedSupply.length > 0) {
-      const next = nearest(snapshot, currentLocation, unvisitedSupply);
+      const next = nearestInOptimalOrder(snapshot, currentLocation, unvisitedSupply);
       if (!next) break;
       doPickup(next);
       serviceRawInventory(next); // needed now to cover an urgent shortfall
@@ -261,7 +312,7 @@ export function planRoute(
     // the same stop rides along via doPickup, same as any other visit.
     const unvisitedReturns = returnOnlySpots();
     if (unvisitedReturns.length > 0) {
-      const next = nearest(snapshot, currentLocation, unvisitedReturns);
+      const next = nearestInOptimalOrder(snapshot, currentLocation, unvisitedReturns);
       if (!next) break;
       doPickup(next);
       serviceRawInventory(next);

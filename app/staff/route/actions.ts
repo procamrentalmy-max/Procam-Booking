@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { uuidSchema } from "@/lib/zod-helpers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getAuthContext, hasStaffAccess } from "@/lib/auth/session";
@@ -125,4 +127,36 @@ export async function completeStopAction(): Promise<CompletedStopResult> {
   revalidatePath("/staff/route");
 
   return { partnerName, pickedUp, droppedOff, toInspect };
+}
+
+const updateLocationSchema = z.object({ partnerId: uuidSchema });
+
+/**
+ * Lets the worker directly declare where they are right now, independent of
+ * completing a stop — otherwise current_partner_id only ever moves forward
+ * by finishing whatever the plan already said to do, with no way to correct
+ * it (e.g. after a day off, or if the worker's actual position drifted from
+ * what the system assumed). This becomes the starting point the next route
+ * plan is computed from.
+ */
+export async function updateMyLocationAction(formData: FormData) {
+  const parsed = updateLocationSchema.parse({ partnerId: formData.get("partnerId") });
+  const ctx = await getAuthContext();
+  if (!hasStaffAccess(ctx)) throw new Error("Not authorized.");
+
+  const rlsClient = await createServerSupabaseClient();
+  const { data: worker } = await rlsClient
+    .from("workers")
+    .select("id")
+    .eq("staff_user_id", ctx.staffId)
+    .maybeSingle();
+  if (!worker) throw new Error("You're not set up as a worker.");
+
+  const { error } = await rlsClient
+    .from("workers")
+    .update({ current_partner_id: parsed.partnerId })
+    .eq("id", worker.id);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/staff/route");
 }
