@@ -9,7 +9,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
-      <AreaHeader title="Admin" name={ctx.name} />
+      <AreaHeader title="Admin" name={ctx.name} homeHref="/admin" />
       <main className="mx-auto max-w-5xl p-4">{children}</main>
     </div>
   );
