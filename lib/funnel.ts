@@ -4,8 +4,8 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 export type FunnelEventType =
   | "LANDING_VIEWED"
   | "WIZARD_OPENED"
-  | "OTP_REQUESTED"
-  | "OTP_VERIFIED"
+  | "VERIFICATION_STARTED"
+  | "VERIFICATION_VERIFIED"
   | "BOOKING_CREATED"
   | "PAYMENT_CONFIRMED";
 

@@ -20,7 +20,7 @@
 export type PartnerStatus = "ACTIVE" | "INACTIVE";
 export type PickupMethod = "RECEPTION" | "LOCKER";
 export type StaffRole = "PROCAM_STAFF" | "ADMIN";
-export type IdentityVerificationMethod = "WHATSAPP_OTP" | "SMS_OTP";
+export type IdentityVerificationMethod = "WHATSAPP_OTP" | "SMS_OTP" | "DIDIT_KYC";
 export type IdentityVerificationStatus = "PENDING" | "VERIFIED" | "FAILED";
 
 /** Lifecycle status shared by every rental product's physical inventory (camera, SeaLife housing, ...). */
@@ -131,7 +131,8 @@ export type IdentityVerificationRow = {
   otp_expires_at: string | null;
   otp_attempts: number;
   id_document_photo_path: string | null;
-  otp_verified_at: string | null;
+  verified_at: string | null;
+  didit_session_id: string | null;
   status: IdentityVerificationStatus;
   created_at: string;
 };
@@ -252,7 +253,7 @@ export type WorkerLockerAssignmentRow = {
 
 export type FunnelEventRow = {
   id: string;
-  event_type: "LANDING_VIEWED" | "WIZARD_OPENED" | "OTP_REQUESTED" | "OTP_VERIFIED" | "BOOKING_CREATED" | "PAYMENT_CONFIRMED";
+  event_type: "LANDING_VIEWED" | "WIZARD_OPENED" | "VERIFICATION_STARTED" | "VERIFICATION_VERIFIED" | "BOOKING_CREATED" | "PAYMENT_CONFIRMED";
   partner_id: string | null;
   created_at: string;
 };

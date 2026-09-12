@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { DiditSdk } from "@didit-protocol/sdk-web";
 import {
-  startVerificationAction,
-  verifyOtpAction,
+  startKycAction,
+  confirmKycAction,
   createBookingAction,
   checkPhoneCompatibilityAction,
   getUnavailableStartsAction,
@@ -19,7 +20,7 @@ type RentalPackage = {
   is_overnight: boolean;
 };
 
-type Step = "package" | "locations" | "contact" | "phone" | "otp" | "confirm" | "booked";
+type Step = "package" | "locations" | "contact" | "phone" | "verify" | "confirm" | "booked";
 
 type LockerPartner = { id: string; name: string };
 
@@ -99,10 +100,10 @@ export function BookingWizard({
   const [model, setModel] = useState("");
   const [variant, setVariant] = useState("");
   const [phoneCompatible, setPhoneCompatible] = useState<boolean | null>(null);
-  const [otpCode, setOtpCode] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [verificationId, setVerificationId] = useState<string | null>(null);
+  const [sessionUrl, setSessionUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [secureToken, setSecureToken] = useState<string | null>(null);
@@ -191,16 +192,45 @@ export function BookingWizard({
     }
   }
 
-  async function sendVerificationCode() {
+  /** Opens Didit's hosted verification modal — an iframe overlay, so the wizard's own state (package, times, locations already chosen) stays mounted underneath it the whole time. */
+  function openDiditModal(url: string, verifId: string) {
+    DiditSdk.shared.onComplete = async (result) => {
+      if (result.type === "completed") {
+        try {
+          const confirm = await confirmKycAction({ verificationId: verifId, partnerId: pickupPartnerId });
+          if (confirm.verified) {
+            setStep("confirm");
+          } else {
+            setError("We couldn't approve your verification. Please try again.");
+          }
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Something went wrong.");
+        } finally {
+          setLoading(false);
+        }
+      } else if (result.type === "cancelled") {
+        setLoading(false);
+      } else {
+        setError(result.error?.message ?? "Verification failed. Please try again.");
+        setLoading(false);
+      }
+    };
     setLoading(true);
+    DiditSdk.shared.startVerification({ url });
+  }
+
+  async function beginKyc() {
+    setLoading(true);
+    setError(null);
     try {
-      const result = await startVerificationAction({ name, phone, email, partnerId: pickupPartnerId });
+      const result = await startKycAction({ name, phone, email, partnerId: pickupPartnerId });
       setCustomerId(result.customerId);
       setVerificationId(result.verificationId);
-      setStep("otp");
+      setSessionUrl(result.sessionUrl);
+      setStep("verify");
+      openDiditModal(result.sessionUrl, result.verificationId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
       setLoading(false);
     }
   }
@@ -234,7 +264,7 @@ export function BookingWizard({
       setStep("phone");
       return;
     }
-    await sendVerificationCode();
+    await beginKyc();
   }
 
   async function handleCheckCompatibility() {
@@ -243,20 +273,6 @@ export function BookingWizard({
     try {
       const result = await checkPhoneCompatibilityAction({ productId, manufacturer, model, variant });
       setPhoneCompatible(result.compatible);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleOtpSubmit() {
-    if (!verificationId) return;
-    setError(null);
-    setLoading(true);
-    try {
-      await verifyOtpAction({ verificationId, code: otpCode, partnerId: pickupPartnerId });
-      setStep("confirm");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -304,7 +320,7 @@ export function BookingWizard({
         {step === "locations" && "Pickup & Dropoff"}
         {step === "contact" && "Your Details"}
         {step === "phone" && "Check Your Phone"}
-        {step === "otp" && "Verify Your Phone"}
+        {step === "verify" && "Verify Your Identity"}
         {step === "confirm" && "Confirm Booking"}
         {step === "booked" && "Booking Confirmed"}
       </h1>
@@ -512,7 +528,7 @@ export function BookingWizard({
             disabled={loading || !name || !phone || !email}
             className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
           >
-            {loading ? "Sending code…" : "Continue"}
+            {loading ? "Starting…" : "Continue"}
           </button>
         </div>
       )}
@@ -573,34 +589,29 @@ export function BookingWizard({
             </button>
           ) : (
             <button
-              onClick={sendVerificationCode}
+              onClick={beginKyc}
               disabled={loading}
               className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
             >
-              {loading ? "Sending code…" : "Continue"}
+              {loading ? "Starting…" : "Continue"}
             </button>
           )}
         </div>
       )}
 
-      {step === "otp" && (
+      {step === "verify" && (
         <div className="space-y-4">
-          <p className="text-center text-sm text-zinc-500">We sent a 6-digit code to your WhatsApp, {phone}.</p>
-          <input
-            inputMode="numeric"
-            maxLength={6}
-            placeholder="000000"
-            value={otpCode}
-            onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
-            className="w-full rounded-lg border border-zinc-300 px-4 py-3 text-center text-2xl tracking-widest dark:border-zinc-700 dark:bg-zinc-900"
-          />
-          <button
-            onClick={handleOtpSubmit}
-            disabled={loading || otpCode.length !== 6}
-            className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
-          >
-            {loading ? "Verifying…" : "Verify"}
-          </button>
+          <p className="text-center text-sm text-zinc-500">
+            Verify your identity to continue — you&apos;ll photograph your ID and take a quick selfie.
+          </p>
+          {!loading && (
+            <button
+              onClick={() => sessionUrl && verificationId && openDiditModal(sessionUrl, verificationId)}
+              className="w-full rounded-full bg-black py-3 font-semibold text-white dark:bg-white dark:text-black"
+            >
+              Try Again
+            </button>
+          )}
         </div>
       )}
 

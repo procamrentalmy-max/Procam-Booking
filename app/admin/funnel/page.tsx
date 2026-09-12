@@ -4,8 +4,8 @@ import { BarChart } from "../sales/charts";
 const STAGES: { type: string; label: string; short: string }[] = [
   { type: "LANDING_VIEWED", label: "Scanned QR / viewed landing page", short: "Scanned QR" },
   { type: "WIZARD_OPENED", label: "Opened booking wizard", short: "Opened wizard" },
-  { type: "OTP_REQUESTED", label: "Entered details, requested code", short: "Requested code" },
-  { type: "OTP_VERIFIED", label: "Verified code", short: "Verified code" },
+  { type: "VERIFICATION_STARTED", label: "Entered details, started ID verification", short: "Started verification" },
+  { type: "VERIFICATION_VERIFIED", label: "Verified identity", short: "Verified identity" },
   { type: "BOOKING_CREATED", label: "Reached payment", short: "Reached payment" },
   { type: "PAYMENT_CONFIRMED", label: "Paid", short: "Paid" },
 ];

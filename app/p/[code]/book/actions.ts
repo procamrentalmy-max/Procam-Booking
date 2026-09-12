@@ -3,8 +3,7 @@
 import { z } from "zod";
 import { uuidSchema } from "@/lib/zod-helpers";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { getNotificationProvider } from "@/lib/notifications";
-import { generateOtpCode, hashOtpCode, otpCodeMatches, OTP_TTL_MINUTES, OTP_MAX_ATTEMPTS } from "@/lib/otp";
+import { createDiditSession, getDiditSessionStatus } from "@/lib/didit";
 import { createPendingLockerBooking, NoAssetAvailableError, InvalidBookingRequestError } from "@/lib/booking/createLockerBooking";
 import { buildLockerFleetSnapshot } from "@/lib/booking/lockerSnapshot";
 import { findEligibleAsset } from "@/lib/locker-engine/feasibility";
@@ -39,12 +38,13 @@ const startSchema = z.object({
   partnerId: uuidSchema,
 });
 
-export async function startVerificationAction(input: { name: string; phone: string; email: string; partnerId: string }) {
+/** Creates the customer + a PENDING verification row, then starts a Didit KYC session for it. The returned sessionUrl is opened in Didit's hosted modal client-side. */
+export async function startKycAction(input: { name: string; phone: string; email: string; partnerId: string }) {
   const parsed = startSchema.parse(input);
   const supabase = createServiceRoleClient();
   const email = parsed.email.toLowerCase();
 
-  await logFunnelEvent("OTP_REQUESTED", parsed.partnerId);
+  await logFunnelEvent("VERIFICATION_STARTED", parsed.partnerId);
 
   const { data: existing } = await supabase.from("customers").select("id").eq("email", email).maybeSingle();
 
@@ -59,65 +59,52 @@ export async function startVerificationAction(input: { name: string; phone: stri
     customerId = created.id;
   }
 
-  const code = generateOtpCode();
   const { data: verification, error: verificationError } = await supabase
     .from("identity_verifications")
-    .insert({
-      customer_id: customerId,
-      method: "WHATSAPP_OTP",
-      otp_code_hash: hashOtpCode(code),
-      otp_expires_at: new Date(Date.now() + OTP_TTL_MINUTES * 60_000).toISOString(),
-      status: "PENDING",
-    })
+    .insert({ customer_id: customerId, method: "DIDIT_KYC", status: "PENDING" })
     .select("id")
     .single();
   if (verificationError || !verification) throw new Error("Could not start verification. Please try again.");
 
-  await getNotificationProvider().sendWhatsApp({
-    to: parsed.phone,
-    templateName: process.env.WHATSAPP_OTP_TEMPLATE_NAME ?? "otp_code",
-    templateParams: [code],
-  });
+  const session = await createDiditSession(verification.id);
+  await supabase.from("identity_verifications").update({ didit_session_id: session.sessionId }).eq("id", verification.id);
 
-  return { customerId: customerId as string, verificationId: verification.id as string };
+  return { customerId: customerId as string, verificationId: verification.id as string, sessionUrl: session.url };
 }
 
-const verifySchema = z.object({
+const confirmKycSchema = z.object({
   verificationId: uuidSchema,
-  code: z.string().length(6, "Enter the 6-digit code"),
   partnerId: uuidSchema,
 });
 
-export async function verifyOtpAction(input: { verificationId: string; code: string; partnerId: string }) {
-  const parsed = verifySchema.parse(input);
+/**
+ * The Didit modal's own onComplete callback reports a status, but that's a
+ * client-reported signal — this re-checks with Didit's own API before ever
+ * marking a verification (and so a booking) as good to proceed.
+ */
+export async function confirmKycAction(input: { verificationId: string; partnerId: string }) {
+  const parsed = confirmKycSchema.parse(input);
   const supabase = createServiceRoleClient();
 
   const { data: verification } = await supabase
     .from("identity_verifications")
-    .select("*")
+    .select("id,status,didit_session_id")
     .eq("id", parsed.verificationId)
     .single();
 
   if (!verification) throw new Error("Verification not found. Please start again.");
   if (verification.status === "VERIFIED") return { verified: true as const };
-  if (verification.otp_attempts >= OTP_MAX_ATTEMPTS) throw new Error("Too many attempts. Please start again.");
-  if (!verification.otp_expires_at || new Date(verification.otp_expires_at) < new Date()) {
-    throw new Error("This code has expired. Please start again.");
-  }
-  if (!verification.otp_code_hash || !otpCodeMatches(parsed.code, verification.otp_code_hash)) {
-    await supabase
-      .from("identity_verifications")
-      .update({ otp_attempts: verification.otp_attempts + 1 })
-      .eq("id", verification.id);
-    throw new Error("Incorrect code.");
-  }
+  if (!verification.didit_session_id) throw new Error("Verification session missing. Please start again.");
+
+  const status = await getDiditSessionStatus(verification.didit_session_id);
+  if (status !== "Approved") return { verified: false as const, status };
 
   await supabase
     .from("identity_verifications")
-    .update({ status: "VERIFIED", otp_verified_at: new Date().toISOString() })
+    .update({ status: "VERIFIED", verified_at: new Date().toISOString() })
     .eq("id", verification.id);
 
-  await logFunnelEvent("OTP_VERIFIED", parsed.partnerId);
+  await logFunnelEvent("VERIFICATION_VERIFIED", parsed.partnerId);
 
   return { verified: true as const };
 }
