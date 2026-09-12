@@ -9,6 +9,7 @@ const SECTIONS = [
   { href: "/admin/rental-packages", label: "Rental Packages", note: "Durations, pricing, deposits" },
   { href: "/admin/rental-assets", label: "Rental Assets", note: "Fleet status by property" },
   { href: "/admin/batteries", label: "Batteries", note: "Battery fleet by property" },
+  { href: "/admin/staff", label: "Staff", note: "Add and manage staff & admin accounts" },
 ];
 
 export default function AdminHome() {

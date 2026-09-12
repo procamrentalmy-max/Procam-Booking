@@ -3,12 +3,13 @@
 import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
+import { usernameToEmail } from "@/lib/auth/username";
 import { devLoginAction } from "./devActions";
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -18,11 +19,12 @@ export function LoginForm() {
     setLoading(true);
     setError(null);
 
+    const email = identifier.includes("@") ? identifier : usernameToEmail(identifier);
     const supabase = createBrowserSupabaseClient();
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
     if (signInError) {
-      setError("Incorrect email or password.");
+      setError("Incorrect username/email or password.");
       setLoading(false);
       return;
     }
@@ -43,12 +45,12 @@ export function LoginForm() {
 
           <div className="space-y-2">
             <input
-              type="email"
+              type="text"
               required
-              autoComplete="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="username"
+              placeholder="Username"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               className="w-full rounded-lg border border-zinc-300 px-4 py-3 text-base dark:border-zinc-700 dark:bg-zinc-900"
             />
             <input
