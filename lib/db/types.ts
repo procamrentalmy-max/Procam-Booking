@@ -244,6 +244,12 @@ export type WorkerRow = {
   updated_at: string;
 };
 
+export type WorkerLockerAssignmentRow = {
+  worker_id: string;
+  partner_id: string;
+  created_at: string;
+};
+
 export type LocationTravelTimeRow = {
   id: string;
   from_partner_id: string;
@@ -466,6 +472,7 @@ export interface Database {
       lockers: TableDef<LockerRow>;
       locker_compartments: TableDef<LockerCompartmentRow>;
       workers: TableDef<WorkerRow>;
+      worker_locker_assignments: TableDef<WorkerLockerAssignmentRow>;
       location_travel_times: TableDef<LocationTravelTimeRow>;
       batteries: TableDef<BatteryRow>;
       bookings: TableDef<BookingRow>;

@@ -121,6 +121,46 @@ export async function updateStaffCredentialsAction(formData: FormData) {
   revalidatePath("/admin/staff");
 }
 
+const updateWorkerLockersSchema = z.object({
+  workerId: uuidSchema,
+  partnerIds: z.array(uuidSchema),
+});
+
+/**
+ * Full-replace: whatever's checked on the form becomes the worker's
+ * complete set of assigned lockers. A worker with zero lockers assigned is
+ * treated as covering every locker (see lib/worker/route.ts), so unchecking
+ * everything just goes back to that default rather than leaving them with
+ * nothing to do.
+ */
+export async function updateWorkerLockersAction(formData: FormData) {
+  const ctx = await getAuthContext();
+  if (!isAdmin(ctx)) throw new Error("Not authorized");
+
+  const parsed = updateWorkerLockersSchema.safeParse({
+    workerId: formData.get("workerId"),
+    partnerIds: formData.getAll("partnerIds"),
+  });
+  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+
+  const supabase = createServiceRoleClient();
+
+  const { error: deleteError } = await supabase
+    .from("worker_locker_assignments")
+    .delete()
+    .eq("worker_id", parsed.data.workerId);
+  if (deleteError) throw new Error(deleteError.message);
+
+  if (parsed.data.partnerIds.length > 0) {
+    const { error: insertError } = await supabase.from("worker_locker_assignments").insert(
+      parsed.data.partnerIds.map((partnerId) => ({ worker_id: parsed.data.workerId, partner_id: partnerId }))
+    );
+    if (insertError) throw new Error(insertError.message);
+  }
+
+  revalidatePath("/admin/staff");
+}
+
 const setStaffActiveSchema = z.object({
   id: uuidSchema,
   active: z.enum(["true", "false"]).transform((v) => v === "true"),

@@ -2,15 +2,24 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import { emailToUsername } from "@/lib/auth/username";
-import { createStaffAction, setStaffActiveAction } from "./actions";
+import { createStaffAction, setStaffActiveAction, updateWorkerLockersAction } from "./actions";
 import { EditLoginForm } from "./EditLoginForm";
 
 export default async function StaffAdminPage() {
   const supabase = await createServerSupabaseClient();
-  const { data: staff } = await supabase
-    .from("staff_users")
-    .select("id,auth_user_id,name,role,active,created_at")
-    .order("created_at", { ascending: true });
+  const [{ data: staff }, { data: workers }, { data: lockers }, { data: assignments }] = await Promise.all([
+    supabase.from("staff_users").select("id,auth_user_id,name,role,active,created_at").order("created_at", { ascending: true }),
+    supabase.from("workers").select("id,staff_user_id"),
+    supabase.from("partners").select("id,name").eq("pickup_method", "LOCKER").eq("status", "ACTIVE").order("name"),
+    supabase.from("worker_locker_assignments").select("worker_id,partner_id"),
+  ]);
+
+  const workerByStaffId = new Map((workers ?? []).map((w) => [w.staff_user_id, w]));
+  const assignedPartnerIdsByWorkerId = new Map<string, Set<string>>();
+  for (const a of assignments ?? []) {
+    if (!assignedPartnerIdsByWorkerId.has(a.worker_id)) assignedPartnerIdsByWorkerId.set(a.worker_id, new Set());
+    assignedPartnerIdsByWorkerId.get(a.worker_id)!.add(a.partner_id);
+  }
 
   const { data: usersPage } = await createServiceRoleClient().auth.admin.listUsers();
   const emailByAuthId = new Map(usersPage?.users.map((u) => [u.id, u.email]));
@@ -89,6 +98,42 @@ export default async function StaffAdminPage() {
               </div>
 
               <EditLoginForm id={s.id} authUserId={s.auth_user_id} mode={mode} initialIdentifier={identifier} />
+
+              {(() => {
+                const worker = workerByStaffId.get(s.id);
+                if (!worker) return null;
+                const assignedIds = assignedPartnerIdsByWorkerId.get(worker.id) ?? new Set<string>();
+                return (
+                  <details>
+                    <summary className="cursor-pointer text-sm text-zinc-500 underline underline-offset-2">
+                      Assigned Lockers
+                    </summary>
+                    <form action={updateWorkerLockersAction} className="mt-2 space-y-2">
+                      <input type="hidden" name="workerId" value={worker.id} />
+                      <div className="flex flex-wrap gap-3">
+                        {(lockers ?? []).map((locker) => (
+                          <label key={locker.id} className="flex items-center gap-1 text-sm">
+                            <input
+                              type="checkbox"
+                              name="partnerIds"
+                              value={locker.id}
+                              defaultChecked={assignedIds.has(locker.id)}
+                            />
+                            {locker.name}
+                          </label>
+                        ))}
+                      </div>
+                      <p className="text-xs text-zinc-400">
+                        None checked = covers every locker (default). Check specific lockers to limit their route to
+                        just those.
+                      </p>
+                      <button type="submit" className={primaryButtonClass}>
+                        Save Lockers
+                      </button>
+                    </form>
+                  </details>
+                );
+              })()}
             </div>
           );
         })}

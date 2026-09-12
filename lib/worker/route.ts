@@ -2,6 +2,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { buildWorkerFleetSnapshot } from "./fleetSnapshot";
 import { planRoute, type RouteStopAction } from "@/lib/locker-engine/routing";
+import type { FleetSnapshot } from "@/lib/locker-engine/types";
 
 export type EnrichedAction = {
   type: RouteStopAction["type"];
@@ -22,7 +23,32 @@ export type NextStopResult =
 
 async function findWorker(staffId: string) {
   const supabase = createServiceRoleClient();
-  return supabase.from("workers").select("id,active").eq("staff_user_id", staffId).maybeSingle();
+  return supabase.from("workers").select("id,current_partner_id,active").eq("staff_user_id", staffId).maybeSingle();
+}
+
+/**
+ * Scopes a fleet snapshot to one worker: their own row only (so planRoute's
+ * "the active worker" is unambiguous even with several workers active at
+ * once — before this, every worker's plan silently used whichever active
+ * worker happened to come first in the query), and their assigned lockers
+ * only, if any are assigned. A worker with no locker_assignments rows still
+ * covers every locker — see the migration comment on
+ * worker_locker_assignments — so nothing changes for a fleet that's never
+ * bothered to assign anyone specific lockers.
+ */
+function scopeSnapshotToWorker(
+  snapshot: FleetSnapshot,
+  worker: { id: string; current_partner_id: string | null; active: boolean },
+  assignedPartnerIds: Set<string>
+): FleetSnapshot {
+  return {
+    ...snapshot,
+    locations:
+      assignedPartnerIds.size > 0
+        ? snapshot.locations.filter((l) => assignedPartnerIds.has(l.partnerId))
+        : snapshot.locations,
+    workers: [{ id: worker.id, currentPartnerId: worker.current_partner_id, active: worker.active }],
+  };
 }
 
 /** The worker's next stop, freshly computed against live data every time — never a stale precomputed multi-stop plan. */
@@ -32,8 +58,13 @@ export async function getNextStopForStaff(staffId: string): Promise<NextStopResu
   if (!worker.active) return { error: "WORKER_INACTIVE" };
 
   const supabase = createServiceRoleClient();
-  const snapshot = await buildWorkerFleetSnapshot();
-  const plan = planRoute(snapshot, new Date());
+  const [snapshot, { data: assignments }] = await Promise.all([
+    buildWorkerFleetSnapshot(),
+    supabase.from("worker_locker_assignments").select("partner_id").eq("worker_id", worker.id),
+  ]);
+  const scopedSnapshot = scopeSnapshotToWorker(snapshot, worker, new Set((assignments ?? []).map((a) => a.partner_id)));
+
+  const plan = planRoute(scopedSnapshot, new Date());
 
   if (plan.stops.length === 0) {
     return { error: null, nextStop: null, unmetDropoffs: plan.unmetDropoffs };
