@@ -6,6 +6,7 @@ import { DiditSdk } from "@didit-protocol/sdk-web";
 import {
   startKycAction,
   confirmKycAction,
+  devSkipKycAction,
   createBookingAction,
   checkPhoneCompatibilityAction,
   getUnavailableStartsAction,
@@ -209,14 +210,26 @@ export function BookingWizard({
           setLoading(false);
         }
       } else if (result.type === "cancelled") {
-        setLoading(false);
+        // Nothing to do — the wizard's "verify" step is still showing underneath, ready to try again.
       } else {
         setError(result.error?.message ?? "Verification failed. Please try again.");
-        setLoading(false);
       }
     };
-    setLoading(true);
     DiditSdk.shared.startVerification({ url });
+  }
+
+  async function skipVerificationForTesting() {
+    if (!verificationId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await devSkipKycAction({ verificationId, partnerId: pickupPartnerId });
+      setStep("confirm");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function beginKyc() {
@@ -228,9 +241,9 @@ export function BookingWizard({
       setVerificationId(result.verificationId);
       setSessionUrl(result.sessionUrl);
       setStep("verify");
-      openDiditModal(result.sessionUrl, result.verificationId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
       setLoading(false);
     }
   }
@@ -604,12 +617,19 @@ export function BookingWizard({
           <p className="text-center text-sm text-zinc-500">
             Verify your identity to continue — you&apos;ll photograph your ID and take a quick selfie.
           </p>
-          {!loading && (
+          <button
+            onClick={() => sessionUrl && verificationId && openDiditModal(sessionUrl, verificationId)}
+            disabled={loading}
+            className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
+          >
+            Start Verification
+          </button>
+          {process.env.NODE_ENV !== "production" && (
             <button
-              onClick={() => sessionUrl && verificationId && openDiditModal(sessionUrl, verificationId)}
-              className="w-full rounded-full bg-black py-3 font-semibold text-white dark:bg-white dark:text-black"
+              onClick={skipVerificationForTesting}
+              className="w-full rounded-full border border-dashed border-zinc-400 py-3 text-sm font-medium text-zinc-500"
             >
-              Try Again
+              Skip Verification (dev only)
             </button>
           )}
         </div>

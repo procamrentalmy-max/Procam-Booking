@@ -109,6 +109,29 @@ export async function confirmKycAction(input: { verificationId: string; partnerI
   return { verified: true as const };
 }
 
+/**
+ * Marks a verification VERIFIED without touching Didit at all — real ID+selfie
+ * capture can't be meaningfully faked, and requiring it on every test booking
+ * would make testing the rest of the flow (overbooking, admin, staff) painful.
+ * `next build`/`next start` (what every real deploy — prod or preview — runs)
+ * always sets NODE_ENV to "production", only `next dev` doesn't, so this can
+ * never run against a real deployment regardless of which env vars are set.
+ */
+export async function devSkipKycAction(input: { verificationId: string; partnerId: string }) {
+  if (process.env.NODE_ENV === "production") throw new Error("Not available.");
+  const parsed = confirmKycSchema.parse(input);
+  const supabase = createServiceRoleClient();
+
+  await supabase
+    .from("identity_verifications")
+    .update({ status: "VERIFIED", verified_at: new Date().toISOString() })
+    .eq("id", parsed.verificationId);
+
+  await logFunnelEvent("VERIFICATION_VERIFIED", parsed.partnerId);
+
+  return { verified: true as const };
+}
+
 const hourAvailabilitySchema = z.object({
   productId: uuidSchema,
   starts: z.array(z.string().min(1)).max(24),
