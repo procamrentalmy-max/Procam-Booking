@@ -10,7 +10,7 @@ insert into partners (id, name, address, commission_rate, referral_code, status,
   ('00000000-0000-0000-0000-000000000006', 'Airport Locker', 'Langkawi International Airport', 0.20, 'LGK-AIR', 'ACTIVE', 'LOCKER');
 
 insert into rental_products (id, slug, internal_name, customer_facing_name, tagline, asset_prefix, uses_batteries, requires_phone_compatibility) values
-  ('40000000-0000-0000-0000-000000000001', 'insta360-adventure-camera', 'Insta360 Adventure Camera', 'Insta360 Adventure Camera', 'Capture your whole adventure.', 'CAM', true, false),
+  ('40000000-0000-0000-0000-000000000001', 'insta360-adventure-camera', 'Insta360 X4 Air', 'Insta360 X4 Air', 'Capture your whole adventure.', 'CAM', true, false),
   ('40000000-0000-0000-0000-000000000002', 'sealife-sportdiver-ultra', 'SeaLife SportDiver Ultra', 'Underwater Phone Camera', 'Use your own phone underwater.', 'SDU', false, true);
 
 -- Original reception-model packages — kept as inactive historical rows
@@ -170,13 +170,13 @@ insert into locker_compartments (locker_id, compartment_number) values
 -- Pooled fleet: 6 sellable cameras split 2/2/2 across the three locations,
 -- plus 1 hot spare carried by the worker (no fixed partner_id).
 insert into rental_assets (id, product_id, model, serial_number, partner_id, status, notes, is_hot_spare) values
-  ('12000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-LGK-0001', '00000000-0000-0000-0000-000000000004', 'AVAILABLE', null, false),
-  ('12000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-LGK-0002', '00000000-0000-0000-0000-000000000004', 'AVAILABLE', null, false),
-  ('12000000-0000-0000-0000-000000000003', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-LGK-0003', '00000000-0000-0000-0000-000000000005', 'AVAILABLE', null, false),
-  ('12000000-0000-0000-0000-000000000004', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-LGK-0004', '00000000-0000-0000-0000-000000000005', 'AVAILABLE', null, false),
-  ('12000000-0000-0000-0000-000000000005', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-LGK-0005', '00000000-0000-0000-0000-000000000006', 'AVAILABLE', null, false),
-  ('12000000-0000-0000-0000-000000000006', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-LGK-0006', '00000000-0000-0000-0000-000000000006', 'AVAILABLE', null, false),
-  ('12000000-0000-0000-0000-000000000007', '40000000-0000-0000-0000-000000000001', 'Insta360 Ace Pro', 'SN-LGK-0007', null, 'AVAILABLE', 'Hot spare — carried by worker, rotates between locations', true);
+  ('12000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', 'Insta360 X4 Air', 'SN-LGK-0001', '00000000-0000-0000-0000-000000000004', 'AVAILABLE', null, false),
+  ('12000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', 'Insta360 X4 Air', 'SN-LGK-0002', '00000000-0000-0000-0000-000000000004', 'AVAILABLE', null, false),
+  ('12000000-0000-0000-0000-000000000003', '40000000-0000-0000-0000-000000000001', 'Insta360 X4 Air', 'SN-LGK-0003', '00000000-0000-0000-0000-000000000005', 'AVAILABLE', null, false),
+  ('12000000-0000-0000-0000-000000000004', '40000000-0000-0000-0000-000000000001', 'Insta360 X4 Air', 'SN-LGK-0004', '00000000-0000-0000-0000-000000000005', 'AVAILABLE', null, false),
+  ('12000000-0000-0000-0000-000000000005', '40000000-0000-0000-0000-000000000001', 'Insta360 X4 Air', 'SN-LGK-0005', '00000000-0000-0000-0000-000000000006', 'AVAILABLE', null, false),
+  ('12000000-0000-0000-0000-000000000006', '40000000-0000-0000-0000-000000000001', 'Insta360 X4 Air', 'SN-LGK-0006', '00000000-0000-0000-0000-000000000006', 'AVAILABLE', null, false),
+  ('12000000-0000-0000-0000-000000000007', '40000000-0000-0000-0000-000000000001', 'Insta360 X4 Air', 'SN-LGK-0007', null, 'AVAILABLE', 'Hot spare — carried by worker, rotates between locations', true);
 
 -- Mock travel-time matrix between the three locations (~10-15 min, all
 -- directional pairs). Replaced with live Google Maps data in a later phase.
