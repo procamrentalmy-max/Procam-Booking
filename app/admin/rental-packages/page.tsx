@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { inputClass, primaryButtonClass, dangerButtonClass } from "@/components/formStyles";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import { EditModeProvider, DeleteGate } from "@/components/EditMode";
 import { createRentalPackageAction, updateRentalPackageAction, deleteRentalPackageAction } from "./actions";
 
 export default async function RentalPackagesPage() {
@@ -44,75 +45,79 @@ export default async function RentalPackagesPage() {
         </form>
       </section>
 
-      <section className="space-y-4">
-        {(packages ?? []).map((pkg) => (
-          <div key={pkg.id} className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-            <form action={updateRentalPackageAction} className="grid grid-cols-2 items-center gap-2 sm:grid-cols-7">
-              <input type="hidden" name="id" value={pkg.id} />
-              <select name="productId" defaultValue={pkg.product_id} className={inputClass}>
-                {(products ?? []).map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.customer_facing_name}
-                  </option>
-                ))}
-              </select>
-              <input name="name" defaultValue={pkg.name} className={`${inputClass} col-span-2 sm:col-span-1`} />
-              <input
-                name="durationMinutes"
-                type="number"
-                defaultValue={pkg.duration_minutes}
-                min={1}
-                className={inputClass}
-              />
-              <input
-                name="priceMyr"
-                type="number"
-                step="0.01"
-                defaultValue={pkg.price_myr}
-                min={0}
-                className={inputClass}
-              />
-              <input
-                name="depositMyr"
-                type="number"
-                step="0.01"
-                defaultValue={pkg.deposit_myr}
-                min={0}
-                className={inputClass}
-              />
-              <input
-                name="lateFeePerHourMyr"
-                type="number"
-                step="0.01"
-                defaultValue={pkg.late_fee_per_hour_myr}
-                min={0}
-                className={inputClass}
-              />
-              <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1 text-sm">
-                  <input type="checkbox" name="active" defaultChecked={pkg.active} /> Active
-                </label>
-                <button type="submit" className={primaryButtonClass}>
-                  Save
-                </button>
-              </div>
-              <p className="col-span-2 text-xs text-zinc-400 sm:col-span-7">
-                {productName.get(pkg.product_id) ?? "Unknown product"}
-              </p>
-            </form>
+      <EditModeProvider>
+        <section className="space-y-4">
+          {(packages ?? []).map((pkg) => (
+            <div key={pkg.id} className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+              <form action={updateRentalPackageAction} className="grid grid-cols-2 items-center gap-2 sm:grid-cols-7">
+                <input type="hidden" name="id" value={pkg.id} />
+                <select name="productId" defaultValue={pkg.product_id} className={inputClass}>
+                  {(products ?? []).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.customer_facing_name}
+                    </option>
+                  ))}
+                </select>
+                <input name="name" defaultValue={pkg.name} className={`${inputClass} col-span-2 sm:col-span-1`} />
+                <input
+                  name="durationMinutes"
+                  type="number"
+                  defaultValue={pkg.duration_minutes}
+                  min={1}
+                  className={inputClass}
+                />
+                <input
+                  name="priceMyr"
+                  type="number"
+                  step="0.01"
+                  defaultValue={pkg.price_myr}
+                  min={0}
+                  className={inputClass}
+                />
+                <input
+                  name="depositMyr"
+                  type="number"
+                  step="0.01"
+                  defaultValue={pkg.deposit_myr}
+                  min={0}
+                  className={inputClass}
+                />
+                <input
+                  name="lateFeePerHourMyr"
+                  type="number"
+                  step="0.01"
+                  defaultValue={pkg.late_fee_per_hour_myr}
+                  min={0}
+                  className={inputClass}
+                />
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-1 text-sm">
+                    <input type="checkbox" name="active" defaultChecked={pkg.active} /> Active
+                  </label>
+                  <button type="submit" className={primaryButtonClass}>
+                    Save
+                  </button>
+                </div>
+                <p className="col-span-2 text-xs text-zinc-400 sm:col-span-7">
+                  {productName.get(pkg.product_id) ?? "Unknown product"}
+                </p>
+              </form>
 
-            <form action={deleteRentalPackageAction} className="mt-2">
-              <input type="hidden" name="id" value={pkg.id} />
-              <ConfirmSubmitButton
-                confirmMessage={`Delete "${pkg.name}"? This can't be undone.`}
-                className={dangerButtonClass}
-              >
-                Delete
-              </ConfirmSubmitButton>
-            </form>
-          </div>
-        ))}
-      </section>
+              <DeleteGate>
+                <form action={deleteRentalPackageAction} className="mt-2">
+                  <input type="hidden" name="id" value={pkg.id} />
+                  <ConfirmSubmitButton
+                    confirmMessage={`Delete "${pkg.name}"? This can't be undone.`}
+                    className={dangerButtonClass}
+                  >
+                    Delete
+                  </ConfirmSubmitButton>
+                </form>
+              </DeleteGate>
+            </div>
+          ))}
+        </section>
+      </EditModeProvider>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { ALL_ASSET_STATUSES } from "@/lib/state-machine/asset";
 import { inputClass, primaryButtonClass, dangerButtonClass } from "@/components/formStyles";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import { EditModeProvider, DeleteGate } from "@/components/EditMode";
 import { createAssetAction, updateAssetAction, transitionAssetAction, deleteAssetAction } from "./actions";
 
 export default async function RentalAssetsPage() {
@@ -45,63 +46,67 @@ export default async function RentalAssetsPage() {
         </form>
       </section>
 
-      <section className="space-y-3">
-        {(assets ?? []).map((asset) => (
-          <div key={asset.id} className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-            <p className="font-medium">
-              {asset.human_id} — {asset.model}{" "}
-              <span className="text-sm text-zinc-500">({asset.serial_number})</span>
-            </p>
-            <p className="text-sm text-zinc-500">
-              {productName.get(asset.product_id) ?? "Unknown product"} —{" "}
-              {asset.partner_id ? partnerName.get(asset.partner_id) ?? "Unknown property" : "Backup fleet"} —{" "}
-              <span className="font-medium">{asset.status}</span>
-            </p>
+      <EditModeProvider>
+        <section className="space-y-3">
+          {(assets ?? []).map((asset) => (
+            <div key={asset.id} className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+              <p className="font-medium">
+                {asset.human_id} — {asset.model}{" "}
+                <span className="text-sm text-zinc-500">({asset.serial_number})</span>
+              </p>
+              <p className="text-sm text-zinc-500">
+                {productName.get(asset.product_id) ?? "Unknown product"} —{" "}
+                {asset.partner_id ? partnerName.get(asset.partner_id) ?? "Unknown property" : "Backup fleet"} —{" "}
+                <span className="font-medium">{asset.status}</span>
+              </p>
 
-            <div className="mt-3 flex flex-wrap gap-4">
-              <form action={transitionAssetAction} className="flex items-center gap-2">
-                <input type="hidden" name="id" value={asset.id} />
-                <select name="toStatus" defaultValue={asset.status} className={inputClass}>
-                  {ALL_ASSET_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-                <button type="submit" className={primaryButtonClass}>
-                  Change Status
-                </button>
-              </form>
+              <div className="mt-3 flex flex-wrap gap-4">
+                <form action={transitionAssetAction} className="flex items-center gap-2">
+                  <input type="hidden" name="id" value={asset.id} />
+                  <select name="toStatus" defaultValue={asset.status} className={inputClass}>
+                    {ALL_ASSET_STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                  <button type="submit" className={primaryButtonClass}>
+                    Change Status
+                  </button>
+                </form>
 
-              <form action={updateAssetAction} className="flex items-center gap-2">
-                <input type="hidden" name="id" value={asset.id} />
-                <select name="partnerId" defaultValue={asset.partner_id ?? ""} className={inputClass}>
-                  <option value="">Backup fleet (no property)</option>
-                  {(partners ?? []).map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-                <input name="notes" placeholder="Notes" defaultValue={asset.notes ?? ""} className={inputClass} />
-                <button type="submit" className={primaryButtonClass}>
-                  Save
-                </button>
-              </form>
+                <form action={updateAssetAction} className="flex items-center gap-2">
+                  <input type="hidden" name="id" value={asset.id} />
+                  <select name="partnerId" defaultValue={asset.partner_id ?? ""} className={inputClass}>
+                    <option value="">Backup fleet (no property)</option>
+                    {(partners ?? []).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <input name="notes" placeholder="Notes" defaultValue={asset.notes ?? ""} className={inputClass} />
+                  <button type="submit" className={primaryButtonClass}>
+                    Save
+                  </button>
+                </form>
 
-              <form action={deleteAssetAction}>
-                <input type="hidden" name="id" value={asset.id} />
-                <ConfirmSubmitButton
-                  confirmMessage={`Delete ${asset.human_id} (${asset.model})? This retires it permanently — it can't be undone.`}
-                  className={dangerButtonClass}
-                >
-                  Delete
-                </ConfirmSubmitButton>
-              </form>
+                <DeleteGate>
+                  <form action={deleteAssetAction}>
+                    <input type="hidden" name="id" value={asset.id} />
+                    <ConfirmSubmitButton
+                      confirmMessage={`Delete ${asset.human_id} (${asset.model})? This retires it permanently — it can't be undone.`}
+                      className={dangerButtonClass}
+                    >
+                      Delete
+                    </ConfirmSubmitButton>
+                  </form>
+                </DeleteGate>
+              </div>
             </div>
-          </div>
-        ))}
-      </section>
+          ))}
+        </section>
+      </EditModeProvider>
     </div>
   );
 }
