@@ -49,7 +49,17 @@ export default async function RentalPackagesPage() {
         <section className="space-y-4">
           {(packages ?? []).map((pkg) => (
             <div key={pkg.id} className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-              <form action={updateRentalPackageAction} className="grid grid-cols-2 items-center gap-2 sm:grid-cols-7">
+              {/*
+                Keyed on every editable field: the outer row's key (pkg.id)
+                never changes across a save, so without this React reuses
+                the same input/select DOM nodes and never re-applies their
+                defaultValue from fresh server data after a successful save.
+              */}
+              <form
+                key={`${pkg.product_id}:${pkg.name}:${pkg.duration_minutes}:${pkg.price_myr}:${pkg.deposit_myr}:${pkg.late_fee_per_hour_myr}:${pkg.active}`}
+                action={updateRentalPackageAction}
+                className="grid grid-cols-2 items-center gap-2 sm:grid-cols-7"
+              >
                 <input type="hidden" name="id" value={pkg.id} />
                 <select name="productId" defaultValue={pkg.product_id} className={inputClass}>
                   {(products ?? []).map((p) => (

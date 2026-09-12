@@ -108,7 +108,17 @@ export default async function StaffAdminPage() {
                     <summary className="cursor-pointer text-sm text-zinc-500 underline underline-offset-2">
                       Assigned Lockers
                     </summary>
-                    <form action={updateWorkerLockersAction} className="mt-2 space-y-2">
+                    {/*
+                      Keyed on the assignment set itself: the outer row's key
+                      (s.id) never changes across a save, so without this
+                      React reuses the same checkbox DOM nodes and never
+                      re-applies defaultChecked from fresh server data.
+                    */}
+                    <form
+                      key={[...assignedIds].sort().join(",")}
+                      action={updateWorkerLockersAction}
+                      className="mt-2 space-y-2"
+                    >
                       <input type="hidden" name="workerId" value={worker.id} />
                       <div className="flex flex-wrap gap-3">
                         {(lockers ?? []).map((locker) => (

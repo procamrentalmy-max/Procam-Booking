@@ -61,7 +61,17 @@ export default async function RentalAssetsPage() {
               </p>
 
               <div className="mt-3 flex flex-wrap gap-4">
-                <form action={transitionAssetAction} className="flex items-center gap-2">
+                {/*
+                  Keyed on the field(s) each form actually edits: the outer
+                  row's key (asset.id) never changes across a save, so React
+                  would otherwise reuse the same <select>/<input> DOM nodes
+                  and never re-apply their defaultValue from fresh server
+                  data — the field visibly "snaps back" to whatever it
+                  showed before the save even though the save itself worked.
+                  Forcing a remount whenever the underlying value changes is
+                  the fix.
+                */}
+                <form key={asset.status} action={transitionAssetAction} className="flex items-center gap-2">
                   <input type="hidden" name="id" value={asset.id} />
                   <select name="toStatus" defaultValue={asset.status} className={inputClass}>
                     {ALL_ASSET_STATUSES.map((s) => (
@@ -75,7 +85,11 @@ export default async function RentalAssetsPage() {
                   </button>
                 </form>
 
-                <form action={updateAssetAction} className="flex items-center gap-2">
+                <form
+                  key={`${asset.partner_id ?? "none"}:${asset.notes ?? ""}`}
+                  action={updateAssetAction}
+                  className="flex items-center gap-2"
+                >
                   <input type="hidden" name="id" value={asset.id} />
                   <select name="partnerId" defaultValue={asset.partner_id ?? ""} className={inputClass}>
                     <option value="">Backup fleet (no property)</option>
