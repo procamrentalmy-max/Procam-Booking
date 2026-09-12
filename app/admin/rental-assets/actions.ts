@@ -92,3 +92,29 @@ export async function transitionAssetAction(formData: FormData) {
 
   revalidatePath("/admin/rental-assets");
 }
+
+const deleteAssetSchema = z.object({ id: uuidSchema });
+
+/**
+ * "Deleting" an asset means retiring it, not a real row delete — too much
+ * real history (condition checks, inspections, maintenance, asset_events)
+ * references rental_assets for a hard delete to ever be safe. RETIRED is
+ * already excluded from every booking-eligibility check (see
+ * INELIGIBLE_STATUSES in lib/locker-engine/feasibility.ts), so this asset
+ * stops being offered anywhere the moment this runs, and it's a terminal
+ * status — nothing can transition out of RETIRED afterward.
+ */
+export async function deleteAssetAction(formData: FormData) {
+  const parsed = deleteAssetSchema.safeParse({ id: formData.get("id") });
+  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.rpc("transition_asset_status", {
+    p_asset_id: parsed.data.id,
+    p_to_status: "RETIRED",
+    p_event_type: "ADMIN_MANUAL_CHANGE",
+  });
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/admin/rental-assets");
+}

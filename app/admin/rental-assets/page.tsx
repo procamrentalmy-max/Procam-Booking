@@ -1,12 +1,14 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { ALL_ASSET_STATUSES } from "@/lib/state-machine/asset";
-import { inputClass, primaryButtonClass } from "@/components/formStyles";
-import { createAssetAction, updateAssetAction, transitionAssetAction } from "./actions";
+import { inputClass, primaryButtonClass, dangerButtonClass } from "@/components/formStyles";
+import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import { createAssetAction, updateAssetAction, transitionAssetAction, deleteAssetAction } from "./actions";
 
 export default async function RentalAssetsPage() {
   const supabase = await createServerSupabaseClient();
   const [{ data: assets }, { data: partners }, { data: products }] = await Promise.all([
-    supabase.from("rental_assets").select("*").order("human_id", { ascending: true }),
+    // RETIRED = deleted from every admin/customer view (see deleteAssetAction) — leave them out of the list entirely.
+    supabase.from("rental_assets").select("*").neq("status", "RETIRED").order("human_id", { ascending: true }),
     supabase.from("partners").select("id,name").order("name", { ascending: true }),
     supabase.from("rental_products").select("id,customer_facing_name").order("customer_facing_name"),
   ]);
@@ -85,6 +87,16 @@ export default async function RentalAssetsPage() {
                 <button type="submit" className={primaryButtonClass}>
                   Save
                 </button>
+              </form>
+
+              <form action={deleteAssetAction}>
+                <input type="hidden" name="id" value={asset.id} />
+                <ConfirmSubmitButton
+                  confirmMessage={`Delete ${asset.human_id} (${asset.model})? This retires it permanently — it can't be undone.`}
+                  className={dangerButtonClass}
+                >
+                  Delete
+                </ConfirmSubmitButton>
               </form>
             </div>
           </div>
