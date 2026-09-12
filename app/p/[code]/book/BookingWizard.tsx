@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { DiditSdk } from "@didit-protocol/sdk-web";
 import {
   startKycAction,
@@ -659,8 +660,14 @@ export function BookingWizard({
 
           <label className="flex items-start gap-2 text-sm text-zinc-600 dark:text-zinc-400">
             <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-1" />
-            I agree to the ProCam rental terms above, including responsibility for the equipment and accessories
-            until returned and inspected.
+            <span>
+              I agree to the ProCam rental terms above, including responsibility for the equipment and
+              accessories until returned and inspected, and to the full{" "}
+              <Link href="/terms" target="_blank" className="underline underline-offset-2">
+                Terms &amp; Conditions
+              </Link>
+              .
+            </span>
           </label>
 
           <button

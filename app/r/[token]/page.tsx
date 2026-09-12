@@ -103,6 +103,10 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
         <Row label="Start" value={new Date(booking.start_time).toLocaleString()} />
         <Row label="Return by" value={new Date(booking.end_time).toLocaleString()} />
       </div>
+
+      <Link href="/terms" className="text-center text-xs text-zinc-400 underline underline-offset-2">
+        Terms &amp; Conditions
+      </Link>
     </div>
   );
 }

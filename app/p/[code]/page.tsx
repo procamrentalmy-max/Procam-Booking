@@ -58,6 +58,10 @@ export default async function PartnerLandingPage({ params }: { params: Promise<{
           </p>
         )}
       </div>
+
+      <Link href="/terms" className="text-center text-xs text-zinc-400 underline underline-offset-2">
+        Terms &amp; Conditions
+      </Link>
     </div>
   );
 }
