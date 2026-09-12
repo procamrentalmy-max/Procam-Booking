@@ -240,7 +240,8 @@ export function BookingWizard({
       setCustomerId(result.customerId);
       setVerificationId(result.verificationId);
       setSessionUrl(result.sessionUrl);
-      setStep("verify");
+      // KYC_BYPASS_ENABLED: startKycAction already marked this VERIFIED and skipped Didit — nothing to show, go straight through.
+      setStep(result.sessionUrl ? "verify" : "confirm");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {

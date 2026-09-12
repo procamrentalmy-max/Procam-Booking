@@ -38,7 +38,15 @@ const startSchema = z.object({
   partnerId: uuidSchema,
 });
 
-/** Creates the customer + a PENDING verification row, then starts a Didit KYC session for it. The returned sessionUrl is opened in Didit's hosted modal client-side. */
+/**
+ * Creates the customer + a verification row, then starts a Didit KYC session
+ * for it — unless KYC_BYPASS_ENABLED is set, a temporary global switch to
+ * accept bookings without ID verification (Didit account issues, or not
+ * ready to require it of real customers yet). When bypassed, the row is
+ * inserted straight to VERIFIED and sessionUrl is null; the wizard reads
+ * that and skips its "verify" step entirely rather than showing a Didit
+ * modal that would never be needed.
+ */
 export async function startKycAction(input: { name: string; phone: string; email: string; partnerId: string }) {
   const parsed = startSchema.parse(input);
   const supabase = createServiceRoleClient();
@@ -59,12 +67,23 @@ export async function startKycAction(input: { name: string; phone: string; email
     customerId = created.id;
   }
 
+  const bypassed = process.env.KYC_BYPASS_ENABLED === "true";
+
   const { data: verification, error: verificationError } = await supabase
     .from("identity_verifications")
-    .insert({ customer_id: customerId, method: "DIDIT_KYC", status: "PENDING" })
+    .insert(
+      bypassed
+        ? { customer_id: customerId, method: "DIDIT_KYC", status: "VERIFIED", verified_at: new Date().toISOString() }
+        : { customer_id: customerId, method: "DIDIT_KYC", status: "PENDING" }
+    )
     .select("id")
     .single();
   if (verificationError || !verification) throw new Error("Could not start verification. Please try again.");
+
+  if (bypassed) {
+    await logFunnelEvent("VERIFICATION_VERIFIED", parsed.partnerId);
+    return { customerId: customerId as string, verificationId: verification.id as string, sessionUrl: null };
+  }
 
   const session = await createDiditSession(verification.id);
   await supabase.from("identity_verifications").update({ didit_session_id: session.sessionId }).eq("id", verification.id);
