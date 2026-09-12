@@ -42,14 +42,30 @@ export async function createStaffAction(formData: FormData) {
   });
   if (authError) throw new Error(authError.message);
 
-  const { error: staffError } = await supabase.from("staff_users").insert({
-    auth_user_id: created.user.id,
-    name: parsed.data.name,
-    role: parsed.data.role,
-  });
+  const { data: staffRow, error: staffError } = await supabase
+    .from("staff_users")
+    .insert({
+      auth_user_id: created.user.id,
+      name: parsed.data.name,
+      role: parsed.data.role,
+    })
+    .select("id")
+    .single();
   if (staffError) {
     await supabase.auth.admin.deleteUser(created.user.id);
     throw new Error(staffError.message);
+  }
+
+  // Staff (not admin) also need a workers row, or the routing feature
+  // ("My Next Stop" on /staff/route) tells them they're "not set up as a
+  // worker yet" even though their login works fine.
+  if (parsed.data.role === "PROCAM_STAFF") {
+    const { error: workerError } = await supabase.from("workers").insert({ staff_user_id: staffRow.id });
+    if (workerError) {
+      await supabase.from("staff_users").delete().eq("id", staffRow.id);
+      await supabase.auth.admin.deleteUser(created.user.id);
+      throw new Error(workerError.message);
+    }
   }
 
   revalidatePath("/admin/staff");
