@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { BarChart, Heatmap, DonutChart } from "./charts";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_NAMES = [
@@ -127,6 +128,8 @@ export default async function SalesPage() {
       return { key, label: `${MONTH_NAMES[Number(month) - 1]} ${year}`, ...v };
     })
     .sort((a, b) => b.revenue - a.revenue);
+  // Chronological, not revenue-ranked — a trend chart needs time on the axis.
+  const monthRowsChrono = [...monthRows].sort((a, b) => a.key.localeCompare(b.key));
 
   const packageRows = [...byPackageOverall.entries()]
     .map(([name, v]) => ({ name, ...v }))
@@ -158,6 +161,7 @@ export default async function SalesPage() {
       </div>
 
       <Section title="By locker" note="Ranked by revenue. Commission is computed at 20% — nothing is read from the commissions table since it isn't written to yet.">
+        <BarChart data={lockerRows.map((l) => ({ label: l.name, value: l.revenue }))} formatValue={myr} />
         <Table
           columns={["Locker", "Revenue", "Bookings", "Commission owed", "Avg rating", "Best day", "Top package"]}
           rows={lockerRows.map((l) => [
@@ -172,47 +176,23 @@ export default async function SalesPage() {
         />
       </Section>
 
-      <Section title="Revenue by day of week, per locker">
-        <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-zinc-50 dark:bg-zinc-900">
-                <th className="px-3 py-2 text-left font-medium text-zinc-500">Locker</th>
-                {DAY_NAMES.map((d) => (
-                  <th key={d} className="px-3 py-2 text-right font-medium text-zinc-500">
-                    {d}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {lockerRows.map((l) => (
-                <tr key={l.partnerId} className="border-t border-zinc-100 dark:border-zinc-800">
-                  <td className="px-3 py-2">{l.name}</td>
-                  {l.byDay.map((v, i) => (
-                    <td key={i} className="px-3 py-2 text-right">
-                      {v > 0 ? myr(v) : "—"}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-              {!lockerRows.length && (
-                <tr>
-                  <td colSpan={8} className="px-3 py-3 text-center text-zinc-400">
-                    No sales yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+      <Section title="Revenue by day of week, per locker" note="Darker = more revenue that day, relative to this table's own busiest cell.">
+        <Heatmap
+          rowLabel="Locker"
+          rows={lockerRows.map((l) => l.name)}
+          columns={DAY_NAMES}
+          values={lockerRows.map((l) => l.byDay)}
+          formatValue={myr}
+        />
       </Section>
 
       <Section title="By month" note="Which months sell best, across all lockers.">
+        <BarChart data={monthRowsChrono.map((m) => ({ label: m.label, value: m.revenue }))} formatValue={myr} />
         <Table columns={["Month", "Revenue", "Bookings"]} rows={monthRows.map((m) => [m.label, myr(m.revenue), String(m.bookings)])} />
       </Section>
 
       <Section title="By package" note="Which duration/product package customers actually pick.">
+        <BarChart data={packageRows.map((p) => ({ label: p.name, value: p.revenue }))} formatValue={myr} />
         <Table
           columns={["Package", "Bookings", "Revenue", "% of revenue"]}
           rows={packageRows.map((p) => [
@@ -225,6 +205,7 @@ export default async function SalesPage() {
       </Section>
 
       <Section title="By product">
+        <DonutChart data={productRows.map((p) => ({ label: p.name, value: p.revenue }))} formatValue={myr} />
         <Table
           columns={["Product", "Bookings", "Revenue"]}
           rows={productRows.map((p) => [p.name, String(p.count), myr(p.revenue)])}
