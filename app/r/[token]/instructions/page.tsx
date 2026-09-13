@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getBookingProductId } from "@/lib/booking/checkTemplates";
+import { getLocale } from "@/lib/i18n/getLocale";
 import { InstructionsCarousel } from "./InstructionsCarousel";
 
 export default async function InstructionsPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  const locale = await getLocale();
   const supabase = createServiceRoleClient();
 
   const { data: booking } = await supabase
@@ -23,5 +25,5 @@ export default async function InstructionsPage({ params }: { params: Promise<{ t
         .order("step_number", { ascending: true })
     : { data: [] };
 
-  return <InstructionsCarousel token={token} steps={steps ?? []} />;
+  return <InstructionsCarousel token={token} steps={steps ?? []} locale={locale} />;
 }

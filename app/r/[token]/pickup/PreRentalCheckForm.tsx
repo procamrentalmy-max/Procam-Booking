@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CameraCaptureField } from "@/components/CameraCaptureField";
+import type { Locale } from "@/lib/i18n/locale";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 import { submitPreRentalConditionCheckAction } from "./actions";
 
 type PhotoStep = { key: string; label: string; instruction: string | null };
@@ -10,14 +12,17 @@ type AckStep = { key: string; label: string };
 
 export function PreRentalCheckForm({
   token,
+  locale,
   photoSteps,
   ackSteps,
 }: {
   token: string;
+  locale: Locale;
   photoSteps: PhotoStep[];
   ackSteps: AckStep[];
 }) {
   const router = useRouter();
+  const dict = getDictionary(locale);
   const [step, setStep] = useState(0); // 0..photoSteps.length-1 photos, then acknowledgements
   const [photos, setPhotos] = useState<Record<string, File>>({});
   const [acks, setAcks] = useState<Record<string, boolean>>(() =>
@@ -42,6 +47,7 @@ export function PreRentalCheckForm({
     try {
       const formData = new FormData();
       formData.set("token", token);
+      formData.set("locale", locale);
       for (const ack of ackSteps) {
         formData.set(`ack_${ack.key}`, String(acks[ack.key]));
       }
@@ -52,7 +58,7 @@ export function PreRentalCheckForm({
       router.push(`/r/${token}`);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(err instanceof Error ? err.message : dict.common.somethingWentWrong);
       setLoading(false);
     }
   }
@@ -62,11 +68,9 @@ export function PreRentalCheckForm({
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
       <div className="text-center">
-        <p className="text-xs uppercase tracking-wide text-zinc-400">
-          Step {step + 1} of {totalSteps}
-        </p>
+        <p className="text-xs uppercase tracking-wide text-zinc-400">{dict.pickup.stepOf(step + 1, totalSteps)}</p>
         <h1 className="mt-1 text-xl font-semibold text-black dark:text-zinc-50">
-          {currentPhotoStep ? currentPhotoStep.label : "Confirm & Start Rental"}
+          {currentPhotoStep ? currentPhotoStep.label : dict.pickup.confirmAndStart}
         </h1>
       </div>
 
@@ -79,6 +83,7 @@ export function PreRentalCheckForm({
           )}
 
           <CameraCaptureField
+            dict={dict}
             photos={currentPhoto ? [currentPhoto] : []}
             onChange={(files) => handleFileChange(currentPhotoStep.key, files[0] ?? null)}
           />
@@ -88,7 +93,7 @@ export function PreRentalCheckForm({
             disabled={!currentPhoto}
             className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
           >
-            Continue
+            {dict.common.continue}
           </button>
         </div>
       )}
@@ -112,7 +117,7 @@ export function PreRentalCheckForm({
             disabled={loading || !allAcksChecked}
             className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
           >
-            {loading ? "Starting rental…" : "Start Rental"}
+            {loading ? dict.pickup.startingRental : dict.pickup.startRental}
           </button>
         </div>
       )}

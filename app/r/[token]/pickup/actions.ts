@@ -7,6 +7,8 @@ import { assertValidBookingTransition } from "@/lib/state-machine/booking";
 import { promoteBookingToReadyForPickup } from "@/lib/booking/confirm";
 import { getCheckTemplates, getBookingProductId } from "@/lib/booking/checkTemplates";
 import { logAudit } from "@/lib/audit";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { isLocale, DEFAULT_LOCALE } from "@/lib/i18n/locale";
 
 /**
  * Completes the pre-rental condition check (spec section 10) using the
@@ -20,6 +22,10 @@ import { logAudit } from "@/lib/audit";
  */
 export async function submitPreRentalConditionCheckAction(formData: FormData) {
   const token = z.string().min(1).parse(formData.get("token"));
+  const rawLocale = formData.get("locale");
+  const locale = typeof rawLocale === "string" && isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+  const fullDict = getDictionary(locale);
+  const dict = fullDict.pickupServer;
 
   const supabase = createServiceRoleClient();
 
@@ -28,7 +34,7 @@ export async function submitPreRentalConditionCheckAction(formData: FormData) {
     .select("id,status,asset_id,rental_package_id")
     .eq("secure_token", token)
     .maybeSingle();
-  if (!booking) throw new Error("Booking not found.");
+  if (!booking) throw new Error(fullDict.common.bookingNotFound);
   // CONFIRMED is allowed too: a booking scheduled ahead only gets its
   // asset catch-up-promoted to READY_FOR_PICKUP by the housekeeping cron
   // as its start time approaches (see lib/booking/confirm.ts), which can
@@ -37,13 +43,13 @@ export async function submitPreRentalConditionCheckAction(formData: FormData) {
   if (booking.status === "CONFIRMED") {
     await promoteBookingToReadyForPickup(booking.id);
   } else if (booking.status !== "READY_FOR_PICKUP") {
-    throw new Error("This booking isn't ready for pickup.");
+    throw new Error(dict.notReady);
   }
 
   const productId = await getBookingProductId(booking.rental_package_id);
-  if (!productId) throw new Error("Could not determine the rental product for this booking.");
+  if (!productId) throw new Error(dict.noProduct);
   const templates = await getCheckTemplates(productId, "PRE_RENTAL");
-  if (!templates.length) throw new Error("No condition check is configured for this product yet.");
+  if (!templates.length) throw new Error(dict.noCheckConfigured);
 
   const photoTemplates = templates.filter((t) => t.input_type === "PHOTO");
   const booleanTemplates = templates.filter((t) => t.input_type === "BOOLEAN");
@@ -52,7 +58,7 @@ export async function submitPreRentalConditionCheckAction(formData: FormData) {
   for (const item of booleanTemplates) {
     const checked = formData.get(`ack_${item.item_key}`) === "true";
     if (item.required && !checked) {
-      throw new Error(`Please confirm: ${item.label}`);
+      throw new Error(`${dict.confirmPrefix}${item.label}`);
     }
     acknowledgements[item.item_key] = checked;
   }
@@ -61,7 +67,7 @@ export async function submitPreRentalConditionCheckAction(formData: FormData) {
   for (const item of photoTemplates) {
     const file = formData.get(`photo_${item.item_key}`);
     if (item.required && (!(file instanceof File) || file.size === 0)) {
-      throw new Error(`Please add a photo: ${item.label}`);
+      throw new Error(`${dict.photoPrefix}${item.label}`);
     }
     if (file instanceof File && file.size > 0) photos[item.item_key] = file;
   }
@@ -79,7 +85,7 @@ export async function submitPreRentalConditionCheckAction(formData: FormData) {
     )
     .select("id")
     .single();
-  if (checkError || !check) throw new Error("Could not save your condition check. Please try again.");
+  if (checkError || !check) throw new Error(dict.saveFailed);
 
   for (const item of photoTemplates) {
     const file = photos[item.item_key];

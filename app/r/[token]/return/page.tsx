@@ -2,10 +2,12 @@ import { notFound, redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getCheckTemplates, getBookingProductId } from "@/lib/booking/checkTemplates";
 import { computeLateFeeMyr } from "@/lib/booking/lateFee";
+import { getLocale } from "@/lib/i18n/getLocale";
 import { ReturnCheckForm } from "./ReturnCheckForm";
 
 export default async function ReturnPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  const locale = await getLocale();
   const supabase = createServiceRoleClient();
 
   const { data: booking } = await supabase
@@ -31,6 +33,7 @@ export default async function ReturnPage({ params }: { params: Promise<{ token: 
   return (
     <ReturnCheckForm
       token={token}
+      locale={locale}
       estimatedLateFeeMyr={estimatedLateFeeMyr}
       photoSteps={templates
         .filter((t) => t.input_type === "PHOTO")

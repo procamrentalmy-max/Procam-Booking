@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
 
 /**
  * Every captured photo is resampled to this exact square before it's kept,
@@ -46,10 +47,12 @@ function captureSquareFrame(video: HTMLVideoElement): Promise<File> {
  * device.
  */
 export function CameraCaptureField({
+  dict,
   photos,
   onChange,
   multiple = false,
 }: {
+  dict: Dictionary;
   photos: File[];
   onChange: (photos: File[]) => void;
   multiple?: boolean;
@@ -81,7 +84,7 @@ export function CameraCaptureField({
   async function openCamera() {
     setCameraError(null);
     if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraError("Camera access isn't available in this browser.");
+      setCameraError(dict.camera.notAvailable);
       return;
     }
     try {
@@ -92,7 +95,7 @@ export function CameraCaptureField({
       streamRef.current = stream;
       setLive(true);
     } catch {
-      setCameraError("Couldn't access the camera. Check your browser's camera permission and try again.");
+      setCameraError(dict.camera.cantAccess);
     }
   }
 
@@ -102,7 +105,7 @@ export function CameraCaptureField({
       const file = await captureSquareFrame(videoRef.current);
       onChange(multiple ? [...photos, file] : [file]);
     } catch {
-      setCameraError("Couldn't process that photo. Try again.");
+      setCameraError(dict.camera.cantProcess);
     } finally {
       stopCamera();
     }
@@ -120,14 +123,14 @@ export function CameraCaptureField({
             onClick={stopCamera}
             className="flex-1 rounded-full border border-zinc-300 py-3 font-medium dark:border-zinc-700"
           >
-            Cancel
+            {dict.common.cancel}
           </button>
           <button
             type="button"
             onClick={capture}
             className="flex-1 rounded-full bg-black py-3 font-semibold text-white dark:bg-white dark:text-black"
           >
-            Capture
+            {dict.camera.capture}
           </button>
         </div>
       </div>
@@ -154,7 +157,7 @@ export function CameraCaptureField({
               <button
                 type="button"
                 onClick={() => onChange(photos.filter((_, idx) => idx !== i))}
-                aria-label="Remove photo"
+                aria-label={dict.camera.removePhoto}
                 className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-xs font-bold text-white"
               >
                 ×
@@ -174,13 +177,17 @@ export function CameraCaptureField({
               : "flex aspect-square w-full items-center justify-center rounded-2xl border-2 border-dashed border-zinc-300 text-sm text-zinc-400 dark:border-zinc-700"
           }
         >
-          {multiple ? (photos.length > 0 ? "Add another photo" : "Tap to take a photo") : "Tap to take photo"}
+          {multiple
+            ? photos.length > 0
+              ? dict.camera.addAnotherPhoto
+              : dict.camera.tapToTakeAPhoto
+            : dict.camera.tapToTakePhoto}
         </button>
       )}
 
       {!multiple && photos[0] && (
         <button type="button" onClick={openCamera} className="w-full text-center text-sm text-zinc-500 underline underline-offset-2">
-          Retake
+          {dict.camera.retake}
         </button>
       )}
     </div>

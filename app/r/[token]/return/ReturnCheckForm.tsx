@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CameraCaptureField } from "@/components/CameraCaptureField";
+import type { Locale } from "@/lib/i18n/locale";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 import { submitReturnConditionCheckAction } from "./actions";
 
 type PhotoStep = { key: string; label: string; instruction: string | null };
@@ -10,16 +12,20 @@ type AckStep = { key: string; label: string };
 
 export function ReturnCheckForm({
   token,
+  locale,
   photoSteps,
   ackSteps,
   estimatedLateFeeMyr,
 }: {
   token: string;
+  locale: Locale;
   photoSteps: PhotoStep[];
   ackSteps: AckStep[];
   estimatedLateFeeMyr: number;
 }) {
   const router = useRouter();
+  const dict = getDictionary(locale);
+  const t = dict.returnCheck;
   const [step, setStep] = useState(0); // 0..photoSteps.length-1 photos, then acks (if any), then damage declaration
   const [photos, setPhotos] = useState<Record<string, File>>({});
   const [acks, setAcks] = useState<Record<string, boolean>>(() =>
@@ -48,6 +54,7 @@ export function ReturnCheckForm({
     try {
       const formData = new FormData();
       formData.set("token", token);
+      formData.set("locale", locale);
       formData.set("damageReported", String(damageReported));
       formData.set("damageDescription", damageDescription);
       for (const ack of ackSteps) {
@@ -60,7 +67,7 @@ export function ReturnCheckForm({
       router.push(`/r/${token}`);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(err instanceof Error ? err.message : dict.common.somethingWentWrong);
       setLoading(false);
     }
   }
@@ -70,18 +77,15 @@ export function ReturnCheckForm({
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
       <div className="text-center">
-        <p className="text-xs uppercase tracking-wide text-zinc-400">
-          Step {step + 1} of {totalSteps}
-        </p>
+        <p className="text-xs uppercase tracking-wide text-zinc-400">{t.stepOf(step + 1, totalSteps)}</p>
         <h1 className="mt-1 text-xl font-semibold text-black dark:text-zinc-50">
-          {currentPhotoStep ? currentPhotoStep.label : isAckStep ? "Confirm" : "Any Issues?"}
+          {currentPhotoStep ? currentPhotoStep.label : isAckStep ? t.confirmTitle : t.issuesTitle}
         </h1>
       </div>
 
       {estimatedLateFeeMyr > 0 && (
         <p className="rounded-lg bg-amber-50 px-4 py-2 text-center text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-200">
-          This return is overdue — a late fee of at least RM{estimatedLateFeeMyr.toFixed(2)} will be deducted from
-          your deposit.
+          {t.lateFeeWarning(estimatedLateFeeMyr.toFixed(2))}
         </p>
       )}
 
@@ -94,6 +98,7 @@ export function ReturnCheckForm({
           )}
 
           <CameraCaptureField
+            dict={dict}
             photos={currentPhoto ? [currentPhoto] : []}
             onChange={(files) => handleFileChange(currentPhotoStep.key, files[0] ?? null)}
           />
@@ -103,7 +108,7 @@ export function ReturnCheckForm({
             disabled={!currentPhoto}
             className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
           >
-            Continue
+            {dict.common.continue}
           </button>
         </div>
       )}
@@ -126,16 +131,14 @@ export function ReturnCheckForm({
             disabled={!allAcksChecked}
             className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
           >
-            Continue
+            {dict.common.continue}
           </button>
         </div>
       )}
 
       {!currentPhotoStep && !isAckStep && (
         <div className="space-y-4">
-          <p className="text-center text-sm text-zinc-500">
-            Is there any known damage or problem with the equipment or accessories?
-          </p>
+          <p className="text-center text-sm text-zinc-500">{t.damageQuestion}</p>
 
           <div className="flex gap-3">
             <button
@@ -146,7 +149,7 @@ export function ReturnCheckForm({
                   : "border-zinc-300 dark:border-zinc-700"
               }`}
             >
-              No issues
+              {t.noIssues}
             </button>
             <button
               onClick={() => setDamageReported(true)}
@@ -156,7 +159,7 @@ export function ReturnCheckForm({
                   : "border-zinc-300 dark:border-zinc-700"
               }`}
             >
-              Report an issue
+              {t.reportIssue}
             </button>
           </div>
 
@@ -164,7 +167,7 @@ export function ReturnCheckForm({
             <textarea
               value={damageDescription}
               onChange={(e) => setDamageDescription(e.target.value)}
-              placeholder="Describe what happened"
+              placeholder={t.describePlaceholder}
               className="w-full rounded-lg border border-zinc-300 px-4 py-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
               rows={4}
             />
@@ -175,7 +178,7 @@ export function ReturnCheckForm({
             disabled={loading || damageReported === null}
             className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
           >
-            {loading ? "Submitting…" : "Complete Return"}
+            {loading ? dict.common.submitting : t.completeReturn}
           </button>
         </div>
       )}

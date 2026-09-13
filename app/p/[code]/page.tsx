@@ -2,9 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { logFunnelEvent } from "@/lib/funnel";
+import { getLocale } from "@/lib/i18n/getLocale";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 
 export default async function PartnerLandingPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
+  const locale = await getLocale();
+  const dict = getDictionary(locale);
   const supabase = createServiceRoleClient();
 
   const { data: partner } = await supabase
@@ -37,8 +41,8 @@ export default async function PartnerLandingPage({ params }: { params: Promise<{
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
       <div className="text-center">
-        <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">ProCam</h1>
-        <p className="mt-1 text-sm text-zinc-500">Equipment rental at {partner.name}</p>
+        <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">{dict.landing.brand}</h1>
+        <p className="mt-1 text-sm text-zinc-500">{dict.landing.equipmentRentalAt(partner.name)}</p>
       </div>
 
       <div className="space-y-3">
@@ -54,13 +58,13 @@ export default async function PartnerLandingPage({ params }: { params: Promise<{
         ))}
         {!(products ?? []).length && (
           <p className="rounded-xl border border-zinc-200 p-4 text-center text-sm text-zinc-500 dark:border-zinc-800">
-            No equipment is currently set up at this property.
+            {dict.landing.noEquipment}
           </p>
         )}
       </div>
 
       <Link href="/terms" className="text-center text-xs text-zinc-400 underline underline-offset-2">
-        Terms &amp; Conditions
+        {dict.common.termsAndConditions}
       </Link>
     </div>
   );

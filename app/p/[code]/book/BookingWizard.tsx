@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { DiditSdk } from "@didit-protocol/sdk-web";
+import type { Locale } from "@/lib/i18n/locale";
+import { formatDateTime } from "@/lib/i18n/locale";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 import {
   startKycAction,
   confirmKycAction,
@@ -60,6 +63,7 @@ function formatHour(hour: number): string {
 }
 
 export function BookingWizard({
+  locale,
   partnerId,
   referralCode,
   productId,
@@ -70,6 +74,7 @@ export function BookingWizard({
   termsVersionId,
   termsBody,
 }: {
+  locale: Locale;
   partnerId: string;
   referralCode: string;
   productId: string;
@@ -81,6 +86,8 @@ export function BookingWizard({
   termsBody: string | null;
 }) {
   const router = useRouter();
+  const dict = getDictionary(locale);
+  const t = dict.booking;
   const dateInputRef = useRef<HTMLInputElement>(null);
   const daytimePackages = [...packages].filter((p) => !p.is_overnight).sort((a, b) => a.duration_minutes - b.duration_minutes);
   const overnightPackage = packages.find((p) => p.is_overnight) ?? null;
@@ -199,21 +206,21 @@ export function BookingWizard({
     DiditSdk.shared.onComplete = async (result) => {
       if (result.type === "completed") {
         try {
-          const confirm = await confirmKycAction({ verificationId: verifId, partnerId: pickupPartnerId });
+          const confirm = await confirmKycAction({ verificationId: verifId, partnerId: pickupPartnerId, locale });
           if (confirm.verified) {
             setStep("confirm");
           } else {
-            setError("We couldn't approve your verification. Please try again.");
+            setError(t.errors.verificationNotApproved);
           }
         } catch (err) {
-          setError(err instanceof Error ? err.message : "Something went wrong.");
+          setError(err instanceof Error ? err.message : dict.common.somethingWentWrong);
         } finally {
           setLoading(false);
         }
       } else if (result.type === "cancelled") {
         // Nothing to do — the wizard's "verify" step is still showing underneath, ready to try again.
       } else {
-        setError(result.error?.message ?? "Verification failed. Please try again.");
+        setError(result.error?.message ?? t.errors.verificationFailed);
       }
     };
     DiditSdk.shared.startVerification({ url });
@@ -224,10 +231,10 @@ export function BookingWizard({
     setLoading(true);
     setError(null);
     try {
-      await devSkipKycAction({ verificationId, partnerId: pickupPartnerId });
+      await devSkipKycAction({ verificationId, partnerId: pickupPartnerId, locale });
       setStep("confirm");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(err instanceof Error ? err.message : dict.common.somethingWentWrong);
     } finally {
       setLoading(false);
     }
@@ -237,14 +244,14 @@ export function BookingWizard({
     setLoading(true);
     setError(null);
     try {
-      const result = await startKycAction({ name, phone, email, partnerId: pickupPartnerId });
+      const result = await startKycAction({ name, phone, email, partnerId: pickupPartnerId, locale });
       setCustomerId(result.customerId);
       setVerificationId(result.verificationId);
       setSessionUrl(result.sessionUrl);
       // KYC_BYPASS_ENABLED: startKycAction already marked this VERIFIED and skipped Didit — nothing to show, go straight through.
       setStep(result.sessionUrl ? "verify" : "confirm");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(err instanceof Error ? err.message : dict.common.somethingWentWrong);
     } finally {
       setLoading(false);
     }
@@ -253,12 +260,11 @@ export function BookingWizard({
   function handlePackageSubmit() {
     setError(null);
     if (!packageId) {
-      setError("Select a rental package.");
+      setError(t.errors.selectPackage);
       return;
     }
     if (resolveEarliestStartTime().getTime() < Date.now() + MIN_LEAD_MINUTES * 60_000 - 60_000) {
-      const hours = MIN_LEAD_MINUTES / 60;
-      setError(`Bookings need at least ${hours} hour${hours === 1 ? "" : "s"} of notice — please choose a later time.`);
+      setError(t.errors.minNotice(MIN_LEAD_MINUTES / 60));
       return;
     }
     setStep("locations");
@@ -267,7 +273,7 @@ export function BookingWizard({
   function handleLocationsSubmit() {
     setError(null);
     if (!pickupPartnerId || !dropoffPartnerId) {
-      setError("Select a pickup and a dropoff location.");
+      setError(t.errors.selectLocations);
       return;
     }
     setStep("contact");
@@ -289,7 +295,7 @@ export function BookingWizard({
       const result = await checkPhoneCompatibilityAction({ productId, manufacturer, model, variant });
       setPhoneCompatible(result.compatible);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(err instanceof Error ? err.message : dict.common.somethingWentWrong);
     } finally {
       setLoading(false);
     }
@@ -310,6 +316,7 @@ export function BookingWizard({
         referralCode,
         startTime: requested.toISOString(),
         termsVersionId,
+        locale,
       });
       // The engine may have assigned a different slot than requested — show
       // the customer what they actually got before sending them to pay,
@@ -323,7 +330,7 @@ export function BookingWizard({
         router.push(`/r/${result.secureToken}/pay`);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(err instanceof Error ? err.message : dict.common.somethingWentWrong);
       setLoading(false);
     }
   }
@@ -332,12 +339,12 @@ export function BookingWizard({
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
       <h1 className="text-center text-xl font-semibold text-black dark:text-zinc-50">
         {step === "package" && productName}
-        {step === "locations" && "Pickup & Dropoff"}
-        {step === "contact" && "Your Details"}
-        {step === "phone" && "Check Your Phone"}
-        {step === "verify" && "Verify Your Identity"}
-        {step === "confirm" && "Confirm Booking"}
-        {step === "booked" && "Booking Confirmed"}
+        {step === "locations" && t.stepTitles.locations}
+        {step === "contact" && t.stepTitles.contact}
+        {step === "phone" && t.stepTitles.phone}
+        {step === "verify" && t.stepTitles.verify}
+        {step === "confirm" && t.stepTitles.confirm}
+        {step === "booked" && t.stepTitles.booked}
       </h1>
 
       {error && <p className="text-center text-sm text-red-600">{error}</p>}
@@ -349,8 +356,8 @@ export function BookingWizard({
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-zinc-50 dark:bg-zinc-900">
-                  <th className="px-4 py-2 text-left font-medium text-zinc-500">Duration</th>
-                  <th className="px-4 py-2 text-right font-medium text-zinc-500">Price</th>
+                  <th className="px-4 py-2 text-left font-medium text-zinc-500">{t.table.duration}</th>
+                  <th className="px-4 py-2 text-right font-medium text-zinc-500">{t.table.price}</th>
                 </tr>
               </thead>
               <tbody>
@@ -375,7 +382,7 @@ export function BookingWizard({
                     : "border-zinc-300 dark:border-zinc-700"
                 }`}
               >
-                Daytime
+                {t.mode.daytime}
               </button>
               <button
                 type="button"
@@ -386,17 +393,13 @@ export function BookingWizard({
                     : "border-zinc-300 dark:border-zinc-700"
                 }`}
               >
-                Overnight
+                {t.mode.overnight}
               </button>
             </div>
           )}
 
           <div className="space-y-2">
-            <p className="text-xs text-zinc-500">
-              {mode === "overnight"
-                ? "Pick up at 10pm, return by 8am — bookings need at least 2 hours of notice."
-                : "Pick a date, then a start time and an end time from the timetable — bookings need at least 2 hours of notice. If your exact slot isn't free, we'll offer the next available one."}
-            </p>
+            <p className="text-xs text-zinc-500">{mode === "overnight" ? t.hint.overnight : t.hint.daytime}</p>
             <input
               ref={dateInputRef}
               type="date"
@@ -415,11 +418,7 @@ export function BookingWizard({
             {mode === "daytime" && (
               <div>
                 <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-400">
-                  {startHour === null
-                    ? "Tap a start time"
-                    : endHour === null
-                      ? "Now tap an end time"
-                      : "Tap any time to start over"}
+                  {startHour === null ? t.timetable.tapStart : endHour === null ? t.timetable.tapEnd : t.timetable.tapRestart}
                 </p>
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                   {OPERATING_HOURS.map((h) => {
@@ -465,19 +464,17 @@ export function BookingWizard({
             disabled={loading || !selectedPackage}
             className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
           >
-            Continue
+            {dict.common.continue}
           </button>
         </div>
       )}
 
       {step === "locations" && (
         <div className="space-y-4">
-          <p className="text-center text-sm text-zinc-500">
-            Pick up and drop off at the same spot, or choose different locations for a one-way rental.
-          </p>
+          <p className="text-center text-sm text-zinc-500">{t.locations.hint}</p>
 
           <div className="space-y-2">
-            <label className="text-xs font-medium uppercase tracking-wide text-zinc-400">Pickup</label>
+            <label className="text-xs font-medium uppercase tracking-wide text-zinc-400">{t.locations.pickup}</label>
             <select
               value={pickupPartnerId}
               onChange={(e) => setPickupPartnerId(e.target.value)}
@@ -492,7 +489,7 @@ export function BookingWizard({
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-medium uppercase tracking-wide text-zinc-400">Dropoff</label>
+            <label className="text-xs font-medium uppercase tracking-wide text-zinc-400">{t.locations.dropoff}</label>
             <select
               value={dropoffPartnerId}
               onChange={(e) => setDropoffPartnerId(e.target.value)}
@@ -511,7 +508,7 @@ export function BookingWizard({
             disabled={loading}
             className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
           >
-            Continue
+            {dict.common.continue}
           </button>
         </div>
       )}
@@ -519,20 +516,20 @@ export function BookingWizard({
       {step === "contact" && (
         <div className="space-y-4">
           <input
-            placeholder="Full name"
+            placeholder={t.contact.namePlaceholder}
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full rounded-lg border border-zinc-300 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
           />
           <input
-            placeholder="Phone number, with country code, e.g. +60123456789"
+            placeholder={t.contact.phonePlaceholder}
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             className="w-full rounded-lg border border-zinc-300 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
           />
           <input
             type="email"
-            placeholder="Email"
+            placeholder={t.contact.emailPlaceholder}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-lg border border-zinc-300 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
@@ -543,19 +540,17 @@ export function BookingWizard({
             disabled={loading || !name || !phone || !email}
             className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
           >
-            {loading ? "Starting…" : "Continue"}
+            {loading ? dict.common.starting : dict.common.continue}
           </button>
         </div>
       )}
 
       {step === "phone" && (
         <div className="space-y-4">
-          <p className="text-center text-sm text-zinc-500">
-            {productName} works with your own phone — let&apos;s check it&apos;s compatible before you continue.
-          </p>
+          <p className="text-center text-sm text-zinc-500">{t.phone.compatibilityHint(productName)}</p>
 
           <input
-            placeholder="Manufacturer, e.g. Apple"
+            placeholder={t.phone.manufacturerPlaceholder}
             value={manufacturer}
             onChange={(e) => {
               setManufacturer(e.target.value);
@@ -564,7 +559,7 @@ export function BookingWizard({
             className="w-full rounded-lg border border-zinc-300 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
           />
           <input
-            placeholder="Model, e.g. iPhone 16 Pro Max"
+            placeholder={t.phone.modelPlaceholder}
             value={model}
             onChange={(e) => {
               setModel(e.target.value);
@@ -573,7 +568,7 @@ export function BookingWizard({
             className="w-full rounded-lg border border-zinc-300 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
           />
           <input
-            placeholder="Variant (optional)"
+            placeholder={t.phone.variantPlaceholder}
             value={variant}
             onChange={(e) => {
               setVariant(e.target.value);
@@ -584,13 +579,12 @@ export function BookingWizard({
 
           {phoneCompatible === true && (
             <p className="rounded-lg bg-green-50 p-3 text-center text-sm text-green-700 dark:bg-green-950 dark:text-green-300">
-              Your phone is compatible.
+              {t.phone.compatible}
             </p>
           )}
           {phoneCompatible === false && (
             <p className="rounded-lg bg-red-50 p-3 text-center text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
-              We can&apos;t confirm this phone works with {productName}. Please try a different phone — we
-              can&apos;t book this rental with an unconfirmed fit.
+              {t.phone.incompatible(productName)}
             </p>
           )}
 
@@ -600,7 +594,7 @@ export function BookingWizard({
               disabled={loading || !manufacturer || !model}
               className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
             >
-              {loading ? "Checking…" : "Check Compatibility"}
+              {loading ? dict.common.checking : t.phone.checkCompatibility}
             </button>
           ) : (
             <button
@@ -608,7 +602,7 @@ export function BookingWizard({
               disabled={loading}
               className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
             >
-              {loading ? "Starting…" : "Continue"}
+              {loading ? dict.common.starting : dict.common.continue}
             </button>
           )}
         </div>
@@ -616,22 +610,20 @@ export function BookingWizard({
 
       {step === "verify" && (
         <div className="space-y-4">
-          <p className="text-center text-sm text-zinc-500">
-            Verify your identity to continue — you&apos;ll photograph your ID and take a quick selfie.
-          </p>
+          <p className="text-center text-sm text-zinc-500">{t.verify.hint}</p>
           <button
             onClick={() => sessionUrl && verificationId && openDiditModal(sessionUrl, verificationId)}
             disabled={loading}
             className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
           >
-            Start Verification
+            {t.verify.start}
           </button>
           {process.env.NODE_ENV !== "production" && (
             <button
               onClick={skipVerificationForTesting}
               className="w-full rounded-full border border-dashed border-zinc-400 py-3 text-sm font-medium text-zinc-500"
             >
-              Skip Verification (dev only)
+              {t.verify.skipDev}
             </button>
           )}
         </div>
@@ -641,15 +633,14 @@ export function BookingWizard({
         <div className="space-y-4">
           <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
             <p className="font-medium">{selectedPackage.name}</p>
-            <p className="text-sm text-zinc-500">Requested pickup: {resolveEarliestStartTime().toLocaleString()}</p>
+            <p className="text-sm text-zinc-500">{t.confirm.requestedPickup(formatDateTime(resolveEarliestStartTime(), locale))}</p>
             <p className="text-sm text-zinc-500">
-              Pickup: {lockerPartners.find((p) => p.id === pickupPartnerId)?.name ?? "—"}
-              {dropoffPartnerId !== pickupPartnerId && (
-                <> — Dropoff: {lockerPartners.find((p) => p.id === dropoffPartnerId)?.name ?? "—"}</>
-              )}
+              {t.confirm.pickup(lockerPartners.find((p) => p.id === pickupPartnerId)?.name ?? "—")}
+              {dropoffPartnerId !== pickupPartnerId &&
+                t.confirm.dropoffSuffix(lockerPartners.find((p) => p.id === dropoffPartnerId)?.name ?? "—")}
             </p>
-            <p className="text-sm text-zinc-500">Rental fee: RM{selectedPackage.price_myr}</p>
-            <p className="text-sm text-zinc-500">Refundable security deposit: RM{selectedPackage.deposit_myr}</p>
+            <p className="text-sm text-zinc-500">{t.confirm.rentalFee(selectedPackage.price_myr)}</p>
+            <p className="text-sm text-zinc-500">{t.confirm.deposit(selectedPackage.deposit_myr)}</p>
           </div>
 
           {termsBody && (
@@ -661,12 +652,11 @@ export function BookingWizard({
           <label className="flex items-start gap-2 text-sm text-zinc-600 dark:text-zinc-400">
             <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-1" />
             <span>
-              I agree to the ProCam rental terms above, including responsibility for the equipment and
-              accessories until returned and inspected, and to the full{" "}
+              {t.confirm.agreementPrefix}
               <Link href="/terms" target="_blank" className="underline underline-offset-2">
-                Terms &amp; Conditions
+                {dict.common.termsAndConditions}
               </Link>
-              .
+              {t.confirm.agreementSuffix}
             </span>
           </label>
 
@@ -675,25 +665,23 @@ export function BookingWizard({
             disabled={loading || !agreed}
             className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
           >
-            {loading ? "Reserving…" : "Continue to Payment"}
+            {loading ? t.confirm.reserving : t.confirm.continueToPayment}
           </button>
         </div>
       )}
 
       {step === "booked" && assignedTime && secureToken && (
         <div className="space-y-4">
-          <p className="text-center text-sm text-zinc-500">
-            Your requested hour wasn&apos;t available, so we&apos;ve booked you the next open slot instead:
-          </p>
+          <p className="text-center text-sm text-zinc-500">{t.booked.notAvailable}</p>
           <div className="rounded-xl border border-zinc-200 p-4 text-center dark:border-zinc-800">
-            <p className="font-medium">{new Date(assignedTime.start).toLocaleString()}</p>
-            <p className="text-sm text-zinc-500">until {new Date(assignedTime.end).toLocaleString()}</p>
+            <p className="font-medium">{formatDateTime(new Date(assignedTime.start), locale)}</p>
+            <p className="text-sm text-zinc-500">{t.booked.until(formatDateTime(new Date(assignedTime.end), locale))}</p>
           </div>
           <button
             onClick={() => router.push(`/r/${secureToken}/pay`)}
             className="w-full rounded-full bg-black py-3 font-semibold text-white dark:bg-white dark:text-black"
           >
-            Continue to Payment
+            {t.confirm.continueToPayment}
           </button>
         </div>
       )}

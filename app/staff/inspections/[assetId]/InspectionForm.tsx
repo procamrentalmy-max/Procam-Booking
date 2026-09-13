@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CameraCaptureField } from "@/components/CameraCaptureField";
+import { en } from "@/lib/i18n/dictionaries/en";
 import { passInspectionAction, reportDamageAction } from "./actions";
 
 const CAMERA_DAMAGE_CATEGORIES = [
@@ -204,7 +205,7 @@ export function InspectionForm({
             className="w-full rounded-lg border border-zinc-300 px-4 py-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
             rows={3}
           />
-          <CameraCaptureField photos={damagePhotos} onChange={setDamagePhotos} multiple />
+          <CameraCaptureField dict={en} photos={damagePhotos} onChange={setDamagePhotos} multiple />
           <button
             onClick={handleConfirmDamage}
             disabled={loading || !description}

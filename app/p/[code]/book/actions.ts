@@ -11,6 +11,13 @@ import { isPhoneCompatible } from "@/lib/booking/phone-compatibility";
 import { recordBookingAcknowledgement } from "@/lib/booking/terms";
 import { bookingDashboardUrl } from "@/lib/urls";
 import { logFunnelEvent } from "@/lib/funnel";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { isLocale, DEFAULT_LOCALE } from "@/lib/i18n/locale";
+
+/** Every action here is called from a wizard that already knows the customer's chosen language — translate the errors it throws to match. */
+function errorsFor(locale?: string) {
+  return getDictionary(isLocale(locale) ? locale : DEFAULT_LOCALE).bookingServer;
+}
 
 const phoneCompatibilitySchema = z.object({
   productId: uuidSchema,
@@ -36,6 +43,7 @@ const startSchema = z.object({
   phone: z.string().min(6, "Enter a valid phone number"),
   email: z.string().email("Enter a valid email"),
   partnerId: uuidSchema,
+  locale: z.string().optional(),
 });
 
 /**
@@ -47,8 +55,9 @@ const startSchema = z.object({
  * that and skips its "verify" step entirely rather than showing a Didit
  * modal that would never be needed.
  */
-export async function startKycAction(input: { name: string; phone: string; email: string; partnerId: string }) {
+export async function startKycAction(input: { name: string; phone: string; email: string; partnerId: string; locale?: string }) {
   const parsed = startSchema.parse(input);
+  const t = errorsFor(parsed.locale);
   const supabase = createServiceRoleClient();
   const email = parsed.email.toLowerCase();
 
@@ -63,7 +72,7 @@ export async function startKycAction(input: { name: string; phone: string; email
       .insert({ name: parsed.name, phone: parsed.phone, email })
       .select("id")
       .single();
-    if (error || !created) throw new Error("Could not start your booking. Please try again.");
+    if (error || !created) throw new Error(t.couldNotStartBooking);
     customerId = created.id;
   }
 
@@ -78,7 +87,7 @@ export async function startKycAction(input: { name: string; phone: string; email
     )
     .select("id")
     .single();
-  if (verificationError || !verification) throw new Error("Could not start verification. Please try again.");
+  if (verificationError || !verification) throw new Error(t.couldNotStartVerification);
 
   if (bypassed) {
     await logFunnelEvent("VERIFICATION_VERIFIED", parsed.partnerId);
@@ -94,6 +103,7 @@ export async function startKycAction(input: { name: string; phone: string; email
 const confirmKycSchema = z.object({
   verificationId: uuidSchema,
   partnerId: uuidSchema,
+  locale: z.string().optional(),
 });
 
 /**
@@ -101,8 +111,9 @@ const confirmKycSchema = z.object({
  * client-reported signal — this re-checks with Didit's own API before ever
  * marking a verification (and so a booking) as good to proceed.
  */
-export async function confirmKycAction(input: { verificationId: string; partnerId: string }) {
+export async function confirmKycAction(input: { verificationId: string; partnerId: string; locale?: string }) {
   const parsed = confirmKycSchema.parse(input);
+  const t = errorsFor(parsed.locale);
   const supabase = createServiceRoleClient();
 
   const { data: verification } = await supabase
@@ -111,9 +122,9 @@ export async function confirmKycAction(input: { verificationId: string; partnerI
     .eq("id", parsed.verificationId)
     .single();
 
-  if (!verification) throw new Error("Verification not found. Please start again.");
+  if (!verification) throw new Error(t.verificationNotFound);
   if (verification.status === "VERIFIED") return { verified: true as const };
-  if (!verification.didit_session_id) throw new Error("Verification session missing. Please start again.");
+  if (!verification.didit_session_id) throw new Error(t.verificationSessionMissing);
 
   const status = await getDiditSessionStatus(verification.didit_session_id);
   if (status !== "Approved") return { verified: false as const, status };
@@ -136,8 +147,8 @@ export async function confirmKycAction(input: { verificationId: string; partnerI
  * always sets NODE_ENV to "production", only `next dev` doesn't, so this can
  * never run against a real deployment regardless of which env vars are set.
  */
-export async function devSkipKycAction(input: { verificationId: string; partnerId: string }) {
-  if (process.env.NODE_ENV === "production") throw new Error("Not available.");
+export async function devSkipKycAction(input: { verificationId: string; partnerId: string; locale?: string }) {
+  if (process.env.NODE_ENV === "production") throw new Error(errorsFor(input.locale).devNotAvailable);
   const parsed = confirmKycSchema.parse(input);
   const supabase = createServiceRoleClient();
 
@@ -189,6 +200,7 @@ const createBookingSchema = z.object({
   referralCode: z.string().nullable(),
   startTime: z.string().min(1),
   termsVersionId: uuidSchema.nullable(),
+  locale: z.string().optional(),
 });
 
 export async function createBookingAction(input: {
@@ -200,8 +212,10 @@ export async function createBookingAction(input: {
   referralCode: string | null;
   startTime: string;
   termsVersionId: string | null;
+  locale?: string;
 }) {
   const parsed = createBookingSchema.parse(input);
+  const t = errorsFor(parsed.locale);
   const supabase = createServiceRoleClient();
 
   const { data: verification } = await supabase
@@ -211,11 +225,11 @@ export async function createBookingAction(input: {
     .single();
 
   if (!verification || verification.customer_id !== parsed.customerId || verification.status !== "VERIFIED") {
-    throw new Error("Identity verification is required before booking.");
+    throw new Error(t.verificationRequired);
   }
 
   const startTime = new Date(parsed.startTime);
-  if (Number.isNaN(startTime.getTime())) throw new Error("Please choose a valid date and time.");
+  if (Number.isNaN(startTime.getTime())) throw new Error(t.invalidDateTime);
 
   try {
     const booking = await createPendingLockerBooking({
@@ -247,7 +261,8 @@ export async function createBookingAction(input: {
       endTime: booking.end_time as string,
     };
   } catch (err) {
-    if (err instanceof NoAssetAvailableError || err instanceof InvalidBookingRequestError) throw new Error(err.message);
+    if (err instanceof NoAssetAvailableError) throw new Error(t.noAssetAvailable);
+    if (err instanceof InvalidBookingRequestError) throw new Error(err.message);
     throw err;
   }
 }

@@ -8,6 +8,8 @@ import { getCheckTemplates, getBookingProductId } from "@/lib/booking/checkTempl
 import { computeLateFeeMyr } from "@/lib/booking/lateFee";
 import { logAudit } from "@/lib/audit";
 import type { BookingStatus } from "@/lib/db/types";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { isLocale, DEFAULT_LOCALE } from "@/lib/i18n/locale";
 
 /**
  * Completes the return condition check (spec section 14) using the
@@ -32,6 +34,10 @@ import type { BookingStatus } from "@/lib/db/types";
  */
 export async function submitReturnConditionCheckAction(formData: FormData) {
   const token = z.string().min(1).parse(formData.get("token"));
+  const rawLocale = formData.get("locale");
+  const locale = typeof rawLocale === "string" && isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+  const fullDict = getDictionary(locale);
+  const dict = fullDict.returnServer;
   const damageReported = formData.get("damageReported") === "true";
   const damageDescription = formData.get("damageDescription");
 
@@ -42,13 +48,13 @@ export async function submitReturnConditionCheckAction(formData: FormData) {
     .select("id,status,asset_id,rental_package_id,end_time,dropoff_partner_id")
     .eq("secure_token", token)
     .maybeSingle();
-  if (!booking) throw new Error("Booking not found.");
-  if (booking.status !== "ACTIVE") throw new Error("This booking isn't active.");
+  if (!booking) throw new Error(fullDict.common.bookingNotFound);
+  if (booking.status !== "ACTIVE") throw new Error(dict.notActive);
 
   const productId = await getBookingProductId(booking.rental_package_id);
-  if (!productId) throw new Error("Could not determine the rental product for this booking.");
+  if (!productId) throw new Error(dict.noProduct);
   const templates = await getCheckTemplates(productId, "RETURN");
-  if (!templates.length) throw new Error("No return check is configured for this product yet.");
+  if (!templates.length) throw new Error(dict.noCheckConfigured);
 
   const photoTemplates = templates.filter((t) => t.input_type === "PHOTO");
   const booleanTemplates = templates.filter((t) => t.input_type === "BOOLEAN");
@@ -56,7 +62,7 @@ export async function submitReturnConditionCheckAction(formData: FormData) {
   const acknowledgements: Record<string, boolean> = {};
   for (const item of booleanTemplates) {
     const checked = formData.get(`ack_${item.item_key}`) === "true";
-    if (item.required && !checked) throw new Error(`Please confirm: ${item.label}`);
+    if (item.required && !checked) throw new Error(`${dict.confirmPrefix}${item.label}`);
     acknowledgements[item.item_key] = checked;
   }
 
@@ -64,7 +70,7 @@ export async function submitReturnConditionCheckAction(formData: FormData) {
   for (const item of photoTemplates) {
     const file = formData.get(`photo_${item.item_key}`);
     if (item.required && (!(file instanceof File) || file.size === 0)) {
-      throw new Error(`Please add a photo: ${item.label}`);
+      throw new Error(`${dict.photoPrefix}${item.label}`);
     }
     if (file instanceof File && file.size > 0) photos[item.item_key] = file;
   }
@@ -84,7 +90,7 @@ export async function submitReturnConditionCheckAction(formData: FormData) {
     )
     .select("id")
     .single();
-  if (checkError || !check) throw new Error("Could not save your condition check. Please try again.");
+  if (checkError || !check) throw new Error(dict.saveFailed);
 
   for (const item of photoTemplates) {
     const file = photos[item.item_key];

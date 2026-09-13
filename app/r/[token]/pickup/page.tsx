@@ -1,10 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getCheckTemplates, getBookingProductId } from "@/lib/booking/checkTemplates";
+import { getLocale } from "@/lib/i18n/getLocale";
 import { PreRentalCheckForm } from "./PreRentalCheckForm";
 
 export default async function PickupPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  const locale = await getLocale();
   const supabase = createServiceRoleClient();
 
   const { data: booking } = await supabase
@@ -21,6 +23,7 @@ export default async function PickupPage({ params }: { params: Promise<{ token: 
   return (
     <PreRentalCheckForm
       token={token}
+      locale={locale}
       photoSteps={templates
         .filter((t) => t.input_type === "PHOTO")
         .map((t) => ({ key: t.item_key, label: t.label, instruction: t.instruction }))}

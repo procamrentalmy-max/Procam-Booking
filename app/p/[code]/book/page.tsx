@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getActiveTermsVersion } from "@/lib/booking/terms";
 import { logFunnelEvent } from "@/lib/funnel";
+import { getLocale } from "@/lib/i18n/getLocale";
 import { BookingWizard } from "./BookingWizard";
 
 export default async function BookPage({
@@ -13,6 +14,7 @@ export default async function BookPage({
 }) {
   const { code } = await params;
   const { product: productId } = await searchParams;
+  const locale = await getLocale();
   const supabase = createServiceRoleClient();
 
   const { data: partner } = await supabase
@@ -53,6 +55,7 @@ export default async function BookPage({
 
   return (
     <BookingWizard
+      locale={locale}
       partnerId={partner.id}
       referralCode={partner.referral_code}
       productId={product.id}

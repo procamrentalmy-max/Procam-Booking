@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { confirmBookingAfterPayment } from "@/lib/booking/confirm";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { isLocale, DEFAULT_LOCALE } from "@/lib/i18n/locale";
 
 /**
  * DEV ONLY — bypasses Stripe entirely and confirms a booking exactly as if
@@ -15,11 +17,14 @@ import { confirmBookingAfterPayment } from "@/lib/booking/confirm";
  */
 export async function devBypassPaymentAction(formData: FormData) {
   const token = z.string().min(1).parse(formData.get("token"));
+  const rawLocale = formData.get("locale");
+  const locale = typeof rawLocale === "string" && isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+  const dict = getDictionary(locale);
   const supabase = createServiceRoleClient();
 
   const { data: booking } = await supabase.from("bookings").select("id,status").eq("secure_token", token).single();
-  if (!booking) throw new Error("Booking not found.");
-  if (booking.status !== "PENDING_PAYMENT") throw new Error("This booking has already been paid.");
+  if (!booking) throw new Error(dict.common.bookingNotFound);
+  if (booking.status !== "PENDING_PAYMENT") throw new Error(dict.payServer.alreadyPaid);
 
   await confirmBookingAfterPayment(booking.id);
 
