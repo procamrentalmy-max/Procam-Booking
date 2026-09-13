@@ -192,6 +192,7 @@ export const zh: Dictionary = {
     confirmPrefix: "请确认：",
     photoPrefix: "请添加照片：",
     saveFailed: "无法保存您的检查记录，请重试。",
+    depositFailed: "无法在您的卡上预授权押金。请换一张卡，或联系工作人员协助。",
   },
   returnCheck: {
     stepOf: (step: number, total: number) => `第 ${step} 步，共 ${total} 步`,

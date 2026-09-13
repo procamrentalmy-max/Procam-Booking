@@ -195,6 +195,7 @@ export const en = {
     confirmPrefix: "Please confirm: ",
     photoPrefix: "Please add a photo: ",
     saveFailed: "Could not save your condition check. Please try again.",
+    depositFailed: "Could not place the security deposit hold on your card. Please try a different card or ask staff for help.",
   },
   returnCheck: {
     stepOf: (step: number, total: number) => `Step ${step} of ${total}`,

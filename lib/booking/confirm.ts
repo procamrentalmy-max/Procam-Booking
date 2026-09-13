@@ -6,13 +6,14 @@ import { logFunnelEvent } from "@/lib/funnel";
 import type { BookingStatus, AssetStatus } from "@/lib/db/types";
 
 /**
- * Called once both the rental fee has succeeded and the deposit hold is in
- * place. Always lands at CONFIRMED — that's now a real, meaningfully
- * persisted status ("paid, scheduled") rather than a pass-through, because
- * bookings can be scheduled well ahead of their actual pickup time. Only
- * promotes further to READY_FOR_PICKUP right away if the scheduled start is
- * imminent; otherwise the housekeeping cron (app/api/cron/housekeeping)
- * promotes it as the time actually approaches.
+ * Called once the rental fee has succeeded — the deposit hold is a separate
+ * concern now, placed later at physical pickup (lib/stripe/deposit.ts), not
+ * a precondition of this. Always lands at CONFIRMED — that's now a real,
+ * meaningfully persisted status ("paid, scheduled") rather than a
+ * pass-through, because bookings can be scheduled well ahead of their
+ * actual pickup time. Only promotes further to READY_FOR_PICKUP right away
+ * if the scheduled start is imminent; otherwise the housekeeping cron
+ * (app/api/cron/housekeeping) promotes it as the time actually approaches.
  */
 export async function confirmBookingAfterPayment(bookingId: string): Promise<void> {
   const supabase = createServiceRoleClient();

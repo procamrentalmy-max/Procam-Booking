@@ -5,6 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { uploadEvidencePhoto, conditionPhotoPath } from "@/lib/storage";
 import { assertValidBookingTransition } from "@/lib/state-machine/booking";
 import { promoteBookingToReadyForPickup } from "@/lib/booking/confirm";
+import { createAndConfirmDepositIntent } from "@/lib/stripe/deposit";
 import { getCheckTemplates, getBookingProductId } from "@/lib/booking/checkTemplates";
 import { logAudit } from "@/lib/audit";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -44,6 +45,19 @@ export async function submitPreRentalConditionCheckAction(formData: FormData) {
     await promoteBookingToReadyForPickup(booking.id);
   } else if (booking.status !== "READY_FOR_PICKUP") {
     throw new Error(dict.notReady);
+  }
+
+  // The security deposit hold goes on the card here, at physical pickup —
+  // not back when the booking was paid for — so its ~7-day Stripe
+  // authorization window covers the actual rental instead of also having
+  // to cover however long the booking sat CONFIRMED beforehand (see
+  // lib/stripe/deposit.ts). A declined/expired card stops pickup here,
+  // before any condition-check work is saved.
+  try {
+    await createAndConfirmDepositIntent(booking.id);
+  } catch (err) {
+    console.error("[pickup] deposit hold failed", err);
+    throw new Error(dict.depositFailed);
   }
 
   const productId = await getBookingProductId(booking.rental_package_id);

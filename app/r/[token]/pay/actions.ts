@@ -9,11 +9,12 @@ import { isLocale, DEFAULT_LOCALE } from "@/lib/i18n/locale";
 
 /**
  * DEV ONLY — bypasses Stripe entirely and confirms a booking exactly as if
- * the rental fee + deposit hold had both succeeded (reuses the same
- * confirmBookingAfterPayment the real webhook calls — see
- * app/api/webhooks/stripe/route.ts). Delete this action and its button in
- * page.tsx before launch; real bookings must only ever be confirmed by the
- * webhook, never this.
+ * the rental fee had succeeded (reuses the same confirmBookingAfterPayment
+ * the real webhook calls — see app/api/webhooks/stripe/route.ts). The
+ * deposit hold is a separate, later concern (placed at pickup — see
+ * lib/stripe/deposit.ts) and untouched by this bypass. Delete this action
+ * and its button in page.tsx before launch; real bookings must only ever
+ * be confirmed by the webhook, never this.
  */
 export async function devBypassPaymentAction(formData: FormData) {
   const token = z.string().min(1).parse(formData.get("token"));

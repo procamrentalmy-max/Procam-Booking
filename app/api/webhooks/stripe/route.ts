@@ -2,19 +2,23 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { createAndConfirmDepositIntent } from "@/lib/stripe/deposit";
 import { confirmBookingAfterPayment } from "@/lib/booking/confirm";
+import { assertValidDepositTransition } from "@/lib/state-machine/deposit";
+import { logAudit } from "@/lib/audit";
 
 /**
- * Orchestrates the two-charge flow (spec section 6):
- *   rental fee succeeds -> place the deposit hold on the same card
- *   -> deposit hold placed -> booking CONFIRMED, asset READY_FOR_PICKUP
+ * Orchestrates the payment side of the booking lifecycle:
+ *   rental fee succeeds -> booking CONFIRMED (asset READY_FOR_PICKUP if
+ *   imminent, otherwise the housekeeping cron promotes it later).
  *
- * Known gap: if the deposit charge is declined right after a successful
- * rental-fee charge, this just logs it — the booking is left in
- * PENDING_PAYMENT with a paid rental fee and no path to recover
- * automatically. Handling that (retry a different card, refund, admin
- * alert) is a real product decision deferred past V1.
+ * The deposit hold itself is placed later, at physical pickup — see
+ * createAndConfirmDepositIntent in lib/stripe/deposit.ts and its call site
+ * in app/r/[token]/pickup/actions.ts — not here.
+ *
+ * This webhook also catches the deposit hold's other end: if staff never
+ * capture or release it, Stripe auto-cancels the manual-capture
+ * PaymentIntent after ~7 days and fires payment_intent.canceled, which the
+ * case below turns into deposit_authorizations.status = EXPIRED.
  */
 export async function POST(req: Request) {
   const stripe = getStripe();
@@ -38,12 +42,7 @@ export async function POST(req: Request) {
         if (!bookingId || kind !== "RENTAL_FEE") break;
 
         await supabase.from("payments").update({ status: "SUCCEEDED" }).eq("provider_ref", intent.id);
-
-        const paymentMethodId =
-          typeof intent.payment_method === "string" ? intent.payment_method : intent.payment_method?.id;
-        if (!paymentMethodId) break;
-
-        await createAndConfirmDepositIntent(bookingId, paymentMethodId);
+        await confirmBookingAfterPayment(bookingId);
         break;
       }
 
@@ -53,13 +52,42 @@ export async function POST(req: Request) {
         break;
       }
 
-      case "payment_intent.amount_capturable_updated": {
-        // Manual-capture PaymentIntents reach here once authorized — this
-        // is the deposit hold landing, not a card charge going through.
+      case "payment_intent.canceled": {
+        // Fires both for a deliberate release (staff already flip
+        // deposit_authorizations to RELEASED/CAPTURED/VOIDED synchronously
+        // right before calling stripe.paymentIntents.cancel — see
+        // passInspectionAction and resolveDamageCaseAction) and for
+        // Stripe's own ~7-day auto-expiry of an untouched hold. The
+        // AUTHORIZED guard below is what tells the two apart: a
+        // deliberate release has already moved the row off AUTHORIZED by
+        // the time this arrives, so only a genuine timeout matches here.
         const intent = event.data.object as Stripe.PaymentIntent;
         const { bookingId, kind } = intent.metadata as { bookingId?: string; kind?: string };
-        if (!bookingId || kind !== "DEPOSIT") break;
-        await confirmBookingAfterPayment(bookingId);
+        if (kind !== "DEPOSIT") break;
+
+        const { data: deposit } = await supabase
+          .from("deposit_authorizations")
+          .select("id,status")
+          .eq("provider_ref", intent.id)
+          .maybeSingle();
+        if (!deposit || deposit.status !== "AUTHORIZED") break;
+
+        assertValidDepositTransition("AUTHORIZED", "EXPIRED", "SYSTEM");
+        await supabase
+          .from("deposit_authorizations")
+          .update({ status: "EXPIRED", resolved_at: new Date().toISOString() })
+          .eq("id", deposit.id);
+
+        if (bookingId) {
+          await logAudit({
+            actorType: "SYSTEM",
+            action: "DEPOSIT_EXPIRED",
+            entityType: "booking",
+            entityId: bookingId,
+            before: { status: "AUTHORIZED" },
+            after: { status: "EXPIRED" },
+          });
+        }
         break;
       }
 

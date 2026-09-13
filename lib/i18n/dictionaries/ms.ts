@@ -196,6 +196,7 @@ export const ms: Dictionary = {
     confirmPrefix: "Sila sahkan: ",
     photoPrefix: "Sila tambah gambar: ",
     saveFailed: "Tidak dapat menyimpan semakan keadaan anda. Sila cuba lagi.",
+    depositFailed: "Tidak dapat membuat tahanan deposit keselamatan pada kad anda. Sila cuba kad lain atau minta bantuan staf.",
   },
   returnCheck: {
     stepOf: (step: number, total: number) => `Langkah ${step} daripada ${total}`,
