@@ -24,22 +24,16 @@ export default async function PartnerLandingPage({ params }: { params: Promise<{
 
   await logFunnelEvent("LANDING_VIEWED", partner.id);
 
-  // Only products with actual deployed inventory at this property are
-  // offered — a property with no SeaLife units never shows that card,
-  // even if SeaLife exists as a product elsewhere.
-  const { data: assetsHere } = await supabase
-    .from("rental_assets")
-    .select("product_id,status")
-    .eq("partner_id", partner.id);
-  const productIdsHere = [...new Set((assetsHere ?? []).filter((a) => a.status !== "RETIRED").map((a) => a.product_id))];
-
-  const { data: products } = productIdsHere.length
-    ? await supabase
-        .from("rental_products")
-        .select("id,slug,customer_facing_name,tagline")
-        .eq("active", true)
-        .in("id", productIdsHere)
-    : { data: [] };
+  // Every active product is offered at every active locker — the fleet is
+  // pooled, not tied to a location (see lib/locker-engine/bookingGate.ts):
+  // a camera not currently sitting here doesn't mean it can't be booked
+  // here, since the worker relocates whichever unit is eligible to wherever
+  // it's needed. Gating this list on which units currently happen to be
+  // parked at this property would just hide bookable products for no reason.
+  const { data: products } = await supabase
+    .from("rental_products")
+    .select("id,slug,customer_facing_name,tagline")
+    .eq("active", true);
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
