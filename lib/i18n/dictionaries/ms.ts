@@ -84,7 +84,7 @@ export const ms: Dictionary = {
       pickup: (name: string) => `Pengambilan: ${name}`,
       dropoffSuffix: (name: string) => ` — Penghantaran: ${name}`,
       rentalFee: (price: number | string) => `Yuran sewaan: RM${price}`,
-      deposit: (deposit: number | string) => `Deposit keselamatan yang boleh dikembalikan: RM${deposit}`,
+      deposit: (deposit: number | string) => `Deposit keselamatan yang boleh dikembalikan: RM${deposit} (ditahan semasa pengambilan, bukan sekarang)`,
       agreementPrefix:
         "Saya bersetuju dengan terma sewaan ProCam di atas, termasuk tanggungjawab terhadap peralatan dan aksesori sehingga dipulangkan dan diperiksa, dan dengan ",
       agreementSuffix: " yang lengkap.",
@@ -169,10 +169,23 @@ export const ms: Dictionary = {
     instructionsFallback: "Arahan",
     noInstructionsYet: "Tiada arahan lagi",
   },
+  depositNotice: {
+    title: "Sebelum Anda Bayar",
+    body: (deposit: number | string) =>
+      `Deposit keselamatan RM${deposit} yang boleh dikembalikan akan ditahan pada kad anda pada hari sewaan anda, semasa anda mengambil kamera — bukan hari ini.`,
+    cardHint:
+      "Pastikan kad yang anda gunakan untuk bayaran hari ini mempunyai sekurang-kurangnya jumlah ini tersedia pada hari pengambilan, jika tidak kami tidak dapat menyerahkan peralatan tersebut.",
+    acknowledge: (deposit: number | string) => `Saya faham deposit RM${deposit} akan ditahan pada kad saya semasa pengambilan.`,
+    continueToPayment: "Teruskan ke Pembayaran",
+    back: "Kembali ke tempahan",
+  },
+  depositNoticeServer: {
+    ackRequired: "Sila sahkan anda faham sebelum meneruskan.",
+  },
   pay: {
     title: "Bayar & Sahkan",
     summary: (name: string, price: number | string, deposit: number | string) =>
-      `${name} — yuran sewaan RM${price} sekarang. Deposit RM${deposit} yang boleh dikembalikan akan ditahan pada kad yang sama sejurus selepas itu — anda tidak akan diminta membayar dua kali.`,
+      `${name} — yuran sewaan RM${price} sekarang. Deposit RM${deposit} yang boleh dikembalikan akan ditahan pada kad yang sama pada hari sewaan anda, semasa pengambilan.`,
     unavailable: "Pembayaran tidak tersedia buat masa ini.",
     devSkip: "[DEV] Langkau Pembayaran — Pintas Stripe",
   },

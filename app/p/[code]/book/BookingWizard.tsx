@@ -351,7 +351,7 @@ export function BookingWizard({
         setAssignedTime({ start: result.startTime, end: result.endTime });
         setStep("booked");
       } else {
-        router.push(`/r/${result.secureToken}/pay`);
+        router.push(`/r/${result.secureToken}/deposit-notice`);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : dict.common.somethingWentWrong);
@@ -736,7 +736,7 @@ export function BookingWizard({
             <p className="text-sm text-zinc-500">{t.booked.until(formatDateTime(new Date(assignedTime.end), locale))}</p>
           </div>
           <button
-            onClick={() => router.push(`/r/${secureToken}/pay`)}
+            onClick={() => router.push(`/r/${secureToken}/deposit-notice`)}
             className="w-full rounded-full bg-black py-3 font-semibold text-white dark:bg-white dark:text-black"
           >
             {t.confirm.continueToPayment}

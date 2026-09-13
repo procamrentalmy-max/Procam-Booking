@@ -254,7 +254,15 @@ export type WorkerLockerAssignmentRow = {
 
 export type FunnelEventRow = {
   id: string;
-  event_type: "LANDING_VIEWED" | "WIZARD_OPENED" | "VERIFICATION_STARTED" | "VERIFICATION_VERIFIED" | "BOOKING_CREATED" | "PAYMENT_CONFIRMED";
+  event_type:
+    | "LANDING_VIEWED"
+    | "WIZARD_OPENED"
+    | "VERIFICATION_STARTED"
+    | "VERIFICATION_VERIFIED"
+    | "BOOKING_CREATED"
+    | "DEPOSIT_NOTICE_VIEWED"
+    | "DEPOSIT_NOTICE_ACKNOWLEDGED"
+    | "PAYMENT_CONFIRMED";
   partner_id: string | null;
   created_at: string;
 };

@@ -7,6 +7,8 @@ const STAGES: { type: string; label: string; short: string }[] = [
   { type: "VERIFICATION_STARTED", label: "Entered details, started ID verification", short: "Started verification" },
   { type: "VERIFICATION_VERIFIED", label: "Verified identity", short: "Verified identity" },
   { type: "BOOKING_CREATED", label: "Reached payment", short: "Reached payment" },
+  { type: "DEPOSIT_NOTICE_VIEWED", label: "Viewed deposit-hold notice", short: "Viewed notice" },
+  { type: "DEPOSIT_NOTICE_ACKNOWLEDGED", label: "Accepted deposit-hold notice", short: "Accepted notice" },
   { type: "PAYMENT_CONFIRMED", label: "Paid", short: "Paid" },
 ];
 

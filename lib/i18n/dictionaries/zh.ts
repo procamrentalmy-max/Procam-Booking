@@ -81,7 +81,7 @@ export const zh: Dictionary = {
       pickup: (name: string) => `取件地点：${name}`,
       dropoffSuffix: (name: string) => ` — 还件地点：${name}`,
       rentalFee: (price: number | string) => `租赁费：RM${price}`,
-      deposit: (deposit: number | string) => `可退还的安全押金：RM${deposit}`,
+      deposit: (deposit: number | string) => `可退还的安全押金：RM${deposit}（取件时预留，非现在扣款）`,
       agreementPrefix: "本人同意以上 ProCam 租赁条款，包括在设备归还并经检查确认前，对设备及其配件承担责任，并同意完整的",
       agreementSuffix: "。",
       continueToPayment: "前往付款",
@@ -165,10 +165,22 @@ export const zh: Dictionary = {
     instructionsFallback: "使用说明",
     noInstructionsYet: "暂无使用说明",
   },
+  depositNotice: {
+    title: "付款前须知",
+    body: (deposit: number | string) =>
+      `在您取件当天（而非今天），系统会在您的银行卡上预留一笔可退还的押金 RM${deposit}。`,
+    cardHint: "请确保您今天用来付款的银行卡，在取件当天至少有此金额的可用额度，否则我们将无法交付设备。",
+    acknowledge: (deposit: number | string) => `我理解取件时将在我的银行卡上预留 RM${deposit} 押金。`,
+    continueToPayment: "继续付款",
+    back: "返回预订页面",
+  },
+  depositNoticeServer: {
+    ackRequired: "请先确认您已理解，再继续。",
+  },
   pay: {
     title: "付款与确认",
     summary: (name: string, price: number | string, deposit: number | string) =>
-      `${name} — 现需支付租赁费 RM${price}。付款后将立即在同一张卡上预留可退还押金 RM${deposit} — 您无需重复付款。`,
+      `${name} — 现需支付租赁费 RM${price}。可退还押金 RM${deposit} 将在您取件当天预留在同一张卡上。`,
     unavailable: "目前无法进行付款。",
     devSkip: "[开发测试] 跳过付款 — 绕过 Stripe",
   },

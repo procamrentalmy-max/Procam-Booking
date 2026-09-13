@@ -82,7 +82,7 @@ export const en = {
       pickup: (name: string) => `Pickup: ${name}`,
       dropoffSuffix: (name: string) => ` — Dropoff: ${name}`,
       rentalFee: (price: number | string) => `Rental fee: RM${price}`,
-      deposit: (deposit: number | string) => `Refundable security deposit: RM${deposit}`,
+      deposit: (deposit: number | string) => `Refundable security deposit: RM${deposit} (held at pickup, not now)`,
       agreementPrefix:
         "I agree to the ProCam rental terms above, including responsibility for the equipment and accessories until returned and inspected, and to the full ",
       agreementSuffix: ".",
@@ -168,10 +168,23 @@ export const en = {
     instructionsFallback: "Instructions",
     noInstructionsYet: "No instructions yet",
   },
+  depositNotice: {
+    title: "Before You Pay",
+    body: (deposit: number | string) =>
+      `A refundable RM${deposit} security deposit will be placed on your card on the day of your rental, when you pick up the camera — not today.`,
+    cardHint:
+      "Please make sure the card you pay with today has at least this amount available on the day of pickup, or we won't be able to hand over the equipment.",
+    acknowledge: (deposit: number | string) => `I understand a RM${deposit} deposit hold will be placed on my card at pickup.`,
+    continueToPayment: "Continue to Payment",
+    back: "Back to booking",
+  },
+  depositNoticeServer: {
+    ackRequired: "Please confirm you understand before continuing.",
+  },
   pay: {
     title: "Pay & Confirm",
     summary: (name: string, price: number | string, deposit: number | string) =>
-      `${name} — RM${price} rental fee now. A refundable RM${deposit} deposit is held on the same card right after — you won't be asked to pay again.`,
+      `${name} — RM${price} rental fee now. A refundable RM${deposit} deposit will be held on the same card on the day of your rental, at pickup.`,
     unavailable: "Payment isn't available right now.",
     devSkip: "[DEV] Skip Payment — Bypass Stripe",
   },
