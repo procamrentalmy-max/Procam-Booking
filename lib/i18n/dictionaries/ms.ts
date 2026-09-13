@@ -113,7 +113,7 @@ export const ms: Dictionary = {
     table: { duration: "Tempoh", price: "Harga" },
     mode: { daytime: "Siang", overnight: "Semalaman", multiday: "Berbilang Hari" },
     hint: {
-      overnight: "Ambil pada jam 10 malam, pulangkan sebelum jam 8 pagi — tempahan memerlukan sekurang-kurangnya 2 jam notis.",
+      overnight: "Ambil pada jam 9 malam, pulangkan sebelum jam 8 pagi — tempahan memerlukan sekurang-kurangnya 2 jam notis.",
       daytime:
         "Pilih tarikh, kemudian masa mula dan masa tamat daripada jadual waktu — tempahan memerlukan sekurang-kurangnya 2 jam notis. Jika slot pilihan anda tidak tersedia, kami akan tawarkan slot terdekat yang seterusnya.",
       multiday:

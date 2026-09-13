@@ -99,18 +99,18 @@ describe("checkLockerBookingFeasibility", () => {
 });
 
 describe("checkOvernightBookingFeasibility", () => {
-  it("confirms tonight's 10pm-8am slot when requested well before the 8pm cutoff", () => {
+  it("confirms tonight's 9pm-8am slot when requested well before the 7pm cutoff", () => {
     const night = new Date("2026-09-08T00:00:00");
     const result = checkOvernightBookingFeasibility(baseSnapshot(), { partnerId: "loc-a", dropoffPartnerId: "loc-a", earliestNight: night }, NOW);
     expect(result).toMatchObject({ outcome: "CONFIRM" });
     if (result.outcome !== "INFEASIBLE") {
-      expect(result.startTime.getHours()).toBe(22);
+      expect(result.startTime.getHours()).toBe(21);
       expect(result.endTime.getHours()).toBe(8);
     }
   });
 
-  it("pushes to the next night when requested after the 8pm cutoff for tonight", () => {
-    const lateRequestTime = new Date("2026-09-08T20:30:00");
+  it("pushes to the next night when requested after the 7pm cutoff for tonight", () => {
+    const lateRequestTime = new Date("2026-09-08T19:30:00");
     const night = new Date("2026-09-08T00:00:00");
     const result = checkOvernightBookingFeasibility(baseSnapshot(), { partnerId: "loc-a", dropoffPartnerId: "loc-a", earliestNight: night }, lateRequestTime);
     expect(result.outcome).toBe("NEXT_FEASIBLE_SLOT");
@@ -133,8 +133,8 @@ describe("checkOvernightBookingFeasibility", () => {
         { id: "cam-3", humanId: "CAM-003", isHotSpare: false, partnerId: "loc-a", status: "AVAILABLE" },
       ],
       bookings: [
-        { id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: new Date("2026-09-08T22:00:00"), endTime: new Date("2026-09-09T08:00:00"), isOvernight: true },
-        { id: "b2", assetId: "cam-2", partnerId: "loc-b", dropoffPartnerId: "loc-b", status: "CONFIRMED", startTime: new Date("2026-09-08T22:00:00"), endTime: new Date("2026-09-09T08:00:00"), isOvernight: true },
+        { id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: new Date("2026-09-08T21:00:00"), endTime: new Date("2026-09-09T08:00:00"), isOvernight: true },
+        { id: "b2", assetId: "cam-2", partnerId: "loc-b", dropoffPartnerId: "loc-b", status: "CONFIRMED", startTime: new Date("2026-09-08T21:00:00"), endTime: new Date("2026-09-09T08:00:00"), isOvernight: true },
       ],
     };
     const result = checkOvernightBookingFeasibility(snapshot, { partnerId: "loc-a", dropoffPartnerId: "loc-a", earliestNight: night }, NOW);
@@ -150,7 +150,7 @@ describe("checkOvernightBookingFeasibility", () => {
         { id: "cam-2", humanId: "CAM-002", isHotSpare: false, partnerId: "loc-a", status: "MAINTENANCE" },
       ],
       bookings: [
-        { id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: new Date("2026-09-08T22:00:00"), endTime: new Date("2026-09-09T08:00:00"), isOvernight: true },
+        { id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: new Date("2026-09-08T21:00:00"), endTime: new Date("2026-09-09T08:00:00"), isOvernight: true },
       ],
     };
     const result = checkOvernightBookingFeasibility(oneEligibleCameraSnapshot, { partnerId: "loc-a", dropoffPartnerId: "loc-a", earliestNight: night }, NOW, 2);

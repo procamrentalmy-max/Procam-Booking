@@ -6,8 +6,8 @@ export { InvalidBookingRequestError };
 /** Customers must request a daytime slot at least this far ahead. */
 export const MINIMUM_LEAD_MINUTES = 120;
 
-/** Fixed nightly window: 10pm start, 8am return. */
-export const OVERNIGHT_START_HOUR = 22;
+/** Fixed nightly window: 9pm start, 8am return. */
+export const OVERNIGHT_START_HOUR = 21;
 export const OVERNIGHT_RETURN_HOUR = 8;
 export const OVERNIGHT_DURATION_MINUTES = (24 - OVERNIGHT_START_HOUR + OVERNIGHT_RETURN_HOUR) * 60;
 

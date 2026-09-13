@@ -108,7 +108,7 @@ export const en = {
     table: { duration: "Duration", price: "Price" },
     mode: { daytime: "Daytime", overnight: "Overnight", multiday: "Multi-Day" },
     hint: {
-      overnight: "Pick up at 10pm, return by 8am — bookings need at least 2 hours of notice.",
+      overnight: "Pick up at 9pm, return by 8am — bookings need at least 2 hours of notice.",
       daytime:
         "Pick a date, then a start time and an end time from the timetable — bookings need at least 2 hours of notice. If your exact slot isn't free, we'll offer the next available one.",
       multiday:

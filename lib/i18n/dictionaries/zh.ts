@@ -113,7 +113,7 @@ export const zh: Dictionary = {
     table: { duration: "时长", price: "价格" },
     mode: { daytime: "日间", overnight: "过夜", multiday: "多日" },
     hint: {
-      overnight: "晚上10点取件，早上8点前归还 — 预订需至少提前2小时。",
+      overnight: "晚上9点取件，早上8点前归还 — 预订需至少提前2小时。",
       daytime: "先选择日期，再从时间表中选择开始和结束时间 — 预订需至少提前2小时。如果您想要的时段已被预订，我们会为您提供最接近的可用时段。",
       multiday: "选择日期和开始时间，然后选择您需要的天数 — 预订需至少提前2小时。",
     },
