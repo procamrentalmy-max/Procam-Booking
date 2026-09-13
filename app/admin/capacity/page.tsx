@@ -11,6 +11,21 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const ALERT_THRESHOLD_7D = 3;
 const ALERT_THRESHOLD_30D = 8;
 
+/**
+ * A camera realistically clears about 1 booking/day (most rentals run
+ * half-day to full-day, plus the fleet's own turnaround buffer between
+ * bookings eats into the operating window — see
+ * lib/locker-engine/feasibility.ts's ASSET_TURNAROUND_MINUTES). Waiting
+ * until the fleet average actually reaches that ceiling is too late: real
+ * demand isn't smooth, so busy days are already over it while the average
+ * still looks fine. This flags it earlier, while there's still time to
+ * order another camera before it turns into an actual rejected booking.
+ */
+const UTILIZATION_ALERT_THRESHOLD = 0.7;
+
+/** Same convention as isAssetReadyFor in lib/locker-engine/feasibility.ts: a booking in either of these statuses never actually occupied its camera. */
+const NEVER_OCCUPIED_STATUSES = new Set(["CANCELLED", "EXPIRED"]);
+
 type SignalRow = { signal_type: "BOOKING_REJECTED_NO_CAMERA" | "PHOTO_SLOTS_FULL"; partner_id: string | null; created_at: string };
 
 type PartnerCounts = { partnerId: string; name: string; last7: number; last30: number; total: number };
@@ -48,10 +63,13 @@ export default async function CapacityPage() {
   const supabase = await createServerSupabaseClient();
   const now = Date.now();
 
-  const [{ data: signals }, { data: partners }, { data: assets }] = await Promise.all([
+  const thirtyDaysAgo = new Date(now - 30 * DAY_MS).toISOString();
+
+  const [{ data: signals }, { data: partners }, { data: assets }, { data: bookings }] = await Promise.all([
     supabase.from("demand_signals").select("signal_type,partner_id,created_at"),
     supabase.from("partners").select("id,name").order("name", { ascending: true }),
-    supabase.from("rental_assets").select("partner_id,status").neq("status", "RETIRED"),
+    supabase.from("rental_assets").select("partner_id,status,is_hot_spare").neq("status", "RETIRED"),
+    supabase.from("bookings").select("start_time,status").gte("start_time", thirtyDaysAgo),
   ]);
 
   const partnerName = new Map((partners ?? []).map((p) => [p.id, p.name]));
@@ -62,6 +80,19 @@ export default async function CapacityPage() {
 
   const backupFleetCount = (assets ?? []).filter((a) => !a.partner_id).length;
   const totalFleetCount = (assets ?? []).length;
+  // Hot spares never actually get rented (see findEligibleAsset's !isHotSpare
+  // filter), so they don't count toward the capacity a booking rate is
+  // measured against.
+  const sellableFleetCount = (assets ?? []).filter((a) => !a.is_hot_spare).length;
+
+  const occupyingBookings = (bookings ?? []).filter((b) => !NEVER_OCCUPIED_STATUSES.has(b.status));
+  const bookingsLast7 = occupyingBookings.filter((b) => now - new Date(b.start_time).getTime() <= 7 * DAY_MS).length;
+  const bookingsLast30 = occupyingBookings.length;
+  const utilizationLast7 = sellableFleetCount > 0 ? bookingsLast7 / (sellableFleetCount * 7) : null;
+  const utilizationLast30 = sellableFleetCount > 0 ? bookingsLast30 / (sellableFleetCount * 30) : null;
+  const utilizationAlerting =
+    (utilizationLast7 !== null && utilizationLast7 >= UTILIZATION_ALERT_THRESHOLD) ||
+    (utilizationLast30 !== null && utilizationLast30 >= UTILIZATION_ALERT_THRESHOLD);
 
   const alertingCameraPartners = cameraRows.filter(isAlerting);
   const alertingSlotPartners = slotRows.filter(isAlerting);
@@ -87,6 +118,21 @@ export default async function CapacityPage() {
         <p className="text-xs text-zinc-400">
           Backup fleet (unassigned to any property): {backupFleetCount} of {totalFleetCount} total non-retired cameras.
         </p>
+
+        <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+          <p className="text-sm font-medium">Fleet utilization</p>
+          <p className="mt-1 text-sm text-zinc-500">
+            {sellableFleetCount === 0
+              ? "No sellable cameras in the fleet yet."
+              : `${utilizationLast7?.toFixed(2)} bookings/camera/day over the last 7 days (${bookingsLast7} booking${bookingsLast7 === 1 ? "" : "s"} across ${sellableFleetCount} camera${sellableFleetCount === 1 ? "" : "s"}) · ${utilizationLast30?.toFixed(2)}/day over the last 30 days.`}
+          </p>
+          {utilizationAlerting && (
+            <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">
+              ⚠ Approaching the ~1 booking/camera/day ceiling — order another camera now, before this shows up as
+              actual rejected bookings below.
+            </p>
+          )}
+        </div>
 
         {alertingCameraPartners.length > 0 && (
           <div className="space-y-2 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-900 dark:bg-amber-950">
