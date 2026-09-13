@@ -21,11 +21,13 @@ export const ms: Dictionary = {
   home: {
     title: "ProCam",
     subtitle: "Imbas kod QR di kaunter penerimaan hotel anda untuk menyewa kamera aksi atau sarung telefon kalis air.",
+    usp: "🏨 Dihantar ke hotel anda — ambil dan pulangkan di tempat anda menginap, tanpa perlu ke kedai.",
   },
   landing: {
     brand: "ProCam",
     equipmentRentalAt: (partnerName: string) => `Sewaan peralatan di ${partnerName}`,
     noEquipment: "Tiada peralatan disediakan di lokasi ini buat masa ini.",
+    usp: "🏨 Dihantar ke hotel anda — ambil dan pulangkan di sini juga, tanpa perlu ke kedai.",
   },
   booking: {
     stepTitles: {

@@ -19,11 +19,13 @@ export const en = {
   home: {
     title: "ProCam",
     subtitle: "Scan the QR code at your hotel reception to rent an action camera or underwater phone housing.",
+    usp: "🏨 Delivered to your hotel — pick up and drop off right where you're staying, no shop visit needed.",
   },
   landing: {
     brand: "ProCam",
     equipmentRentalAt: (partnerName: string) => `Equipment rental at ${partnerName}`,
     noEquipment: "No equipment is currently set up at this property.",
+    usp: "🏨 Delivered to your hotel — pick up and drop off right here, no shop visit needed.",
   },
   booking: {
     stepTitles: {

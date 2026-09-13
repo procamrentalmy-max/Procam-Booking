@@ -46,6 +46,9 @@ export default async function PartnerLandingPage({ params }: { params: Promise<{
       <div className="flex flex-col items-center text-center">
         <Brand logoUrl={logoUrl} size={36} />
         <p className="mt-2 text-sm text-zinc-500">{dict.landing.equipmentRentalAt(partner.name)}</p>
+        <p className="mt-3 rounded-full bg-black/5 px-4 py-2 text-xs font-medium text-black dark:bg-white/10 dark:text-zinc-50">
+          {dict.landing.usp}
+        </p>
       </div>
 
       <div className="space-y-3">

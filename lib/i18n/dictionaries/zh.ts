@@ -21,11 +21,13 @@ export const zh: Dictionary = {
   home: {
     title: "ProCam",
     subtitle: "扫描酒店前台的二维码，即可租用运动相机或防水手机壳。",
+    usp: "🏨 直接送到您的酒店 — 在您入住的地方取件和还件，无需前往门店。",
   },
   landing: {
     brand: "ProCam",
     equipmentRentalAt: (partnerName: string) => `${partnerName} 的设备租赁`,
     noEquipment: "此地点目前尚未提供任何设备。",
+    usp: "🏨 直接送到您的酒店 — 在这里取件和还件，无需前往门店。",
   },
   booking: {
     stepTitles: {
