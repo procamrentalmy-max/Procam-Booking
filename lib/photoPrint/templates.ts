@@ -28,7 +28,7 @@ export const COLLAGE_TEMPLATES: Record<
 
 export const COLLAGE_TEMPLATE_ORDER: CollageTemplate[] = ["SINGLE", "SPLIT_H", "SPLIT_V"];
 
-/** Width / height of the physical print — both sizes are close to 2:3 portrait but not identical, so the crop area has to match whichever is actually selected. */
-export function printAspectRatio(size: PhotoOrderSize): number {
-  return size === "3R" ? 3.5 / 5 : 4 / 6;
+/** Width / height of the physical print. Takes `size` for API stability (and in case a second size returns later) even though only 4R exists today. */
+export function printAspectRatio(_size: PhotoOrderSize): number {
+  return 4 / 6;
 }

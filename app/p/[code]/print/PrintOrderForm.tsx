@@ -30,9 +30,9 @@ export function PrintOrderForm({
   const t = dict.printPage;
 
   const [step, setStep] = useState<Step>("build");
-  const [size, setSize] = useState<PhotoOrderSize>("3R");
-  const [quantity, setQuantity] = useState<PhotoOrderQuantity>(5);
-  const [slots, setSlots] = useState<(File | null)[]>(() => Array.from({ length: 5 }, () => null));
+  const [size, setSize] = useState<PhotoOrderSize>("4R");
+  const [quantity, setQuantity] = useState<PhotoOrderQuantity>(7);
+  const [slots, setSlots] = useState<(File | null)[]>(() => Array.from({ length: 7 }, () => null));
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");

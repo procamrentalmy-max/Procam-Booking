@@ -23,7 +23,7 @@ describe("chooseStop", () => {
       ["van", "hotel-urgent", 30],
       ["van", "hotel-photos", 1], // far closer, but must not win over a real booking dropoff
     ]);
-    const photoDeliveries = new Map([["hotel-photos", [{ id: "o1", customerName: "Guest", size: "3R", quantity: 5, slotNumber: 12 }]]]);
+    const photoDeliveries = new Map([["hotel-photos", [{ id: "o1", customerName: "Guest", size: "4R", quantity: 5, slotNumber: 12 }]]]);
 
     const result = chooseStop(snapshot, "van", DROPOFF_STOP, photoDeliveries);
     expect(result).toEqual({ partnerId: "hotel-urgent", fromPlan: true });
@@ -34,7 +34,7 @@ describe("chooseStop", () => {
       ["van", "hotel-return", 30],
       ["van", "hotel-photos", 5],
     ]);
-    const photoDeliveries = new Map([["hotel-photos", [{ id: "o1", customerName: "Guest", size: "3R", quantity: 5, slotNumber: 12 }]]]);
+    const photoDeliveries = new Map([["hotel-photos", [{ id: "o1", customerName: "Guest", size: "4R", quantity: 5, slotNumber: 12 }]]]);
 
     const result = chooseStop(snapshot, "van", RETURN_ONLY_STOP, photoDeliveries);
     expect(result).toEqual({ partnerId: "hotel-photos", fromPlan: false });
@@ -45,7 +45,7 @@ describe("chooseStop", () => {
       ["van", "hotel-return", 5],
       ["van", "hotel-photos", 30],
     ]);
-    const photoDeliveries = new Map([["hotel-photos", [{ id: "o1", customerName: "Guest", size: "3R", quantity: 5, slotNumber: 12 }]]]);
+    const photoDeliveries = new Map([["hotel-photos", [{ id: "o1", customerName: "Guest", size: "4R", quantity: 5, slotNumber: 12 }]]]);
 
     const result = chooseStop(snapshot, "van", RETURN_ONLY_STOP, photoDeliveries);
     expect(result).toEqual({ partnerId: "hotel-return", fromPlan: true });
@@ -71,8 +71,8 @@ describe("chooseStop", () => {
       ["van", "hotel-near", 5],
     ]);
     const photoDeliveries = new Map([
-      ["hotel-far", [{ id: "o1", customerName: "A", size: "3R", quantity: 5, slotNumber: 12 }]],
-      ["hotel-near", [{ id: "o2", customerName: "B", size: "3R", quantity: 5, slotNumber: 12 }]],
+      ["hotel-far", [{ id: "o1", customerName: "A", size: "4R", quantity: 5, slotNumber: 12 }]],
+      ["hotel-near", [{ id: "o2", customerName: "B", size: "4R", quantity: 5, slotNumber: 12 }]],
     ]);
 
     const result = chooseStop(snapshot, "van", null, photoDeliveries);

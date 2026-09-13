@@ -110,8 +110,9 @@ export type PartnerRow = {
   updated_at: string;
 };
 
-export type PhotoOrderSize = "3R" | "4R";
-export type PhotoOrderQuantity = 5 | 7 | 10;
+/** 3R is discontinued — 4R is the only size offered now (see lib/photoPrint/pricing.ts). */
+export type PhotoOrderSize = "4R";
+export type PhotoOrderQuantity = 7 | 10;
 export type PhotoOrderBilledTo = "GUEST" | "HOTEL";
 export type PhotoOrderStatus = "PENDING_PAYMENT" | "SUBMITTED" | "PRINTING" | "DELIVERED" | "EXPIRED" | "CANCELLED";
 
