@@ -36,7 +36,7 @@ export const en = {
     intro: "Upload photos straight from your phone — we print them and deliver to your hotel, no shop visit needed.",
     turnaround: "Uploaded before 5pm: delivered the next day. After 5pm: delivered in 2 days.",
     table: { size: "Size", quantity: "Quantity", price: "Price" },
-    sizeLabel: { "3R": "3R (3.5×5\")", "4R": "4R (4×6\")" },
+    sizeLabel: { "4R": "4R (4×6\")" },
     quantityLabel: (qty: number) => `${qty} prints`,
     freeLine: (hotelName: string) => `Free — courtesy of ${hotelName}`,
     chooseSize: "Size",
