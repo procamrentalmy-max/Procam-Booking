@@ -11,7 +11,8 @@ insert into partners (id, name, address, commission_rate, referral_code, status,
 
 insert into rental_products (id, slug, internal_name, customer_facing_name, tagline, asset_prefix, uses_batteries, requires_phone_compatibility) values
   ('40000000-0000-0000-0000-000000000001', 'insta360-adventure-camera', 'Insta360 X4 Air', 'Insta360 X4 Air', 'Capture your whole adventure.', 'CAM', true, false),
-  ('40000000-0000-0000-0000-000000000002', 'sealife-sportdiver-ultra', 'SeaLife SportDiver Ultra', 'Underwater Phone Camera', 'Use your own phone underwater.', 'SDU', false, true);
+  ('40000000-0000-0000-0000-000000000002', 'sealife-sportdiver-ultra', 'SeaLife SportDiver Ultra', 'Underwater Phone Camera', 'Use your own phone underwater.', 'SDU', false, true),
+  ('40000000-0000-0000-0000-000000000003', 'dji-neo-2-mini-drone', 'DJI Neo 2', 'DJI Neo 2', 'Fly it with just your phone — no license, no controller needed.', 'DRN', true, false);
 
 -- Original reception-model packages — kept as inactive historical rows
 -- rather than deleted (no bookings ever referenced them). Reception is
@@ -54,6 +55,30 @@ insert into rental_packages (product_id, name, duration_minutes, price_myr, depo
   ('40000000-0000-0000-0000-000000000001', '3 Days', 4320, 230.00, 300.00, 20.00, true, false),
   ('40000000-0000-0000-0000-000000000001', '4 Days', 5760, 275.00, 300.00, 20.00, true, false),
   ('40000000-0000-0000-0000-000000000001', '5 Days', 7200, 310.00, 300.00, 20.00, true, false);
+
+-- DJI Neo 2 packages: same duration ladder and schedule as the Insta360
+-- (9am-8pm daytime, 9pm-8am overnight, 1-5 day tiers), priced RM5 under
+-- the equivalent Insta360 tier. Deposit is higher (RM500 vs RM300) since a
+-- drone carries real total-loss risk (crash into water/bushes) that a
+-- handheld camera doesn't.
+insert into rental_packages (product_id, name, duration_minutes, price_myr, deposit_myr, late_fee_per_hour_myr, active, is_overnight) values
+  ('40000000-0000-0000-0000-000000000003', '1 Hour', 60, 20.00, 500.00, 20.00, false, false),
+  ('40000000-0000-0000-0000-000000000003', '2 Hours', 120, 30.00, 500.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000003', '3 Hours', 180, 40.00, 500.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000003', '4 Hours', 240, 50.00, 500.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000003', '5 Hours', 300, 58.00, 500.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000003', '6 Hours', 360, 65.00, 500.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000003', '7 Hours', 420, 70.00, 500.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000003', '8 Hours', 480, 75.00, 500.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000003', '9 Hours', 540, 80.00, 500.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000003', '10 Hours', 600, 85.00, 500.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000003', '11 Hours', 660, 90.00, 500.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000003', 'Overnight (9pm-8am)', 660, 50.00, 500.00, 20.00, true, true),
+  ('40000000-0000-0000-0000-000000000003', '24 Hours (1 Day)', 1440, 110.00, 500.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000003', '2 Days', 2880, 155.00, 500.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000003', '3 Days', 4320, 195.00, 500.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000003', '4 Days', 5760, 230.00, 500.00, 20.00, true, false),
+  ('40000000-0000-0000-0000-000000000003', '5 Days', 7200, 260.00, 500.00, 20.00, true, false);
 
 -- Check templates: what the customer/staff has to check at each phase, per
 -- product. Replaces what used to be one hardcoded photo/checklist set.
@@ -115,7 +140,36 @@ insert into check_templates (product_id, phase, item_key, label, instruction, in
   ('40000000-0000-0000-0000-000000000002', 'STAFF_INSPECTION', 'tether', 'Wrist Tether', null, 'BOOLEAN', 10, true),
   ('40000000-0000-0000-0000-000000000002', 'STAFF_INSPECTION', 'salt_residue', 'Salt Residue', null, 'BOOLEAN', 11, true),
   ('40000000-0000-0000-0000-000000000002', 'STAFF_INSPECTION', 'corrosion', 'Corrosion', null, 'BOOLEAN', 12, true),
-  ('40000000-0000-0000-0000-000000000002', 'STAFF_INSPECTION', 'water_ingress_evidence', 'Evidence of Water Ingress', null, 'BOOLEAN', 13, true);
+  ('40000000-0000-0000-0000-000000000002', 'STAFF_INSPECTION', 'water_ingress_evidence', 'Evidence of Water Ingress', null, 'BOOLEAN', 13, true),
+  -- DJI Neo 2 — pre-rental
+  ('40000000-0000-0000-0000-000000000003', 'PRE_RENTAL', 'power_on', 'Power On', 'Turn the drone ON and photograph it connected to the DJI Fly app.', 'PHOTO', 1, true),
+  ('40000000-0000-0000-0000-000000000003', 'PRE_RENTAL', 'prop_guards', 'Propeller Guards', 'Photograph all four propeller guards closely.', 'PHOTO', 2, true),
+  ('40000000-0000-0000-0000-000000000003', 'PRE_RENTAL', 'gimbal_camera', 'Gimbal & Camera Lens', 'Photograph the gimbal and camera lens closely.', 'PHOTO', 3, true),
+  ('40000000-0000-0000-0000-000000000003', 'PRE_RENTAL', 'battery_level', 'Battery', 'Photograph the battery charge indicator.', 'PHOTO', 4, true),
+  ('40000000-0000-0000-0000-000000000003', 'PRE_RENTAL', 'kit_full', 'Full Kit', 'Lay out the drone, battery, USB-C cable, and spare propellers, then photograph it all together.', 'PHOTO', 5, true),
+  ('40000000-0000-0000-0000-000000000003', 'PRE_RENTAL', 'ack_propellers_intact', 'All 4 propellers and their guards are intact, with no cracks.', null, 'BOOLEAN', 6, true),
+  ('40000000-0000-0000-0000-000000000003', 'PRE_RENTAL', 'ack_powers_on', 'The drone powers on and connects to the DJI Fly app.', null, 'BOOLEAN', 7, true),
+  ('40000000-0000-0000-0000-000000000003', 'PRE_RENTAL', 'ack_no_damage', 'I don''t see any other visible damage.', null, 'BOOLEAN', 8, true),
+  ('40000000-0000-0000-0000-000000000003', 'PRE_RENTAL', 'ack_no_fly_zone', 'I understand the drone''s built-in no-fly-zone system may block takeoff near the airport or other restricted areas, and I won''t try to bypass it.', null, 'BOOLEAN', 9, true),
+  ('40000000-0000-0000-0000-000000000003', 'PRE_RENTAL', 'ack_water_risk', 'I understand flying over water or sand risks losing the drone permanently, and the deposit covers that loss.', null, 'BOOLEAN', 10, true),
+  -- DJI Neo 2 — return
+  ('40000000-0000-0000-0000-000000000003', 'RETURN', 'power_on', 'Power On', 'Turn the drone ON and photograph it connected to the DJI Fly app.', 'PHOTO', 1, true),
+  ('40000000-0000-0000-0000-000000000003', 'RETURN', 'prop_guards', 'Propeller Guards', 'Photograph all four propeller guards closely.', 'PHOTO', 2, true),
+  ('40000000-0000-0000-0000-000000000003', 'RETURN', 'gimbal_camera', 'Gimbal & Camera Lens', 'Photograph the gimbal and camera lens closely.', 'PHOTO', 3, true),
+  ('40000000-0000-0000-0000-000000000003', 'RETURN', 'battery_level', 'Battery', 'Photograph the battery charge indicator.', 'PHOTO', 4, true),
+  ('40000000-0000-0000-0000-000000000003', 'RETURN', 'kit_full', 'Full Kit', 'Lay out the drone, battery, USB-C cable, and spare propellers, then photograph it all together.', 'PHOTO', 5, true),
+  ('40000000-0000-0000-0000-000000000003', 'RETURN', 'footage_downloaded', 'I have downloaded/saved all my footage from the drone via the DJI Fly app.', null, 'BOOLEAN', 6, true),
+  -- DJI Neo 2 — staff inspection
+  ('40000000-0000-0000-0000-000000000003', 'STAFF_INSPECTION', 'propeller_guards', 'Propeller Guards (no cracks/deformation)', null, 'BOOLEAN', 1, true),
+  ('40000000-0000-0000-0000-000000000003', 'STAFF_INSPECTION', 'propellers', 'Propellers', null, 'BOOLEAN', 2, true),
+  ('40000000-0000-0000-0000-000000000003', 'STAFF_INSPECTION', 'gimbal', 'Gimbal Movement', null, 'BOOLEAN', 3, true),
+  ('40000000-0000-0000-0000-000000000003', 'STAFF_INSPECTION', 'camera_lens', 'Camera Lens', null, 'BOOLEAN', 4, true),
+  ('40000000-0000-0000-0000-000000000003', 'STAFF_INSPECTION', 'battery_contacts', 'Battery & Contacts', null, 'BOOLEAN', 5, true),
+  ('40000000-0000-0000-0000-000000000003', 'STAFF_INSPECTION', 'body_frame', 'Body / Frame', null, 'BOOLEAN', 6, true),
+  ('40000000-0000-0000-0000-000000000003', 'STAFF_INSPECTION', 'buttons', 'Power Button / Controls', null, 'BOOLEAN', 7, true),
+  ('40000000-0000-0000-0000-000000000003', 'STAFF_INSPECTION', 'usb_port', 'USB-C Charging Port', null, 'BOOLEAN', 8, true),
+  ('40000000-0000-0000-0000-000000000003', 'STAFF_INSPECTION', 'power_and_connect', 'Powers On & Connects to App', null, 'BOOLEAN', 9, true),
+  ('40000000-0000-0000-0000-000000000003', 'STAFF_INSPECTION', 'storage_cleared', 'Internal Storage: Footage Confirmed Downloaded & Cleared', null, 'BOOLEAN', 10, true);
 
 -- Customer-facing setup/usage instructions, shown after pickup.
 insert into product_instructions (product_id, step_number, title, body) values
@@ -141,11 +195,22 @@ insert into product_instructions (product_id, step_number, title, body) values
   ('40000000-0000-0000-0000-000000000002', 12, 'Attach the Tether', 'Loop the wrist tether around your wrist before entering the water.'),
   ('40000000-0000-0000-0000-000000000002', 13, 'Test the Controls', 'Try the shutter and recording controls on land first.'),
   ('40000000-0000-0000-0000-000000000002', 14, 'You''re Set', 'Once everything checks out, you''re ready to start.'),
-  ('40000000-0000-0000-0000-000000000002', 15, 'Need Help?', 'Message ProCam support from your booking page any time during your rental.');
+  ('40000000-0000-0000-0000-000000000002', 15, 'Need Help?', 'Message ProCam support from your booking page any time during your rental.'),
+  ('40000000-0000-0000-0000-000000000003', 1, 'Download the DJI Fly App', 'Get the DJI Fly app on your phone before you start — the drone connects to it directly over Wi-Fi, no account needed to fly.'),
+  ('40000000-0000-0000-0000-000000000003', 2, 'Power On & Connect', 'Turn the drone on, then connect to it directly from the DJI Fly app — no separate controller required.'),
+  ('40000000-0000-0000-0000-000000000003', 3, 'Palm Takeoff', 'Raise your palm underneath the drone to launch it, or use the on-screen takeoff button in the app.'),
+  ('40000000-0000-0000-0000-000000000003', 4, 'Flight & Follow Modes', 'Use ActiveTrack in the app to have the drone follow and film you automatically.'),
+  ('40000000-0000-0000-0000-000000000003', 5, 'No-Fly Zones', 'Near the airport and other restricted areas, the drone''s built-in geofencing will refuse to take off. This is expected — don''t try to bypass it.'),
+  ('40000000-0000-0000-0000-000000000003', 6, 'Fly Carefully Over Water & Sand', 'The drone''s obstacle sensors can misjudge reflective surfaces like water, glass, and bright sand. Fly cautiously and keep it low over these areas.'),
+  ('40000000-0000-0000-0000-000000000003', 7, 'Battery', 'Charges over USB-C. The drone will automatically return and land when the battery gets low.'),
+  ('40000000-0000-0000-0000-000000000003', 8, 'Download Your Footage Before Returning', 'There''s no memory card — footage is only saved on the drone''s internal storage. Save everything you want to keep via the app before your rental ends.'),
+  ('40000000-0000-0000-0000-000000000003', 9, 'Don''t Remove the Propeller Guards', 'They''re fitted for safety — leave them on.'),
+  ('40000000-0000-0000-0000-000000000003', 10, 'Need Help?', 'Message ProCam support from your booking page any time during your rental.');
 
 insert into product_terms_versions (product_id, version, body) values
   ('40000000-0000-0000-0000-000000000001', 1, 'You are responsible for the Insta360 camera and kit from pickup until ProCam staff inspect and pass its return. The security deposit is held until that inspection is complete and may be captured to cover loss or damage found at inspection.'),
-  ('40000000-0000-0000-0000-000000000002', 1, 'You are responsible for the SeaLife SportDiver Ultra housing and kit from pickup until ProCam staff inspect and pass its return. The housing protects your own phone; ProCam is not responsible for water damage to your phone if the housing was not sealed correctly, including if the guided seal test was skipped or its result ignored. The security deposit covers the ProCam-owned housing and kit only, never your phone, and is held until inspection is complete.');
+  ('40000000-0000-0000-0000-000000000002', 1, 'You are responsible for the SeaLife SportDiver Ultra housing and kit from pickup until ProCam staff inspect and pass its return. The housing protects your own phone; ProCam is not responsible for water damage to your phone if the housing was not sealed correctly, including if the guided seal test was skipped or its result ignored. The security deposit covers the ProCam-owned housing and kit only, never your phone, and is held until inspection is complete.'),
+  ('40000000-0000-0000-0000-000000000003', 1, 'You are responsible for the DJI Neo 2 drone and its kit from pickup until ProCam staff inspect and pass its return. The security deposit is held until that inspection is complete and may be captured to cover damage, or the full replacement cost if the drone is lost or destroyed, including a crash into water. You are responsible for complying with all local drone flight rules, including no-fly zones — the drone''s built-in geofencing may prevent takeoff in restricted areas, and this is expected behaviour, not a malfunction. Footage is stored only on the drone''s internal memory; ProCam is not responsible for footage not downloaded before return.');
 
 -- ============================================================================
 -- LANGKAWI LOCKER NETWORK — pooled fleet + worker routing (Phase 1)

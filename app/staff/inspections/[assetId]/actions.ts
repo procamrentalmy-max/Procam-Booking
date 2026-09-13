@@ -187,6 +187,10 @@ const damageSchema = baseSchema.extend({
     "MOISTURE_LEAK_DETECTED",
     "CORROSION_SALT_DAMAGE",
     "HOUSING_MISSING",
+    "PROPELLER_DAMAGE",
+    "PROP_GUARD_DAMAGE",
+    "GIMBAL_DAMAGE",
+    "DRONE_LOST",
   ]),
   description: z.string().min(1, "Describe the issue"),
 });

@@ -79,7 +79,11 @@ export type DamageCategory =
   | "VACUUM_SYSTEM_FAULT"
   | "MOISTURE_LEAK_DETECTED"
   | "CORROSION_SALT_DAMAGE"
-  | "HOUSING_MISSING";
+  | "HOUSING_MISSING"
+  | "PROPELLER_DAMAGE"
+  | "PROP_GUARD_DAMAGE"
+  | "GIMBAL_DAMAGE"
+  | "DRONE_LOST";
 export type DamageCaseStatus = "OPEN" | "UNDER_REVIEW" | "RESOLVED";
 export type DepositAction = "NONE" | "CAPTURED" | "PARTIALLY_CAPTURED";
 

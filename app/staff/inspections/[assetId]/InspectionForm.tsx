@@ -33,6 +33,28 @@ const SEALIFE_DAMAGE_CATEGORIES = [
   "OTHER",
 ] as const;
 
+const DRONE_DAMAGE_CATEGORIES = [
+  "PROPELLER_DAMAGE",
+  "PROP_GUARD_DAMAGE",
+  "GIMBAL_DAMAGE",
+  "LENS_SCRATCH",
+  "SEVERE_LENS_DAMAGE",
+  "BODY_DAMAGE",
+  "WATER_DAMAGE",
+  "MISSING_ACCESSORY",
+  "MISSING_BATTERY",
+  "DRONE_LOST",
+  "FUNCTIONALITY_ISSUE",
+  "OTHER",
+] as const;
+
+/** Which damage categories the inspection form offers depends on the product being inspected — matched by slug rather than a per-product DB column, same as the pre-existing SeaLife special-case this generalizes. */
+function damageCategoriesFor(productSlug: string) {
+  if (productSlug.includes("sealife")) return SEALIFE_DAMAGE_CATEGORIES;
+  if (productSlug.includes("dji") || productSlug.includes("drone")) return DRONE_DAMAGE_CATEGORIES;
+  return CAMERA_DAMAGE_CATEGORIES;
+}
+
 type PhotoItem = { key: string; label: string; preUrl?: string; returnUrl?: string };
 type ChecklistItem = { key: string; label: string };
 
@@ -62,7 +84,7 @@ export function InspectionForm({
   lateFeeMyr: number;
 }) {
   const router = useRouter();
-  const damageCategories = productSlug.includes("sealife") ? SEALIFE_DAMAGE_CATEGORIES : CAMERA_DAMAGE_CATEGORIES;
+  const damageCategories = damageCategoriesFor(productSlug);
 
   const [checklist, setChecklist] = useState<Record<string, boolean>>(
     Object.fromEntries(checklistItems.map((i) => [i.key, true]))
