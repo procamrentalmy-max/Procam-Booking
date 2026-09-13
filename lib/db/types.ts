@@ -302,6 +302,15 @@ export type FunnelEventRow = {
   created_at: string;
 };
 
+export type DemandSignalType = "BOOKING_REJECTED_NO_CAMERA" | "PHOTO_SLOTS_FULL";
+
+export type DemandSignalRow = {
+  id: string;
+  signal_type: DemandSignalType;
+  partner_id: string | null;
+  created_at: string;
+};
+
 export type LocationTravelTimeRow = {
   id: string;
   from_partner_id: string;
@@ -551,6 +560,7 @@ export interface Database {
       site_settings: TableDef<SiteSettingsRow>;
       photo_orders: TableDef<PhotoOrderRow>;
       photo_order_files: TableDef<PhotoOrderFileRow>;
+      demand_signals: TableDef<DemandSignalRow>;
     };
     Views: Record<string, never>;
     Functions: {

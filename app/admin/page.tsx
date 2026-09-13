@@ -4,6 +4,7 @@ const SECTIONS = [
   { href: "/admin/bookings", label: "Bookings", note: "All bookings, testing helpers" },
   { href: "/admin/sales", label: "Sales", note: "Revenue by locker, month, package, and product" },
   { href: "/admin/funnel", label: "Funnel", note: "QR scans through to paid — where people drop off" },
+  { href: "/admin/capacity", label: "Capacity", note: "Where demand is outgrowing cameras or photo slots" },
   { href: "/admin/damage-cases", label: "Damage Cases", note: "Deposit decisions on damage reports" },
   { href: "/admin/partners", label: "Partners", note: "Properties, commission rates, QR codes" },
   { href: "/admin/travel-times", label: "Travel Times", note: "Drive times between lockers, for route planning" },

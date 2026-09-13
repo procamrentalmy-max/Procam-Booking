@@ -8,6 +8,7 @@ import {
   InvalidBookingRequestError,
 } from "@/lib/locker-engine/bookingGate";
 import { isImminent } from "@/lib/state-machine/booking";
+import { logDemandSignal } from "@/lib/demandSignals";
 import type { BookingRow, BookingSource } from "@/lib/db/types";
 
 export { InvalidBookingRequestError };
@@ -81,7 +82,10 @@ export async function createPendingLockerBooking(params: {
         earliestStartTime: params.earliestStartTime,
       });
 
-  if (result.outcome === "INFEASIBLE") throw new NoAssetAvailableError();
+  if (result.outcome === "INFEASIBLE") {
+    await logDemandSignal("BOOKING_REJECTED_NO_CAMERA", params.partnerId);
+    throw new NoAssetAvailableError();
+  }
 
   // The RPC (0012_worker_schedule_lock.sql) is the real backstop, not this
   // insert: it takes a global advisory lock and re-validates worker-schedule
@@ -110,7 +114,10 @@ export async function createPendingLockerBooking(params: {
     // RPC's own "INFEASIBLE: ..." raises for a worker-schedule conflict.
     // Both mean the same thing to the customer: this slot didn't actually
     // work out, not a real system error.
-    if (error.code === "23P01" || error.code === "P0001") throw new NoAssetAvailableError();
+    if (error.code === "23P01" || error.code === "P0001") {
+      await logDemandSignal("BOOKING_REJECTED_NO_CAMERA", params.partnerId);
+      throw new NoAssetAvailableError();
+    }
     throw new Error(error.message);
   }
   if (!booking) throw new Error("Booking creation did not return a row.");

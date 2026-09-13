@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ASSET_TURNAROUND_MINUTES, InvalidBookingRequestError, alignToNextHour, checkBookingFeasibility, isAssetReadyFor } from "./feasibility";
+import { ASSET_TURNAROUND_MINUTES, InvalidBookingRequestError, alignToNextHour, checkBookingFeasibility, findEligibleAsset, isAssetReadyFor } from "./feasibility";
 import type { FleetSnapshot } from "./types";
 
 const ALIGNED_10AM = new Date("2026-09-02T10:00:00Z");
@@ -93,6 +93,30 @@ describe("isAssetReadyFor", () => {
       bookings: [{ id: "b1", assetId: "cam-1", partnerId: "loc-b", dropoffPartnerId: "loc-b", status: "COMPLETED", startTime: new Date(START.getTime() - 3 * 3_600_000), endTime: new Date(START.getTime() - ASSET_TURNAROUND_MINUTES * 60_000), isOvernight: false }],
     };
     expect(isAssetReadyFor(snapshot, "cam-1", "CLEANING", START)).toBe(true);
+  });
+});
+
+describe("findEligibleAsset", () => {
+  it("finds nothing for a combined multi-hour window neither camera covers alone, even though each half is individually free", () => {
+    // This is exactly the gap the booking wizard's timetable used to miss:
+    // greying only bare 1-hour windows made 1pm and 2pm both look free
+    // individually, even though no single camera actually spans 1pm-3pm.
+    const hour1 = new Date("2026-09-02T13:00:00Z");
+    const hour2 = new Date("2026-09-02T14:00:00Z");
+    const hour3 = new Date("2026-09-02T15:00:00Z");
+    const snapshot: FleetSnapshot = {
+      ...baseSnapshot(),
+      bookings: [
+        // cam-1 is busy 2-3pm, so it's only free for the 1-2pm half.
+        { id: "b1", assetId: "cam-1", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: hour2, endTime: hour3, isOvernight: false },
+        // cam-2 is busy 1-2pm, so it's only free for the 2-3pm half.
+        { id: "b2", assetId: "cam-2", partnerId: "loc-a", dropoffPartnerId: "loc-a", status: "CONFIRMED", startTime: hour1, endTime: hour2, isOvernight: false },
+      ],
+    };
+
+    expect(findEligibleAsset(snapshot, hour1, hour2)).toBe("cam-1");
+    expect(findEligibleAsset(snapshot, hour2, hour3)).toBe("cam-2");
+    expect(findEligibleAsset(snapshot, hour1, hour3)).toBeNull();
   });
 });
 

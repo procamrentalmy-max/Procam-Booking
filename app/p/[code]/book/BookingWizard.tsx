@@ -14,7 +14,7 @@ import {
   devSkipKycAction,
   createBookingAction,
   checkPhoneCompatibilityAction,
-  getUnavailableStartsAction,
+  getUnavailableWindowsAction,
 } from "./actions";
 
 type RentalPackage = {
@@ -103,6 +103,12 @@ export function BookingWizard({
     .filter((p) => !p.is_overnight && p.duration_minutes >= MULTIDAY_THRESHOLD_MINUTES)
     .sort((a, b) => a.duration_minutes - b.duration_minutes);
   const overnightPackage = packages.find((p) => p.is_overnight) ?? null;
+  // Before a specific multi-day package is picked, there's no single duration to
+  // check yet — the shortest one is the loosest possible requirement, so a start
+  // hour that can't even clear that is dead for every longer multi-day option too.
+  const multidayMinDurationMinutes = multidayPackages.length
+    ? Math.min(...multidayPackages.map((p) => p.duration_minutes))
+    : null;
 
   const [step, setStep] = useState<Step>("package");
   const [mode, setMode] = useState<Mode>(
@@ -135,38 +141,10 @@ export function BookingWizard({
   // null while the check is in flight (or hasn't run yet) — treated as "don't know
   // yet" rather than "all unavailable", so the grid doesn't flash fully dulled.
   const [engineUnavailableHours, setEngineUnavailableHours] = useState<Set<number> | null>(null);
-
-  // Re-checked whenever the date changes: which hours currently have zero
-  // eligible camera for even the shortest (1hr) rental. A cheap proxy for
-  // "don't bother tapping this one" — the real gate is still whatever
-  // createBookingAction's checkLockerBookingFeasibility decides at submit.
-  useEffect(() => {
-    if (mode !== "daytime") return;
-    let cancelled = false;
-    setEngineUnavailableHours(null);
-    const starts = OPERATING_HOURS.map((h) => ({ hour: h, iso: hourStart(date, h).toISOString() }));
-    getUnavailableStartsAction({ productId, starts: starts.map((s) => s.iso) })
-      .then((result) => {
-        if (cancelled) return;
-        const unavailableIsos = new Set(result.unavailable);
-        setEngineUnavailableHours(new Set(starts.filter((s) => unavailableIsos.has(s.iso)).map((s) => s.hour)));
-      })
-      .catch(() => {
-        // Fail open — an unknown availability check shouldn't block booking.
-        if (!cancelled) setEngineUnavailableHours(new Set());
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [date, mode, productId]);
-
-  function isPastLeadTime(hour: number): boolean {
-    return hourStart(date, hour).getTime() < Date.now() + MIN_LEAD_MINUTES * 60_000 - 60_000;
-  }
-
-  function isHourUnavailable(hour: number): boolean {
-    return isPastLeadTime(hour) || (engineUnavailableHours?.has(hour) ?? false);
-  }
+  // Only meaningful mid-selection in daytime mode, once a start hour is picked
+  // but before an end hour is — see the effect below for why this needs to be
+  // separate from engineUnavailableHours rather than reusing the same set.
+  const [engineUnavailableEndHours, setEngineUnavailableEndHours] = useState<Set<number> | null>(null);
 
   // The customer picks a start hour and an end hour directly — the package
   // (and so the price) is whichever one matches that exact duration. Every
@@ -181,6 +159,91 @@ export function BookingWizard({
   const selectedPackage =
     mode === "overnight" ? (overnightPackage ?? undefined) : mode === "multiday" ? multidaySelectedPackage : daytimeSelectedPackage;
   const packageId = selectedPackage?.id ?? "";
+
+  // Re-checked whenever the date (or, in multi-day mode, the chosen package)
+  // changes: which start hours have zero eligible camera for the shortest
+  // relevant rental — a 1-hour window in daytime mode, or the selected (or,
+  // before one's picked, the shortest available) multi-day duration. Because
+  // a longer duration can only ever be a *stricter* version of a shorter one
+  // starting at the same hour, this is always a valid, if sometimes loose,
+  // "don't bother tapping this one" filter — the real gate is still whatever
+  // createBookingAction's checkLockerBookingFeasibility decides at submit.
+  useEffect(() => {
+    if (mode === "overnight") return;
+    const durationMinutes = mode === "multiday" ? (multidaySelectedPackage?.duration_minutes ?? multidayMinDurationMinutes) : 60;
+    if (durationMinutes == null) {
+      setEngineUnavailableHours(new Set());
+      return;
+    }
+    let cancelled = false;
+    setEngineUnavailableHours(null);
+    const starts = OPERATING_HOURS.map((h) => {
+      const start = hourStart(date, h);
+      return { hour: h, start: start.toISOString(), end: new Date(start.getTime() + durationMinutes * 60_000).toISOString() };
+    });
+    getUnavailableWindowsAction({ productId, windows: starts.map(({ start, end }) => ({ start, end })) })
+      .then((result) => {
+        if (cancelled) return;
+        const bad = new Set<number>();
+        starts.forEach((s, i) => {
+          if (result.unavailable[i]) bad.add(s.hour);
+        });
+        setEngineUnavailableHours(bad);
+      })
+      .catch(() => {
+        // Fail open — an unknown availability check shouldn't block booking.
+        if (!cancelled) setEngineUnavailableHours(new Set());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [date, mode, productId, multidayPackageId]);
+
+  // Daytime only, and only mid-selection (start picked, end not yet): an hour
+  // can pass the bare-1hr check above and still make an INFEASIBLE booking
+  // once paired with the chosen start — no single camera free for the whole
+  // combined span, even though each half looks fine alone. Re-checks the
+  // *actual* candidate end hours against the *actual* start, so a bad
+  // combination gets crossed out before it can be tapped, not just rejected
+  // at submit.
+  useEffect(() => {
+    if (mode !== "daytime" || startHour === null || endHour !== null) {
+      setEngineUnavailableEndHours(null);
+      return;
+    }
+    let cancelled = false;
+    setEngineUnavailableEndHours(null);
+    const start = hourStart(date, startHour).toISOString();
+    const candidates = OPERATING_HOURS.filter((h) => h > startHour);
+    const windows = candidates.map((h) => ({ start, end: hourStart(date, h).toISOString() }));
+    getUnavailableWindowsAction({ productId, windows })
+      .then((result) => {
+        if (cancelled) return;
+        const bad = new Set<number>();
+        candidates.forEach((h, i) => {
+          if (result.unavailable[i]) bad.add(h);
+        });
+        setEngineUnavailableEndHours(bad);
+      })
+      .catch(() => {
+        if (!cancelled) setEngineUnavailableEndHours(new Set());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [date, mode, productId, startHour, endHour]);
+
+  function isPastLeadTime(hour: number): boolean {
+    return hourStart(date, hour).getTime() < Date.now() + MIN_LEAD_MINUTES * 60_000 - 60_000;
+  }
+
+  function isHourUnavailable(hour: number): boolean {
+    if (isPastLeadTime(hour)) return true;
+    if (mode === "daytime" && startHour !== null && endHour === null && hour > startHour) {
+      return engineUnavailableEndHours?.has(hour) ?? false;
+    }
+    return engineUnavailableHours?.has(hour) ?? false;
+  }
 
   /** Computed fresh at submit time — the server is the real authority; this is what we're requesting, not a guarantee. */
   function resolveEarliestStartTime(): Date {

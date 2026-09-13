@@ -162,30 +162,37 @@ export async function devSkipKycAction(input: { verificationId: string; partnerI
   return { verified: true as const };
 }
 
-const hourAvailabilitySchema = z.object({
+const windowAvailabilitySchema = z.object({
   productId: uuidSchema,
-  starts: z.array(z.string().min(1)).max(24),
+  windows: z.array(z.object({ start: z.string().min(1), end: z.string().min(1) })).max(24),
 });
 
 /**
- * Which of the given candidate start times (each checked as a bare 1-hour
- * window) currently have no eligible camera at all — used to dull those
- * slots in the timetable before the customer picks one. This is a cheap
- * proxy, not the real gate: a hour can look free here for a 1-hour rental
- * and still turn out infeasible once the customer's actual end hour makes
- * it a longer window, since the shared start/end grid doesn't know the
- * duration until both taps happen. createBookingAction's own call into
- * checkLockerBookingFeasibility remains the real authority.
+ * Which of the given candidate [start, end) windows currently have no
+ * eligible camera at all — used to grey out slots in the timetable before
+ * the customer can even pick them. Unlike a bare per-hour check, each
+ * window is checked at its *actual* requested duration: the wizard calls
+ * this once with 1-hour windows to dull dead start times, then again with
+ * the real combined start+candidate-end span once a start hour is picked,
+ * so an end hour that would make the *whole* booking infeasible (even
+ * though each half-hour looks fine alone) gets crossed out too, not just
+ * discovered at submit. createBookingAction's own call into
+ * checkLockerBookingFeasibility remains the real authority — a race against
+ * another customer booking the same camera between this check and submit
+ * is still possible and handled there, not here.
  */
-export async function getUnavailableStartsAction(input: { productId: string; starts: string[] }): Promise<{ unavailable: string[] }> {
-  const parsed = hourAvailabilitySchema.parse(input);
+export async function getUnavailableWindowsAction(input: {
+  productId: string;
+  windows: { start: string; end: string }[];
+}): Promise<{ unavailable: boolean[] }> {
+  const parsed = windowAvailabilitySchema.parse(input);
   const snapshot = await buildLockerFleetSnapshot(parsed.productId);
 
-  const unavailable = parsed.starts.filter((iso) => {
-    const start = new Date(iso);
-    if (Number.isNaN(start.getTime())) return true;
-    const end = new Date(start.getTime() + 60 * 60_000);
-    return !findEligibleAsset(snapshot, start, end);
+  const unavailable = parsed.windows.map(({ start, end }) => {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate <= startDate) return true;
+    return !findEligibleAsset(snapshot, startDate, endDate);
   });
 
   return { unavailable };

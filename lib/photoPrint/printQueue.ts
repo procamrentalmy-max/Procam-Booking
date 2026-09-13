@@ -2,6 +2,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { nextAvailableSlot } from "./slots";
 import { deletePhotoOrderFiles, getPhotoOrderFileSignedUrl } from "@/lib/storage";
+import { logDemandSignal } from "@/lib/demandSignals";
 
 export type PrintJob = {
   orderId: string;
@@ -75,7 +76,11 @@ export async function claimPrintBatch(): Promise<PrintJob[]> {
     for (const order of partnerOrders) {
       sequence += 1;
       const slotNumber = nextAvailableSlot(occupied);
-      if (slotNumber !== null) occupied.add(slotNumber);
+      if (slotNumber !== null) {
+        occupied.add(slotNumber);
+      } else {
+        await logDemandSignal("PHOTO_SLOTS_FULL", partnerId);
+      }
 
       const { error } = await supabase
         .from("photo_orders")
