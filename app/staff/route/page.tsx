@@ -32,7 +32,11 @@ export default async function WorkerRoutePage() {
   return (
     <>
       <UpdateLocationForm lockers={lockers ?? []} currentPartnerId={result.currentPartnerId} />
-      <RouteStopView nextStop={result.nextStop} unmetDropoffs={result.unmetDropoffs} />
+      <RouteStopView
+        nextStop={result.nextStop}
+        unmetDropoffs={result.unmetDropoffs}
+        otherPendingPhotoDeliveries={result.otherPendingPhotoDeliveries}
+      />
     </>
   );
 }

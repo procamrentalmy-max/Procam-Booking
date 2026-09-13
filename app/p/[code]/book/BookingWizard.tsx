@@ -34,8 +34,8 @@ const MULTIDAY_THRESHOLD_MINUTES = 24 * 60;
 
 type LockerPartner = { id: string; name: string };
 
-/** 8am-9pm — matches the locker network's operating hours; the server is the real authority on what's actually feasible. */
-const OPERATING_HOURS = Array.from({ length: 14 }, (_, i) => i + 8);
+/** 9am-9pm — matches the locker network's operating hours; the server is the real authority on what's actually feasible. */
+const OPERATING_HOURS = Array.from({ length: 13 }, (_, i) => i + 9);
 const MIN_LEAD_MINUTES = 120;
 
 function toDateInputValue(d: Date): string {

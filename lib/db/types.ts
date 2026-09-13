@@ -101,8 +101,43 @@ export type PartnerRow = {
   status: PartnerStatus;
   pickup_method: PickupMethod;
   google_maps_url: string | null;
+  photo_print_complimentary: boolean;
   created_at: string;
   updated_at: string;
+};
+
+export type PhotoOrderSize = "3R" | "4R";
+export type PhotoOrderQuantity = 5 | 10;
+export type PhotoOrderBilledTo = "GUEST" | "HOTEL";
+export type PhotoOrderStatus = "PENDING_PAYMENT" | "SUBMITTED" | "PRINTING" | "DELIVERED" | "EXPIRED" | "CANCELLED";
+
+export type PhotoOrderRow = {
+  id: string;
+  partner_id: string;
+  secure_token: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_email: string | null;
+  size: PhotoOrderSize;
+  quantity: PhotoOrderQuantity;
+  billed_to: PhotoOrderBilledTo;
+  unit_price_myr: number;
+  total_price_myr: number;
+  stripe_payment_intent_id: string | null;
+  status: PhotoOrderStatus;
+  slot_number: number | null;
+  placed_at: string | null;
+  collect_by: string | null;
+  destroy_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PhotoOrderFileRow = {
+  id: string;
+  photo_order_id: string;
+  storage_path: string;
+  created_at: string;
 };
 
 export type StaffUserRow = {
@@ -514,6 +549,8 @@ export interface Database {
       audit_logs: TableDef<AuditLogRow>;
       notifications: TableDef<NotificationRow>;
       site_settings: TableDef<SiteSettingsRow>;
+      photo_orders: TableDef<PhotoOrderRow>;
+      photo_order_files: TableDef<PhotoOrderFileRow>;
     };
     Views: Record<string, never>;
     Functions: {

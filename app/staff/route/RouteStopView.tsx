@@ -15,9 +15,11 @@ const ACTION_LABELS: Record<string, string> = {
 export function RouteStopView({
   nextStop,
   unmetDropoffs,
+  otherPendingPhotoDeliveries,
 }: {
   nextStop: NextStop | null;
   unmetDropoffs: { partnerId: string; shortfall: number }[];
+  otherPendingPhotoDeliveries: { partnerId: string; partnerName: string; count: number }[];
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -81,6 +83,19 @@ export function RouteStopView({
           </Section>
         )}
 
+        {result.photoOrdersDelivered.length > 0 && (
+          <Section title="Photo Prints Delivered — set these into their slots">
+            <ul className="space-y-1 text-sm">
+              {result.photoOrdersDelivered.map((o, i) => (
+                <li key={i}>
+                  {o.customerName} — {o.slotNumber !== null ? `Slot ${o.slotNumber}` : "Wooden Box (50 slots were full)"}{" "}
+                  (collect by {o.collectBy})
+                </li>
+              ))}
+            </ul>
+          </Section>
+        )}
+
         <button
           onClick={() => router.refresh()}
           className="w-full rounded-full bg-black py-3 font-semibold text-white dark:bg-white dark:text-black"
@@ -120,9 +135,27 @@ export function RouteStopView({
         </Section>
       ))}
 
+      {nextStop.photoOrders.length > 0 && (
+        <Section title="Deliver Photo Prints">
+          <ul className="space-y-1 text-sm">
+            {nextStop.photoOrders.map((o) => (
+              <li key={o.id}>
+                {o.customerName} — {o.quantity} × {o.size} — {o.slotNumber !== null ? `Slot ${o.slotNumber}` : "Wooden Box"}
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
       {unmetDropoffs.length > 0 && (
         <p className="text-center text-xs text-red-600">
           {unmetDropoffs.length} other location{unmetDropoffs.length > 1 ? "s" : ""} still short on cameras after this stop.
+        </p>
+      )}
+
+      {otherPendingPhotoDeliveries.length > 0 && (
+        <p className="text-center text-xs text-zinc-400">
+          Also waiting: {otherPendingPhotoDeliveries.map((d) => `${d.partnerName} (${d.count})`).join(", ")}
         </p>
       )}
 

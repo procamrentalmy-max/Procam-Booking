@@ -78,7 +78,7 @@ export default async function PartnersPage() {
               defaultValue from fresh server data after a successful save.
             */}
             <form
-              key={`${p.commission_rate}:${p.status}:${p.google_maps_url ?? ""}`}
+              key={`${p.commission_rate}:${p.status}:${p.google_maps_url ?? ""}:${p.photo_print_complimentary}`}
               action={updatePartnerAction}
               className="flex flex-wrap items-center gap-2"
             >
@@ -103,6 +103,14 @@ export default async function PartnersPage() {
                 defaultValue={p.google_maps_url ?? ""}
                 className={`${inputClass} w-48`}
               />
+              <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+                <input
+                  type="checkbox"
+                  name="photoPrintComplimentary"
+                  defaultChecked={p.photo_print_complimentary}
+                />
+                Complimentary photo prints
+              </label>
               <button type="submit" className={primaryButtonClass}>
                 Save
               </button>

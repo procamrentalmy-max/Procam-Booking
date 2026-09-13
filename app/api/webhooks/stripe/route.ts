@@ -38,7 +38,21 @@ export async function POST(req: Request) {
     switch (event.type) {
       case "payment_intent.succeeded": {
         const intent = event.data.object as Stripe.PaymentIntent;
-        const { bookingId, kind } = intent.metadata as { bookingId?: string; kind?: string };
+        const { bookingId, photoOrderId, kind } = intent.metadata as {
+          bookingId?: string;
+          photoOrderId?: string;
+          kind?: string;
+        };
+
+        if (kind === "PHOTO_PRINT" && photoOrderId) {
+          await supabase
+            .from("photo_orders")
+            .update({ status: "SUBMITTED" })
+            .eq("id", photoOrderId)
+            .eq("status", "PENDING_PAYMENT");
+          break;
+        }
+
         if (!bookingId || kind !== "RENTAL_FEE") break;
 
         await supabase.from("payments").update({ status: "SUCCEEDED" }).eq("provider_ref", intent.id);

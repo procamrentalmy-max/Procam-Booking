@@ -7,6 +7,8 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getAuthContext, hasStaffAccess } from "@/lib/auth/session";
 import { getNextStopForStaff } from "@/lib/worker/route";
+import { computeCollectBy, computeDestroyBy } from "@/lib/photoPrint/slots";
+import { formatMalaysiaTime } from "@/lib/i18n/locale";
 
 function generatePin(): string {
   return String(Math.floor(1000 + Math.random() * 9000));
@@ -17,6 +19,7 @@ export type CompletedStopResult = {
   pickedUp: { humanId: string }[];
   droppedOff: { humanId: string; compartmentNumber: number; pin: string }[];
   toInspect: { humanId: string; assetId: string }[];
+  photoOrdersDelivered: { customerName: string; slotNumber: number | null; collectBy: string }[];
 };
 
 /**
@@ -51,7 +54,7 @@ export async function completeStopAction(): Promise<CompletedStopResult> {
   if (result.error) throw new Error("Could not compute your route.");
   if (!result.nextStop) throw new Error("No stop is currently needed.");
 
-  const { partnerId, partnerName, actions } = result.nextStop;
+  const { partnerId, partnerName, actions, photoOrders } = result.nextStop;
   const supabase = createServiceRoleClient();
 
   const pickedUp: CompletedStopResult["pickedUp"] = [];
@@ -122,11 +125,41 @@ export async function completeStopAction(): Promise<CompletedStopResult> {
     }
   }
 
+  // PRINTING -> DELIVERED for every printed order at this stop. The slot
+  // number was already decided back when the order was printed
+  // (lib/photoPrint/printQueue.ts — it has to be, so the sticker printed
+  // alongside the photos can say which slot to use) — this step just
+  // records that the print physically arrived at the hotel, which is what
+  // starts the real collect-by/wooden-box clock. Completing the stop is
+  // the one worker-facing action that covers both camera work and photo
+  // deliveries, rather than a separate per-order button.
+  const photoOrdersDelivered: CompletedStopResult["photoOrdersDelivered"] = [];
+  for (const order of photoOrders) {
+    const placedAt = new Date();
+    const { error } = await supabase
+      .from("photo_orders")
+      .update({
+        status: "DELIVERED",
+        placed_at: placedAt.toISOString(),
+        collect_by: computeCollectBy(placedAt).toISOString(),
+        destroy_by: computeDestroyBy(placedAt).toISOString(),
+      })
+      .eq("id", order.id)
+      .eq("status", "PRINTING");
+    if (error) throw new Error(error.message);
+    photoOrdersDelivered.push({
+      customerName: order.customerName,
+      slotNumber: order.slotNumber,
+      collectBy: formatMalaysiaTime(computeCollectBy(placedAt), "en"),
+    });
+  }
+
   await supabase.from("workers").update({ current_partner_id: partnerId }).eq("id", worker.id);
 
   revalidatePath("/staff/route");
+  revalidatePath("/staff/photo-orders");
 
-  return { partnerName, pickedUp, droppedOff, toInspect };
+  return { partnerName, pickedUp, droppedOff, toInspect, photoOrdersDelivered };
 }
 
 const updateLocationSchema = z.object({ partnerId: uuidSchema });

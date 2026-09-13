@@ -3,7 +3,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { createRentalFeePaymentIntent } from "@/lib/stripe/rental";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
-import { PaymentForm } from "./PaymentForm";
+import { PaymentForm } from "@/components/PaymentForm";
 import { devBypassPaymentAction } from "./actions";
 
 export default async function PayPage({ params }: { params: Promise<{ token: string }> }) {

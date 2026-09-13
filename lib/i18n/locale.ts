@@ -24,3 +24,14 @@ export function isLocale(value: string | undefined | null): value is Locale {
 export function formatDateTime(date: Date, locale: Locale): string {
   return date.toLocaleString(INTL_TAGS[locale]);
 }
+
+/** ProCam only operates in Malaysia — pickup/collect-by/destroy-by times are always shown in Malaysia local time, regardless of the server's own timezone. */
+export function formatMalaysiaTime(date: Date, locale: Locale): string {
+  return date.toLocaleString(INTL_TAGS[locale], {
+    timeZone: "Asia/Kuala_Lumpur",
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}

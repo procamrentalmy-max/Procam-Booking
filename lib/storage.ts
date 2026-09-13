@@ -39,3 +39,40 @@ export async function getEvidencePhotoSignedUrl(path: string, expiresInSeconds =
   if (error || !data) throw new Error(`Failed to sign photo URL: ${error?.message ?? "unknown error"}`);
   return data.signedUrl;
 }
+
+// The customer's print-order originals — a separate private bucket from
+// condition-photos (0025_photo_print.sql) since these are deliverables to
+// print, not condition evidence, and fulfillment staff need to pull them
+// rather than staff/admin just viewing them.
+const PHOTO_PRINT_BUCKET = "photo-print-uploads";
+
+export function photoOrderFilePath(orderId: string, index: number, file: File): string {
+  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  return `${orderId}/${index}.${ext}`;
+}
+
+export async function uploadPhotoOrderFile(path: string, file: File): Promise<void> {
+  const supabase = createServiceRoleClient();
+  const { error } = await supabase.storage
+    .from(PHOTO_PRINT_BUCKET)
+    .upload(path, file, { contentType: file.type, upsert: true });
+  if (error) throw new Error(`Failed to upload photo: ${error.message}`);
+}
+
+/** Print-fulfillment staff use this rather than ever exposing the bucket publicly. */
+export async function getPhotoOrderFileSignedUrl(path: string, expiresInSeconds = 300): Promise<string> {
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase.storage
+    .from(PHOTO_PRINT_BUCKET)
+    .createSignedUrl(path, expiresInSeconds);
+  if (error || !data) throw new Error(`Failed to sign photo URL: ${error?.message ?? "unknown error"}`);
+  return data.signedUrl;
+}
+
+/** Called only once the print agent has confirmed the physical print actually came out — see app/api/print-agent/confirm-printed. */
+export async function deletePhotoOrderFiles(paths: string[]): Promise<void> {
+  if (paths.length === 0) return;
+  const supabase = createServiceRoleClient();
+  const { error } = await supabase.storage.from(PHOTO_PRINT_BUCKET).remove(paths);
+  if (error) throw new Error(`Failed to delete photo(s): ${error.message}`);
+}

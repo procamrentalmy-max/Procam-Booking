@@ -47,6 +47,7 @@ const updatePartnerSchema = z.object({
   commissionRate: z.coerce.number().min(0).max(1),
   status: z.enum(["ACTIVE", "INACTIVE"]),
   googleMapsUrl: z.string().url("Enter a valid URL").optional().or(z.literal("")),
+  photoPrintComplimentary: z.coerce.boolean(),
 });
 
 export async function updatePartnerAction(formData: FormData) {
@@ -55,6 +56,7 @@ export async function updatePartnerAction(formData: FormData) {
     commissionRate: formData.get("commissionRate"),
     status: formData.get("status"),
     googleMapsUrl: formData.get("googleMapsUrl"),
+    photoPrintComplimentary: formData.get("photoPrintComplimentary") === "on",
   });
   if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
 
@@ -65,6 +67,7 @@ export async function updatePartnerAction(formData: FormData) {
       commission_rate: parsed.data.commissionRate,
       status: parsed.data.status,
       google_maps_url: parsed.data.googleMapsUrl || null,
+      photo_print_complimentary: parsed.data.photoPrintComplimentary,
     })
     .eq("id", parsed.data.id);
   if (error) throw new Error(error.message);

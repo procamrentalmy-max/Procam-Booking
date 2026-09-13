@@ -8,6 +8,7 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
+/** Generic Stripe Elements checkout — shared by any flow that just needs to collect a card against a clientSecret (camera rental fee, photo print orders, ...). */
 export function PaymentForm({ clientSecret, returnUrl, locale }: { clientSecret: string; returnUrl: string; locale: Locale }) {
   return (
     <Elements stripe={stripePromise} options={{ clientSecret }}>

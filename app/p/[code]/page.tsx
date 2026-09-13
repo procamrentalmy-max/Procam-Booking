@@ -61,6 +61,18 @@ export default async function PartnerLandingPage({ params }: { params: Promise<{
             {dict.landing.noEquipment}
           </p>
         )}
+
+        {/* Not a rental_products row on purpose — printing has no pickup,
+            dropoff, or deposit, so it doesn't belong in the camera-rental
+            booking wizard. It's a distinct service, always offered
+            alongside whatever cameras are listed above. */}
+        <Link
+          href={`/p/${partner.referral_code}/print`}
+          className="block rounded-xl border border-zinc-200 p-4 hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
+        >
+          <p className="font-medium text-black dark:text-zinc-50">{dict.landing.printService.name}</p>
+          <p className="text-sm text-zinc-500">{dict.landing.printService.tagline}</p>
+        </Link>
       </div>
 
       <Link href="/terms" className="text-center text-xs text-zinc-400 underline underline-offset-2">

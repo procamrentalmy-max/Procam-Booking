@@ -46,6 +46,12 @@ export default async function StaffDashboard() {
       >
         My Next Stop
       </Link>
+      <Link
+        href="/staff/photo-orders"
+        className="flex h-12 items-center justify-center rounded-full border border-zinc-300 text-sm font-semibold dark:border-zinc-700"
+      >
+        Photo Print Orders
+      </Link>
 
       <Section title="Today's Pickups & Upcoming Bookings">
         {upcomingBookings?.length ? (

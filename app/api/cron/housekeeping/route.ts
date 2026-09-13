@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { promoteBookingToReadyForPickup } from "@/lib/booking/confirm";
 import { pruneOldConditionPhotos } from "@/lib/booking/photoRetention";
+import { expireUncollectedPickups } from "@/lib/photoPrint/expirePickups";
 import { PENDING_PAYMENT_TIMEOUT_MINUTES } from "@/lib/state-machine/booking";
 import { logAudit } from "@/lib/audit";
 
 /**
- * Three time-driven jobs that don't belong on any request path:
+ * Four time-driven jobs that don't belong on any request path:
  *
  * 1. Expire PENDING_PAYMENT bookings older than PENDING_PAYMENT_TIMEOUT_MINUTES
  *    and free the asset they were holding — otherwise an abandoned
@@ -18,6 +19,10 @@ import { logAudit } from "@/lib/audit";
  * 3. Prune condition photos beyond each camera's 5 most recent bookings
  *    (see lib/booking/photoRetention.ts) — the only thing in this schema
  *    that grows storage usage without bound.
+ * 4. Move DELIVERED photo print orders past their destroy_by deadline into
+ *    the wooden box (see lib/photoPrint/expirePickups.ts) — a backstop for
+ *    the primary per-visit sweep in app/staff/route/actions.ts, freeing
+ *    the numbered pickup slot they were occupying either way.
  *
  * Schedule this with Vercel Cron (vercel.json) or any external scheduler
  * hitting this URL every few minutes with the CRON_SECRET bearer token.
@@ -31,7 +36,7 @@ export async function GET(req: Request) {
   }
 
   const supabase = createServiceRoleClient();
-  const result = { expired: 0, promoted: 0, prunedPhotos: 0, errors: [] as string[] };
+  const result = { expired: 0, promoted: 0, prunedPhotos: 0, boxedPickups: 0, errors: [] as string[] };
 
   const staleCutoff = new Date(Date.now() - PENDING_PAYMENT_TIMEOUT_MINUTES * 60_000).toISOString();
   const { data: staleBookings } = await supabase
@@ -92,6 +97,14 @@ export async function GET(req: Request) {
     result.errors.push(...pruneResult.errors);
   } catch (err) {
     result.errors.push(`prune photos: ${(err as Error).message}`);
+  }
+
+  try {
+    const pickupResult = await expireUncollectedPickups();
+    result.boxedPickups = pickupResult.boxed;
+    result.errors.push(...pickupResult.errors);
+  } catch (err) {
+    result.errors.push(`box pickups: ${(err as Error).message}`);
   }
 
   return NextResponse.json(result);
