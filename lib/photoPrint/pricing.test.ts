@@ -8,8 +8,8 @@ describe("quotePhotoPrint", () => {
   });
 
   it("prices guest 4R orders at retail", () => {
-    expect(quotePhotoPrint("4R", 5, false)).toEqual({ billedTo: "GUEST", unitPriceMyr: 0.9, totalPriceMyr: 4.5 });
-    expect(quotePhotoPrint("4R", 10, false)).toEqual({ billedTo: "GUEST", unitPriceMyr: 0.75, totalPriceMyr: 7.5 });
+    expect(quotePhotoPrint("4R", 7, false)).toEqual({ billedTo: "GUEST", unitPriceMyr: 0.93, totalPriceMyr: 6.5 });
+    expect(quotePhotoPrint("4R", 10, false)).toEqual({ billedTo: "GUEST", unitPriceMyr: 0.9, totalPriceMyr: 9 });
   });
 
   it("bills 3R to the hotel when the partner offers complimentary printing", () => {
@@ -18,7 +18,12 @@ describe("quotePhotoPrint", () => {
   });
 
   it("still bills 4R to the guest even at a complimentary partner, since no 4R wholesale rate exists", () => {
-    expect(quotePhotoPrint("4R", 5, true)).toEqual({ billedTo: "GUEST", unitPriceMyr: 0.9, totalPriceMyr: 4.5 });
-    expect(quotePhotoPrint("4R", 10, true)).toEqual({ billedTo: "GUEST", unitPriceMyr: 0.75, totalPriceMyr: 7.5 });
+    expect(quotePhotoPrint("4R", 7, true)).toEqual({ billedTo: "GUEST", unitPriceMyr: 0.93, totalPriceMyr: 6.5 });
+    expect(quotePhotoPrint("4R", 10, true)).toEqual({ billedTo: "GUEST", unitPriceMyr: 0.9, totalPriceMyr: 9 });
+  });
+
+  it("throws for a quantity that isn't offered for the given size", () => {
+    expect(() => quotePhotoPrint("3R", 7, false)).toThrow(/isn't an offered print count/);
+    expect(() => quotePhotoPrint("4R", 5, false)).toThrow(/isn't an offered print count/);
   });
 });

@@ -111,7 +111,7 @@ export type PartnerRow = {
 };
 
 export type PhotoOrderSize = "3R" | "4R";
-export type PhotoOrderQuantity = 5 | 10;
+export type PhotoOrderQuantity = 5 | 7 | 10;
 export type PhotoOrderBilledTo = "GUEST" | "HOTEL";
 export type PhotoOrderStatus = "PENDING_PAYMENT" | "SUBMITTED" | "PRINTING" | "DELIVERED" | "EXPIRED" | "CANCELLED";
 

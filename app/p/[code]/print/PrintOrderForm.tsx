@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Locale } from "@/lib/i18n/locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { Brand } from "@/components/Brand";
-import { PHOTO_PRINT_QUANTITIES, PHOTO_PRINT_SIZES, quotePhotoPrint } from "@/lib/photoPrint/pricing";
+import { PHOTO_PRINT_QUANTITIES_BY_SIZE, PHOTO_PRINT_SIZES, quotePhotoPrint } from "@/lib/photoPrint/pricing";
 import type { PhotoOrderQuantity, PhotoOrderSize } from "@/lib/db/types";
 import { createPhotoOrderAction } from "./actions";
 import { CollageEditor } from "./CollageEditor";
@@ -54,8 +54,15 @@ export function PrintOrderForm({
   }
 
   function selectSize(next: PhotoOrderSize) {
+    // Each size offers its own print counts (e.g. 4R doesn't offer 5) — a
+    // quantity valid for the old size may not exist for the new one, so
+    // fall back to that size's first option rather than carry over a
+    // dead selection.
+    const validQuantities = PHOTO_PRINT_QUANTITIES_BY_SIZE[next];
+    const nextQuantity = validQuantities.includes(quantity) ? quantity : validQuantities[0];
     setSize(next);
-    setSlots(Array.from({ length: quantity }, () => null));
+    setQuantity(nextQuantity);
+    setSlots(Array.from({ length: nextQuantity }, () => null));
     setEditingIndex(null);
   }
 
@@ -170,7 +177,7 @@ export function PrintOrderForm({
               </thead>
               <tbody>
                 {PHOTO_PRINT_SIZES.map((s) =>
-                  PHOTO_PRINT_QUANTITIES.map((q) => {
+                  PHOTO_PRINT_QUANTITIES_BY_SIZE[s].map((q) => {
                     const rowQuote = quotePhotoPrint(s, q, complimentary);
                     return (
                       <tr key={`${s}-${q}`} className="border-t border-zinc-100 dark:border-zinc-800">
@@ -210,7 +217,7 @@ export function PrintOrderForm({
           <div className="space-y-2">
             <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">{t.chooseQuantity}</p>
             <div className="flex gap-2">
-              {PHOTO_PRINT_QUANTITIES.map((q) => (
+              {PHOTO_PRINT_QUANTITIES_BY_SIZE[size].map((q) => (
                 <button
                   key={q}
                   type="button"

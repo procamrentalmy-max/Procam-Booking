@@ -16,7 +16,7 @@ function generateSecureToken(): string {
 const schema = z.object({
   referralCode: z.string().min(1),
   size: z.enum(["3R", "4R"]),
-  quantity: z.enum(["5", "10"]).transform((v) => Number(v) as 5 | 10),
+  quantity: z.enum(["5", "7", "10"]).transform((v) => Number(v) as 5 | 7 | 10),
   customerName: z.string().min(1, "Name is required"),
   customerPhone: z.string().min(1, "Phone number is required"),
   customerEmail: z.string().email().optional().or(z.literal("")),
