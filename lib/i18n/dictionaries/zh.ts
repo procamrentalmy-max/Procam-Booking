@@ -39,15 +39,17 @@ export const zh: Dictionary = {
       booked: "预订已确认",
     },
     table: { duration: "时长", price: "价格" },
-    mode: { daytime: "日间", overnight: "过夜" },
+    mode: { daytime: "日间", overnight: "过夜", multiday: "多日" },
     hint: {
       overnight: "晚上10点取件，早上8点前归还 — 预订需至少提前2小时。",
       daytime: "先选择日期，再从时间表中选择开始和结束时间 — 预订需至少提前2小时。如果您想要的时段已被预订，我们会为您提供最接近的可用时段。",
+      multiday: "选择日期和开始时间，然后选择您需要的天数 — 预订需至少提前2小时。",
     },
     timetable: {
       tapStart: "点选开始时间",
       tapEnd: "现在点选结束时间",
       tapRestart: "点选任意时间可重新选择",
+      chooseDuration: "选择时长",
     },
     locations: {
       hint: "可在同一地点取件和还件，或选择不同地点进行单程租赁。",

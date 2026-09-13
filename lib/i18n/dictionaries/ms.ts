@@ -39,16 +39,19 @@ export const ms: Dictionary = {
       booked: "Tempahan Disahkan",
     },
     table: { duration: "Tempoh", price: "Harga" },
-    mode: { daytime: "Siang", overnight: "Semalaman" },
+    mode: { daytime: "Siang", overnight: "Semalaman", multiday: "Berbilang Hari" },
     hint: {
       overnight: "Ambil pada jam 10 malam, pulangkan sebelum jam 8 pagi — tempahan memerlukan sekurang-kurangnya 2 jam notis.",
       daytime:
         "Pilih tarikh, kemudian masa mula dan masa tamat daripada jadual waktu — tempahan memerlukan sekurang-kurangnya 2 jam notis. Jika slot pilihan anda tidak tersedia, kami akan tawarkan slot terdekat yang seterusnya.",
+      multiday:
+        "Pilih tarikh dan masa mula, kemudian pilih berapa hari yang anda perlukan — tempahan memerlukan sekurang-kurangnya 2 jam notis.",
     },
     timetable: {
       tapStart: "Ketik masa mula",
       tapEnd: "Kini ketik masa tamat",
       tapRestart: "Ketik mana-mana masa untuk mula semula",
+      chooseDuration: "Pilih tempoh",
     },
     locations: {
       hint: "Ambil dan pulangkan di lokasi yang sama, atau pilih lokasi berbeza untuk sewaan sehala.",

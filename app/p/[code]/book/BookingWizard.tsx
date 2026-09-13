@@ -27,6 +27,10 @@ type RentalPackage = {
 };
 
 type Step = "package" | "locations" | "contact" | "phone" | "verify" | "confirm" | "booked";
+type Mode = "daytime" | "overnight" | "multiday";
+
+/** Anything at or beyond a full day is offered as a multi-day duration pick, not the same-day start/end grid. */
+const MULTIDAY_THRESHOLD_MINUTES = 24 * 60;
 
 type LockerPartner = { id: string; name: string };
 
@@ -92,15 +96,23 @@ export function BookingWizard({
   const dict = getDictionary(locale);
   const t = dict.booking;
   const dateInputRef = useRef<HTMLInputElement>(null);
-  const daytimePackages = [...packages].filter((p) => !p.is_overnight).sort((a, b) => a.duration_minutes - b.duration_minutes);
+  const daytimePackages = [...packages]
+    .filter((p) => !p.is_overnight && p.duration_minutes < MULTIDAY_THRESHOLD_MINUTES)
+    .sort((a, b) => a.duration_minutes - b.duration_minutes);
+  const multidayPackages = [...packages]
+    .filter((p) => !p.is_overnight && p.duration_minutes >= MULTIDAY_THRESHOLD_MINUTES)
+    .sort((a, b) => a.duration_minutes - b.duration_minutes);
   const overnightPackage = packages.find((p) => p.is_overnight) ?? null;
 
   const [step, setStep] = useState<Step>("package");
-  const [mode, setMode] = useState<"daytime" | "overnight">(daytimePackages.length > 0 ? "daytime" : "overnight");
+  const [mode, setMode] = useState<Mode>(
+    daytimePackages.length > 0 ? "daytime" : overnightPackage ? "overnight" : "multiday"
+  );
   const initialDefault = defaultDateAndHour();
   const [date, setDate] = useState(initialDefault.date);
   const [startHour, setStartHour] = useState<number | null>(null);
   const [endHour, setEndHour] = useState<number | null>(null);
+  const [multidayPackageId, setMultidayPackageId] = useState<string>("");
   // Default to wherever the customer scanned in from — changeable to any
   // other active locker location for a one-way rental.
   const [pickupPartnerId, setPickupPartnerId] = useState(partnerId);
@@ -165,7 +177,9 @@ export function BookingWizard({
     startHour !== null && endHour !== null
       ? daytimePackages.find((p) => p.duration_minutes === (endHour - startHour) * 60)
       : undefined;
-  const selectedPackage = mode === "overnight" ? (overnightPackage ?? undefined) : daytimeSelectedPackage;
+  const multidaySelectedPackage = multidayPackages.find((p) => p.id === multidayPackageId);
+  const selectedPackage =
+    mode === "overnight" ? (overnightPackage ?? undefined) : mode === "multiday" ? multidaySelectedPackage : daytimeSelectedPackage;
   const packageId = selectedPackage?.id ?? "";
 
   /** Computed fresh at submit time — the server is the real authority; this is what we're requesting, not a guarantee. */
@@ -178,20 +192,27 @@ export function BookingWizard({
     return Number.isNaN(combined.getTime()) ? new Date() : combined;
   }
 
-  function selectMode(next: "daytime" | "overnight") {
+  function selectMode(next: Mode) {
     setMode(next);
     setStartHour(null);
     setEndHour(null);
+    setMultidayPackageId("");
   }
 
   /**
    * One shared set of hour slots for both ends of the range: the first tap
    * (or a tap once a range is already complete) sets the start; a second
    * tap on a later hour sets the end; a tap on an earlier hour restarts the
-   * range from there instead.
+   * range from there instead. In multi-day mode there's no end hour at all —
+   * the duration comes from a separately picked package, so a tap just sets
+   * the start.
    */
   function tapHour(h: number) {
     if (isHourUnavailable(h)) return;
+    if (mode === "multiday") {
+      setStartHour(h);
+      return;
+    }
     if (startHour === null || endHour !== null) {
       setStartHour(h);
       setEndHour(null);
@@ -368,7 +389,7 @@ export function BookingWizard({
                 </tr>
               </thead>
               <tbody>
-                {[...daytimePackages, ...(overnightPackage ? [overnightPackage] : [])].map((pkg) => (
+                {[...daytimePackages, ...(overnightPackage ? [overnightPackage] : []), ...multidayPackages].map((pkg) => (
                   <tr key={pkg.id} className="border-t border-zinc-100 dark:border-zinc-800">
                     <td className="px-4 py-2">{pkg.name}</td>
                     <td className="px-4 py-2 text-right font-semibold">RM{pkg.price_myr}</td>
@@ -378,35 +399,37 @@ export function BookingWizard({
             </table>
           </div>
 
-          {daytimePackages.length > 0 && overnightPackage && (
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => selectMode("daytime")}
-                className={`flex-1 rounded-full border py-2 text-sm font-medium ${
-                  mode === "daytime"
-                    ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-                    : "border-zinc-300 dark:border-zinc-700"
-                }`}
-              >
-                {t.mode.daytime}
-              </button>
-              <button
-                type="button"
-                onClick={() => selectMode("overnight")}
-                className={`flex-1 rounded-full border py-2 text-sm font-medium ${
-                  mode === "overnight"
-                    ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-                    : "border-zinc-300 dark:border-zinc-700"
-                }`}
-              >
-                {t.mode.overnight}
-              </button>
-            </div>
-          )}
+          {(() => {
+            const modeOptions: { key: Mode; label: string }[] = [
+              ...(daytimePackages.length > 0 ? [{ key: "daytime" as const, label: t.mode.daytime }] : []),
+              ...(overnightPackage ? [{ key: "overnight" as const, label: t.mode.overnight }] : []),
+              ...(multidayPackages.length > 0 ? [{ key: "multiday" as const, label: t.mode.multiday }] : []),
+            ];
+            if (modeOptions.length < 2) return null;
+            return (
+              <div className="flex gap-2">
+                {modeOptions.map((opt) => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => selectMode(opt.key)}
+                    className={`flex-1 rounded-full border py-2 text-sm font-medium ${
+                      mode === opt.key
+                        ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                        : "border-zinc-300 dark:border-zinc-700"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
 
           <div className="space-y-2">
-            <p className="text-xs text-zinc-500">{mode === "overnight" ? t.hint.overnight : t.hint.daytime}</p>
+            <p className="text-xs text-zinc-500">
+              {mode === "overnight" ? t.hint.overnight : mode === "multiday" ? t.hint.multiday : t.hint.daytime}
+            </p>
             <input
               ref={dateInputRef}
               type="date"
@@ -422,10 +445,16 @@ export function BookingWizard({
               className="w-full rounded-lg border border-zinc-300 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
             />
 
-            {mode === "daytime" && (
+            {(mode === "daytime" || mode === "multiday") && (
               <div>
                 <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-400">
-                  {startHour === null ? t.timetable.tapStart : endHour === null ? t.timetable.tapEnd : t.timetable.tapRestart}
+                  {mode === "multiday"
+                    ? t.timetable.tapStart
+                    : startHour === null
+                      ? t.timetable.tapStart
+                      : endHour === null
+                        ? t.timetable.tapEnd
+                        : t.timetable.tapRestart}
                 </p>
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                   {OPERATING_HOURS.map((h) => {
@@ -453,6 +482,28 @@ export function BookingWizard({
                       </button>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {mode === "multiday" && (
+              <div>
+                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-400">{t.timetable.chooseDuration}</p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  {multidayPackages.map((pkg) => (
+                    <button
+                      key={pkg.id}
+                      type="button"
+                      onClick={() => setMultidayPackageId(pkg.id)}
+                      className={`rounded-lg border py-2 text-sm ${
+                        multidayPackageId === pkg.id
+                          ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                          : "border-zinc-300 dark:border-zinc-700"
+                      }`}
+                    >
+                      {pkg.name} — RM{pkg.price_myr}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
