@@ -4,6 +4,8 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { formatDateTime } from "@/lib/i18n/locale";
+import { getLogoUrl } from "@/lib/branding";
+import { Brand } from "@/components/Brand";
 import { RatingPrompt } from "./RatingPrompt";
 
 const RATEABLE_STATUSES = ["AWAITING_INSPECTION", "INSPECTION", "DAMAGE_REVIEW", "COMPLETED"];
@@ -12,6 +14,7 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
   const { token } = await params;
   const locale = await getLocale();
   const dict = getDictionary(locale);
+  const logoUrl = await getLogoUrl();
   const supabase = createServiceRoleClient();
 
   const { data: booking } = await supabase
@@ -41,6 +44,10 @@ export default async function RentalDashboardPage({ params }: { params: Promise<
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
+      <div className="flex justify-center">
+        <Brand logoUrl={logoUrl} size={24} />
+      </div>
+
       <div className="text-center">
         <p className="text-xs uppercase tracking-wide text-zinc-400">{dict.dashboard.bookingLabel(booking.human_id)}</p>
         <h1 className="mt-1 text-2xl font-semibold text-black dark:text-zinc-50">

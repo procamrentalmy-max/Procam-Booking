@@ -4,11 +4,14 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { logFunnelEvent } from "@/lib/funnel";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLogoUrl } from "@/lib/branding";
+import { Brand } from "@/components/Brand";
 
 export default async function PartnerLandingPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const locale = await getLocale();
   const dict = getDictionary(locale);
+  const logoUrl = await getLogoUrl();
   const supabase = createServiceRoleClient();
 
   const { data: partner } = await supabase
@@ -40,9 +43,9 @@ export default async function PartnerLandingPage({ params }: { params: Promise<{
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
-      <div className="text-center">
-        <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">{dict.landing.brand}</h1>
-        <p className="mt-1 text-sm text-zinc-500">{dict.landing.equipmentRentalAt(partner.name)}</p>
+      <div className="flex flex-col items-center text-center">
+        <Brand logoUrl={logoUrl} size={36} />
+        <p className="mt-2 text-sm text-zinc-500">{dict.landing.equipmentRentalAt(partner.name)}</p>
       </div>
 
       <div className="space-y-3">

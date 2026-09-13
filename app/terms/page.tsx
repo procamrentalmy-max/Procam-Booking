@@ -1,8 +1,10 @@
 import { getLocale } from "@/lib/i18n/getLocale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getLogoUrl } from "@/lib/branding";
+import { Brand } from "@/components/Brand";
 
 export const metadata = {
-  title: "Terms & Conditions — ProCam",
+  title: "Terms & Conditions — ProCam Rental",
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -41,9 +43,12 @@ function renderParagraph(paragraph: string, privacyLinkText: string) {
 export default async function TermsPage() {
   const dict = getDictionary(await getLocale());
   const t = dict.terms;
+  const logoUrl = await getLogoUrl();
 
   return (
     <div className="mx-auto max-w-2xl space-y-8 px-6 py-10">
+      <Brand logoUrl={logoUrl} size={24} />
+
       <div>
         <h1 className="text-xl font-semibold text-black dark:text-zinc-50">{t.title}</h1>
         <p className="mt-1 text-sm text-zinc-500">{t.lastUpdated}</p>

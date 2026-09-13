@@ -7,6 +7,7 @@ import { DiditSdk } from "@didit-protocol/sdk-web";
 import type { Locale } from "@/lib/i18n/locale";
 import { formatDateTime } from "@/lib/i18n/locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
+import { Brand } from "@/components/Brand";
 import {
   startKycAction,
   confirmKycAction,
@@ -64,6 +65,7 @@ function formatHour(hour: number): string {
 
 export function BookingWizard({
   locale,
+  logoUrl,
   partnerId,
   referralCode,
   productId,
@@ -75,6 +77,7 @@ export function BookingWizard({
   termsBody,
 }: {
   locale: Locale;
+  logoUrl: string | null;
   partnerId: string;
   referralCode: string;
   productId: string;
@@ -337,6 +340,10 @@ export function BookingWizard({
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
+      <div className="flex justify-center">
+        <Brand logoUrl={logoUrl} size={22} />
+      </div>
+
       <h1 className="text-center text-xl font-semibold text-black dark:text-zinc-50">
         {step === "package" && productName}
         {step === "locations" && t.stepTitles.locations}

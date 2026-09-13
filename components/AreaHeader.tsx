@@ -1,12 +1,23 @@
 import Link from "next/link";
 import { signOutAction } from "@/lib/auth/actions";
+import { Brand } from "@/components/Brand";
 
-export function AreaHeader({ title, name, homeHref }: { title: string; name: string; homeHref?: string }) {
+export function AreaHeader({
+  title,
+  name,
+  homeHref,
+  logoUrl,
+}: {
+  title: string;
+  name: string;
+  homeHref?: string;
+  logoUrl: string | null;
+}) {
   return (
     <header className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
       <div>
-        <p className="text-sm font-semibold text-black dark:text-zinc-50">ProCam</p>
-        <p className="text-xs text-zinc-500">{title}</p>
+        <Brand logoUrl={logoUrl} href={homeHref ?? "/"} size={20} />
+        <p className="mt-0.5 text-xs text-zinc-500">{title}</p>
       </div>
       <div className="flex items-center gap-3">
         {homeHref && (

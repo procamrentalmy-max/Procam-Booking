@@ -461,6 +461,12 @@ export type NotificationRow = {
   created_at: string;
 };
 
+export type SiteSettingsRow = {
+  id: 1;
+  logo_path: string | null;
+  updated_at: string;
+};
+
 type TableDef<Row> = { Row: Row; Insert: Partial<Row>; Update: Partial<Row>; Relationships: [] };
 
 export interface Database {
@@ -499,6 +505,7 @@ export interface Database {
       asset_events: TableDef<AssetEventRow>;
       audit_logs: TableDef<AuditLogRow>;
       notifications: TableDef<NotificationRow>;
+      site_settings: TableDef<SiteSettingsRow>;
     };
     Views: Record<string, never>;
     Functions: {
