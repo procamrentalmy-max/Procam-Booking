@@ -67,12 +67,27 @@ function formatHour(hour: number): string {
   return `${displayHour}:00 ${period}`;
 }
 
+/**
+ * How many drone batteries a package comes packed with — a flat 1/2/4
+ * tiered rule, not one per hour: each battery is only good for ~12-15
+ * minutes of actual flight, so beyond a 3-hour rental more batteries stop
+ * being the bottleneck (the customer can recharge a spent one on the
+ * provided USB-C cable during downtime) and 4 is the practical cap for
+ * every longer daytime, overnight, and multi-day package alike.
+ */
+function droneBatteryCount(durationMinutes: number): number {
+  if (durationMinutes <= 60) return 1;
+  if (durationMinutes <= 120) return 2;
+  return 4;
+}
+
 export function BookingWizard({
   locale,
   logoUrl,
   partnerId,
   referralCode,
   productId,
+  productSlug,
   productName,
   requiresPhoneCompatibility,
   packages,
@@ -85,6 +100,7 @@ export function BookingWizard({
   partnerId: string;
   referralCode: string;
   productId: string;
+  productSlug: string;
   productName: string;
   requiresPhoneCompatibility: boolean;
   packages: RentalPackage[];
@@ -96,6 +112,10 @@ export function BookingWizard({
   const dict = getDictionary(locale);
   const t = dict.booking;
   const dateInputRef = useRef<HTMLInputElement>(null);
+  // Only the DJI Neo 2 ships with swappable batteries as part of the kit —
+  // the Insta360 doesn't offer mid-rental battery swaps at all (see its own
+  // product instructions), so this note/badge is drone-specific.
+  const isDrone = productSlug.includes("dji");
   const daytimePackages = [...packages]
     .filter((p) => !p.is_overnight && p.duration_minutes < MULTIDAY_THRESHOLD_MINUTES)
     .sort((a, b) => a.duration_minutes - b.duration_minutes);
@@ -454,13 +474,22 @@ export function BookingWizard({
               <tbody>
                 {[...daytimePackages, ...(overnightPackage ? [overnightPackage] : []), ...multidayPackages].map((pkg) => (
                   <tr key={pkg.id} className="border-t border-zinc-100 dark:border-zinc-800">
-                    <td className="px-4 py-2">{pkg.name}</td>
+                    <td className="px-4 py-2">
+                      {pkg.name}
+                      {isDrone && (
+                        <span className="block text-xs text-zinc-400">
+                          {t.droneComesWith(droneBatteryCount(pkg.duration_minutes))}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-2 text-right font-semibold">RM{pkg.price_myr}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+          {isDrone && <p className="text-xs text-zinc-500">{t.droneBatteryNote}</p>}
 
           {(() => {
             const modeOptions: { key: Mode; label: string }[] = [
@@ -577,6 +606,9 @@ export function BookingWizard({
             <div className="rounded-lg bg-zinc-50 p-3 text-center dark:bg-zinc-900">
               <p className="text-sm text-zinc-500">{selectedPackage.name}</p>
               <p className="text-lg font-semibold text-black dark:text-zinc-50">RM{selectedPackage.price_myr}</p>
+              {isDrone && (
+                <p className="text-xs text-zinc-400">{t.droneComesWith(droneBatteryCount(selectedPackage.duration_minutes))}</p>
+              )}
             </div>
           )}
 

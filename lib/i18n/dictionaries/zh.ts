@@ -107,6 +107,9 @@ export const zh: Dictionary = {
       booked: "预订已确认",
     },
     table: { duration: "时长", price: "价格" },
+    // TODO: translate — added 2026-09-14, English placeholder per instruction not to self-translate new text.
+    droneBatteryNote: "NOTE: 1 full battery powers about 12–15 minutes of flight.",
+    droneComesWith: (count: number) => `Comes with ${count} batter${count === 1 ? "y" : "ies"}`,
     mode: { daytime: "日间", overnight: "过夜", multiday: "多日" },
     hint: {
       overnight: "晚上9点取件，早上8点前归还 — 预订需至少提前2小时。",

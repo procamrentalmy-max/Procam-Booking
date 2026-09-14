@@ -106,6 +106,8 @@ export const en = {
       booked: "Booking Confirmed",
     },
     table: { duration: "Duration", price: "Price" },
+    droneBatteryNote: "NOTE: 1 full battery powers about 12–15 minutes of flight.",
+    droneComesWith: (count: number) => `Comes with ${count} batter${count === 1 ? "y" : "ies"}`,
     mode: { daytime: "Daytime", overnight: "Overnight", multiday: "Multi-Day" },
     hint: {
       overnight: "Pick up at 9pm, return by 8am — bookings need at least 2 hours of notice.",

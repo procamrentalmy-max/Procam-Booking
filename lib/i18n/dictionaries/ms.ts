@@ -108,6 +108,9 @@ export const ms: Dictionary = {
       booked: "Tempahan Disahkan",
     },
     table: { duration: "Tempoh", price: "Harga" },
+    // TODO: translate — added 2026-09-14, English placeholder per instruction not to self-translate new text.
+    droneBatteryNote: "NOTE: 1 full battery powers about 12–15 minutes of flight.",
+    droneComesWith: (count: number) => `Comes with ${count} batter${count === 1 ? "y" : "ies"}`,
     mode: { daytime: "Siang", overnight: "Semalaman", multiday: "Berbilang Hari" },
     hint: {
       overnight: "Ambil pada jam 9 malam, pulangkan sebelum jam 8 pagi — tempahan memerlukan sekurang-kurangnya 2 jam notis.",

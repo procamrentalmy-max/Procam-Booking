@@ -33,7 +33,7 @@ export default async function BookPage({
 
   const { data: product } = await supabase
     .from("rental_products")
-    .select("id,customer_facing_name,requires_phone_compatibility")
+    .select("id,slug,customer_facing_name,requires_phone_compatibility")
     .eq("id", productId)
     .eq("active", true)
     .maybeSingle();
@@ -62,6 +62,7 @@ export default async function BookPage({
       partnerId={partner.id}
       referralCode={partner.referral_code}
       productId={product.id}
+      productSlug={product.slug}
       productName={product.customer_facing_name}
       requiresPhoneCompatibility={product.requires_phone_compatibility}
       packages={packages ?? []}
