@@ -109,7 +109,12 @@ export const zh: Dictionary = {
     table: { duration: "时长", price: "价格" },
     // TODO: translate — added 2026-09-14, English placeholder per instruction not to self-translate new text.
     droneBatteryNote: "NOTE: 1 full battery powers about 12–15 minutes of flight.",
-    droneComesWith: (count: number) => `Comes with ${count} batter${count === 1 ? "y" : "ies"}`,
+    droneBatteryTip: "Recommended: keep 2 batteries charging in your hotel room, bring the other 2 out with you, and swap when you head back.",
+    droneComesWith: (count: number) => {
+      if (count === 2) return "Comes with 2 batteries (30 minutes flight time)";
+      if (count === 4) return "Comes with 4 batteries + 3-slot battery charger";
+      return `Comes with ${count} batter${count === 1 ? "y" : "ies"}`;
+    },
     mode: { daytime: "日间", overnight: "过夜", multiday: "多日" },
     hint: {
       overnight: "晚上9点取件，早上8点前归还 — 预订需至少提前2小时。",

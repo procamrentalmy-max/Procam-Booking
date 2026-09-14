@@ -107,7 +107,12 @@ export const en = {
     },
     table: { duration: "Duration", price: "Price" },
     droneBatteryNote: "NOTE: 1 full battery powers about 12–15 minutes of flight.",
-    droneComesWith: (count: number) => `Comes with ${count} batter${count === 1 ? "y" : "ies"}`,
+    droneBatteryTip: "Recommended: keep 2 batteries charging in your hotel room, bring the other 2 out with you, and swap when you head back.",
+    droneComesWith: (count: number) => {
+      if (count === 2) return "Comes with 2 batteries (30 minutes flight time)";
+      if (count === 4) return "Comes with 4 batteries + 3-slot battery charger";
+      return `Comes with ${count} batter${count === 1 ? "y" : "ies"}`;
+    },
     mode: { daytime: "Daytime", overnight: "Overnight", multiday: "Multi-Day" },
     hint: {
       overnight: "Pick up at 9pm, return by 8am — bookings need at least 2 hours of notice.",

@@ -462,7 +462,12 @@ export function BookingWizard({
 
       {step === "package" && (
         <div className="space-y-5">
-          {isDrone && <p className="text-xs text-zinc-500">{t.droneBatteryNote}</p>}
+          {isDrone && (
+            <div className="space-y-1">
+              <p className="text-xs text-zinc-500">{t.droneBatteryNote}</p>
+              <p className="text-xs text-zinc-500">{t.droneBatteryTip}</p>
+            </div>
+          )}
 
           {/* Price chart — reference only; the actual pick happens in the timetable below. Full list, no scrolling. */}
           <div className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
