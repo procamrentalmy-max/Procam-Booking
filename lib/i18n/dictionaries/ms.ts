@@ -28,6 +28,12 @@ export const ms: Dictionary = {
     equipmentRentalAt: (partnerName: string) => `Sewaan peralatan di ${partnerName}`,
     noEquipment: "Tiada peralatan disediakan di lokasi ini buat masa ini.",
     usp: "🏨 Dihantar ke hotel anda — ambil dan pulangkan di sini juga, tanpa perlu ke kedai.",
+    // TODO: translate — added 2026-09-14, English placeholder per instruction not to self-translate new text.
+    categories: {
+      drones: "Drones",
+      cameras: "Cameras",
+      photos: "Photos",
+    },
     printService: {
       name: "Cetak Gambar Saya",
       tagline: "Muat naik dari telefon anda — dicetak & dihantar ke hotel anda",

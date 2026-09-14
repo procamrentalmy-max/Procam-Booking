@@ -28,6 +28,12 @@ export const zh: Dictionary = {
     equipmentRentalAt: (partnerName: string) => `${partnerName} 的设备租赁`,
     noEquipment: "此地点目前尚未提供任何设备。",
     usp: "🏨 直接送到您的酒店 — 在这里取件和还件，无需前往门店。",
+    // TODO: translate — added 2026-09-14, English placeholder per instruction not to self-translate new text.
+    categories: {
+      drones: "Drones",
+      cameras: "Cameras",
+      photos: "Photos",
+    },
     printService: {
       name: "照片冲印",
       tagline: "从手机上传照片 — 冲印后送到您的酒店",

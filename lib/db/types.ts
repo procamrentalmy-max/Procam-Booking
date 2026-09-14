@@ -215,6 +215,9 @@ export type BookingAcknowledgementRow = {
   agreed_at: string;
 };
 
+/** Groups products on the customer landing page — the print service isn't a rental_products row at all, so it isn't part of this. */
+export type ProductCategory = "DRONE" | "CAMERA";
+
 export type RentalProductRow = {
   id: string;
   slug: string;
@@ -225,6 +228,9 @@ export type RentalProductRow = {
   asset_prefix: string;
   uses_batteries: boolean;
   requires_phone_compatibility: boolean;
+  category: ProductCategory;
+  /** Storage key in the product-images bucket — resolve with lib/storage.ts's getProductImageUrl. Null until an admin uploads one. */
+  image_path: string | null;
   active: boolean;
   created_at: string;
   updated_at: string;

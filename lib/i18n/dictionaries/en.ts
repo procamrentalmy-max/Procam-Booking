@@ -26,6 +26,11 @@ export const en = {
     equipmentRentalAt: (partnerName: string) => `Equipment rental at ${partnerName}`,
     noEquipment: "No equipment is currently set up at this property.",
     usp: "🏨 Delivered to your hotel — pick up and drop off right here, no shop visit needed.",
+    categories: {
+      drones: "Drones",
+      cameras: "Cameras",
+      photos: "Photos",
+    },
     printService: {
       name: "Print My Photos",
       tagline: "Upload from your phone — printed & delivered to your hotel",

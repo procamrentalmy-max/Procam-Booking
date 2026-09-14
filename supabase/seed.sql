@@ -9,10 +9,10 @@ insert into partners (id, name, address, commission_rate, referral_code, status,
   ('00000000-0000-0000-0000-000000000005', 'Kuah Jetty Locker', 'Kuah Town, Langkawi', 0.20, 'LGK-KUA', 'ACTIVE', 'LOCKER'),
   ('00000000-0000-0000-0000-000000000006', 'Airport Locker', 'Langkawi International Airport', 0.20, 'LGK-AIR', 'ACTIVE', 'LOCKER');
 
-insert into rental_products (id, slug, internal_name, customer_facing_name, tagline, asset_prefix, uses_batteries, requires_phone_compatibility) values
-  ('40000000-0000-0000-0000-000000000001', 'insta360-adventure-camera', 'Insta360 X4 Air', 'Insta360 X4 Air', 'Capture your whole adventure.', 'CAM', true, false),
-  ('40000000-0000-0000-0000-000000000002', 'sealife-sportdiver-ultra', 'SeaLife SportDiver Ultra', 'Underwater Phone Camera', 'Use your own phone underwater.', 'SDU', false, true),
-  ('40000000-0000-0000-0000-000000000003', 'dji-neo-2-mini-drone', 'DJI Neo 2', 'DJI Neo 2', 'Fly it with just your phone — no license, no controller needed.', 'DRN', true, false);
+insert into rental_products (id, slug, internal_name, customer_facing_name, tagline, asset_prefix, uses_batteries, requires_phone_compatibility, category) values
+  ('40000000-0000-0000-0000-000000000001', 'insta360-adventure-camera', 'Insta360 X4 Air', 'Insta360 X4 Air', 'Capture your whole adventure.', 'CAM', true, false, 'CAMERA'),
+  ('40000000-0000-0000-0000-000000000002', 'sealife-sportdiver-ultra', 'SeaLife SportDiver Ultra', 'Underwater Phone Camera', 'Use your own phone underwater.', 'SDU', false, true, 'CAMERA'),
+  ('40000000-0000-0000-0000-000000000003', 'dji-neo-2-mini-drone', 'DJI Neo 2', 'DJI Neo 2', 'Fly it with just your phone — no license, no controller needed.', 'DRN', true, false, 'DRONE');
 
 -- Original reception-model packages — kept as inactive historical rows
 -- rather than deleted (no bookings ever referenced them). Reception is

@@ -76,3 +76,34 @@ export async function deletePhotoOrderFiles(paths: string[]): Promise<void> {
   const { error } = await supabase.storage.from(PHOTO_PRINT_BUCKET).remove(paths);
   if (error) throw new Error(`Failed to delete photo(s): ${error.message}`);
 }
+
+// Public bucket (0033_product_images_and_category.sql) — same reasoning as
+// branding.ts's logo bucket: the customer landing page renders with no
+// Supabase session at all, so this has to resolve to a URL without a
+// signed-URL round trip.
+const PRODUCT_IMAGES_BUCKET = "product-images";
+
+export function productImagePath(productId: string, file: File): string {
+  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  return `${productId}.${ext}`;
+}
+
+export async function uploadProductImage(path: string, file: File): Promise<void> {
+  const supabase = createServiceRoleClient();
+  const { error } = await supabase.storage
+    .from(PRODUCT_IMAGES_BUCKET)
+    .upload(path, file, { contentType: file.type, upsert: true });
+  if (error) throw new Error(`Failed to upload image: ${error.message}`);
+}
+
+export async function deleteProductImage(path: string): Promise<void> {
+  const supabase = createServiceRoleClient();
+  await supabase.storage.from(PRODUCT_IMAGES_BUCKET).remove([path]);
+}
+
+/** The landing page and admin product screen both use this — never a signed URL, the bucket is public. */
+export function getProductImageUrl(imagePath: string): string {
+  const supabase = createServiceRoleClient();
+  const { data } = supabase.storage.from(PRODUCT_IMAGES_BUCKET).getPublicUrl(imagePath);
+  return data.publicUrl;
+}
