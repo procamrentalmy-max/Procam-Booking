@@ -3,6 +3,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { createRentalFeePaymentIntent } from "@/lib/stripe/rental";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
+import { computeDepositTotalMyr } from "@/lib/booking/powerBankRules";
 import { PaymentForm } from "@/components/PaymentForm";
 import { devBypassPaymentAction } from "./actions";
 
@@ -14,7 +15,7 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("id,status,rental_package_id")
+    .select("id,status,rental_package_id,battery_id")
     .eq("secure_token", token)
     .maybeSingle();
   if (!booking) notFound();
@@ -25,6 +26,7 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
     .select("name,price_myr,deposit_myr")
     .eq("id", booking.rental_package_id)
     .single();
+  const depositMyr = computeDepositTotalMyr(pkg?.deposit_myr ?? 0, booking.battery_id !== null);
 
   // Stripe isn't configured with a real key in this environment yet — the
   // dev bypass button below still needs the page to render.
@@ -39,7 +41,7 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
       <div className="text-center">
         <h1 className="text-xl font-semibold text-black dark:text-zinc-50">{dict.pay.title}</h1>
-        <p className="mt-1 text-sm text-zinc-500">{dict.pay.summary(pkg?.name ?? "", pkg?.price_myr ?? 0, pkg?.deposit_myr ?? 0)}</p>
+        <p className="mt-1 text-sm text-zinc-500">{dict.pay.summary(pkg?.name ?? "", pkg?.price_myr ?? 0, depositMyr)}</p>
       </div>
       {clientSecret ? (
         <PaymentForm clientSecret={clientSecret} returnUrl={`${process.env.NEXT_PUBLIC_APP_URL}/r/${token}`} locale={locale} />

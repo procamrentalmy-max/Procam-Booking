@@ -1,6 +1,7 @@
 import "server-only";
 import { getStripe, toCents } from "./client";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { computeDepositTotalMyr } from "@/lib/booking/powerBankRules";
 
 /**
  * Places the security deposit hold: a second PaymentIntent, on the same
@@ -29,7 +30,7 @@ export async function createAndConfirmDepositIntent(bookingId: string): Promise<
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("customer_id,rental_package_id")
+    .select("customer_id,rental_package_id,battery_id")
     .eq("id", bookingId)
     .single();
   if (!booking) throw new Error(`Booking ${bookingId} not found`);
@@ -57,8 +58,10 @@ export async function createAndConfirmDepositIntent(bookingId: string): Promise<
     typeof rentalFeeIntent.payment_method === "string" ? rentalFeeIntent.payment_method : rentalFeeIntent.payment_method?.id;
   if (!paymentMethodId) throw new Error("No saved payment method to place the deposit hold on.");
 
+  const totalDepositMyr = computeDepositTotalMyr(pkg.deposit_myr, booking.battery_id !== null);
+
   const depositIntent = await stripe.paymentIntents.create({
-    amount: toCents(pkg.deposit_myr),
+    amount: toCents(totalDepositMyr),
     currency: "myr",
     customer: customer.stripe_customer_id,
     payment_method: paymentMethodId,
@@ -72,7 +75,7 @@ export async function createAndConfirmDepositIntent(bookingId: string): Promise<
     booking_id: bookingId,
     provider: "stripe",
     provider_ref: depositIntent.id,
-    amount_myr: pkg.deposit_myr,
+    amount_myr: totalDepositMyr,
     status: "AUTHORIZED",
   });
 }

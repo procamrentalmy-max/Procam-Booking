@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { packageNeedsPowerBank } from "./powerBankRules";
+import { packageNeedsPowerBank, computeDepositTotalMyr } from "./powerBankRules";
 
 describe("packageNeedsPowerBank", () => {
   it("is false under 3 hours even for the drone", () => {
@@ -16,5 +16,15 @@ describe("packageNeedsPowerBank", () => {
   it("is false for every other product regardless of duration", () => {
     expect(packageNeedsPowerBank("insta360-adventure-camera", 1440)).toBe(false);
     expect(packageNeedsPowerBank("sealife-sportdiver-ultra", 1440)).toBe(false);
+  });
+});
+
+describe("computeDepositTotalMyr", () => {
+  it("is just the package deposit when there's no power bank", () => {
+    expect(computeDepositTotalMyr(300, false)).toBe(300);
+  });
+
+  it("adds the RM100 power bank surcharge on top of the package deposit", () => {
+    expect(computeDepositTotalMyr(300, true)).toBe(400);
   });
 });

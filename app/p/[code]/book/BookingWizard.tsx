@@ -7,6 +7,7 @@ import { DiditSdk } from "@didit-protocol/sdk-web";
 import type { Locale } from "@/lib/i18n/locale";
 import { formatDateTime } from "@/lib/i18n/locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
+import { packageNeedsPowerBank, computeDepositTotalMyr } from "@/lib/booking/powerBankRules";
 import { Brand } from "@/components/Brand";
 import {
   startKycAction,
@@ -798,7 +799,11 @@ export function BookingWizard({
                 t.confirm.dropoffSuffix(lockerPartners.find((p) => p.id === dropoffPartnerId)?.name ?? "—")}
             </p>
             <p className="text-sm text-zinc-500">{t.confirm.rentalFee(selectedPackage.price_myr)}</p>
-            <p className="text-sm text-zinc-500">{t.confirm.deposit(selectedPackage.deposit_myr)}</p>
+            <p className="text-sm text-zinc-500">
+              {t.confirm.deposit(
+                computeDepositTotalMyr(selectedPackage.deposit_myr, packageNeedsPowerBank(productSlug, selectedPackage.duration_minutes))
+              )}
+            </p>
           </div>
 
           {termsBody && (

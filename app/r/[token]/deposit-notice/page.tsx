@@ -4,6 +4,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { logFunnelEvent } from "@/lib/funnel";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
+import { computeDepositTotalMyr } from "@/lib/booking/powerBankRules";
 import { acknowledgeDepositNoticeAction } from "./actions";
 
 /**
@@ -21,7 +22,7 @@ export default async function DepositNoticePage({ params }: { params: Promise<{ 
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("status,partner_id,rental_package_id")
+    .select("status,partner_id,rental_package_id,battery_id")
     .eq("secure_token", token)
     .maybeSingle();
   if (!booking) notFound();
@@ -31,6 +32,8 @@ export default async function DepositNoticePage({ params }: { params: Promise<{ 
     supabase.from("rental_packages").select("deposit_myr,product_id").eq("id", booking.rental_package_id).single(),
     supabase.from("partners").select("referral_code").eq("id", booking.partner_id).single(),
   ]);
+
+  const depositMyr = computeDepositTotalMyr(pkg?.deposit_myr ?? 0, booking.battery_id !== null);
 
   await logFunnelEvent("DEPOSIT_NOTICE_VIEWED", booking.partner_id);
 
@@ -48,7 +51,7 @@ export default async function DepositNoticePage({ params }: { params: Promise<{ 
       </div>
 
       <div className="space-y-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-        <p>{dict.depositNotice.body(pkg?.deposit_myr ?? 0)}</p>
+        <p>{dict.depositNotice.body(depositMyr)}</p>
         <p>{dict.depositNotice.cardHint}</p>
       </div>
 
@@ -57,7 +60,7 @@ export default async function DepositNoticePage({ params }: { params: Promise<{ 
         <input type="hidden" name="locale" value={locale} />
         <label className="flex items-start gap-2 text-sm text-zinc-600 dark:text-zinc-400">
           <input type="checkbox" name="ack" value="true" required className="mt-1" />
-          <span>{dict.depositNotice.acknowledge(pkg?.deposit_myr ?? 0)}</span>
+          <span>{dict.depositNotice.acknowledge(depositMyr)}</span>
         </label>
         <button
           type="submit"
