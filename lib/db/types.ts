@@ -330,6 +330,8 @@ export type BatteryRow = {
   human_id: string;
   partner_id: string | null;
   status: BatteryStatus;
+  /** When a CHARGING (cooldown) battery becomes assignable again. Null for every other status. */
+  cooldown_until: string | null;
   created_at: string;
   updated_at: string;
 };

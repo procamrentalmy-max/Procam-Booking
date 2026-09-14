@@ -110,7 +110,7 @@ export const en = {
     droneBatteryTip: "Recommended: keep 2 batteries charging in your hotel room, bring the other 2 out with you, and swap when you head back.",
     droneComesWith: (count: number) => {
       if (count === 2) return "Comes with 2 batteries (30 minutes flight time)";
-      if (count === 4) return "Comes with 4 batteries + 3-slot battery charger";
+      if (count === 4) return "Comes with 4 batteries + 3-slot battery charger + Powerbank";
       return `Comes with ${count} batter${count === 1 ? "y" : "ies"}`;
     },
     mode: { daytime: "Daytime", overnight: "Overnight", multiday: "Multi-Day" },

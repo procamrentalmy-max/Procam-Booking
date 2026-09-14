@@ -6,6 +6,7 @@ import { uploadEvidencePhoto, conditionPhotoPath } from "@/lib/storage";
 import { assertValidBookingTransition } from "@/lib/state-machine/booking";
 import { getCheckTemplates, getBookingProductId } from "@/lib/booking/checkTemplates";
 import { computeLateFeeMyr } from "@/lib/booking/lateFee";
+import { releasePowerBankForCooldown } from "@/lib/booking/powerBank";
 import { logAudit } from "@/lib/audit";
 import type { BookingStatus } from "@/lib/db/types";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -45,7 +46,7 @@ export async function submitReturnConditionCheckAction(formData: FormData) {
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("id,status,asset_id,rental_package_id,end_time,dropoff_partner_id")
+    .select("id,status,asset_id,rental_package_id,end_time,dropoff_partner_id,battery_id")
     .eq("secure_token", token)
     .maybeSingle();
   if (!booking) throw new Error(fullDict.common.bookingNotFound);
@@ -152,4 +153,11 @@ export async function submitReturnConditionCheckAction(formData: FormData) {
     .update({ partner_id: booking.dropoff_partner_id })
     .eq("id", booking.asset_id);
   if (locationError) throw new Error(locationError.message);
+
+  // Same "customer's own submission is the only signal we have" logic as
+  // the camera above applies to a bundled power bank — this is where it
+  // starts its cooldown instead of going straight back into the pool.
+  if (booking.battery_id) {
+    await releasePowerBankForCooldown(supabase, booking.battery_id);
+  }
 }

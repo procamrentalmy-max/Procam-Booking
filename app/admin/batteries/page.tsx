@@ -62,6 +62,11 @@ export default async function BatteriesPage() {
             <span className="text-xs text-zinc-400">
               {battery.partner_id ? partnerName.get(battery.partner_id) : "—"}
             </span>
+            {battery.status === "CHARGING" && battery.cooldown_until && (
+              <span className="text-xs text-amber-600 dark:text-amber-400">
+                Cooldown until {new Date(battery.cooldown_until).toLocaleString()}
+              </span>
+            )}
           </form>
         ))}
       </section>

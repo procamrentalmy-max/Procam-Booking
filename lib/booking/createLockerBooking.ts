@@ -9,6 +9,7 @@ import {
 } from "@/lib/locker-engine/bookingGate";
 import { isImminent } from "@/lib/state-machine/booking";
 import { logDemandSignal } from "@/lib/demandSignals";
+import { assignPowerBankIfNeeded } from "./powerBank";
 import type { BookingRow, BookingSource } from "@/lib/db/types";
 
 export { InvalidBookingRequestError };
@@ -135,6 +136,17 @@ export async function createPendingLockerBooking(params: {
       await supabase.from("bookings").delete().eq("id", booking.id);
       throw new Error(transitionError.message);
     }
+  }
+
+  // Best-effort add-on, never a reason to fail a booking that's already
+  // been created — see lib/booking/powerBank.ts for why. Deliberately
+  // last: everything above this point can still roll back the booking
+  // (delete the row) on failure, and a power bank assigned before that
+  // rollback would be left stuck DEPLOYED with no booking left to ever
+  // return it and release it.
+  const { data: product } = await supabase.from("rental_products").select("slug").eq("id", pkg.product_id).single();
+  if (product) {
+    await assignPowerBankIfNeeded(supabase, booking.id, product.slug, pkg.duration_minutes);
   }
 
   return booking;
