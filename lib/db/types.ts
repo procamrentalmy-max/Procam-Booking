@@ -19,7 +19,7 @@
 
 export type PartnerStatus = "ACTIVE" | "INACTIVE";
 export type PickupMethod = "RECEPTION" | "LOCKER";
-export type StaffRole = "PROCAM_STAFF" | "ADMIN";
+export type StaffRole = "PROCAM_STAFF" | "ADMIN" | "DRONE_MERCHANT";
 export type IdentityVerificationMethod = "WHATSAPP_OTP" | "SMS_OTP" | "DIDIT_KYC";
 export type IdentityVerificationStatus = "PENDING" | "VERIFIED" | "FAILED";
 
@@ -532,6 +532,147 @@ export type SiteSettingsRow = {
   updated_at: string;
 };
 
+// ============================================================================
+// DRONE RENTAL (merchant-mediated vertical — see
+// supabase/migrations/0035_drone_rental_schema.sql)
+// ============================================================================
+
+export type DrDroneStatus = "AVAILABLE" | "RENTED" | "MAINTENANCE" | "LOST" | "RETIRED";
+export type DrBatteryStatus = "AT_SHOP" | "WITH_CUSTOMER" | "MAINTENANCE" | "LOST" | "RETIRED";
+export type DrBookingStatus = "PENDING_PAYMENT" | "CONFIRMED" | "ACTIVE" | "COMPLETED" | "CANCELLED" | "EXPIRED";
+export type DrBookingSource = "ONLINE" | "MERCHANT_INSTANT";
+export type DrDepositOutcome = "NONE" | "DAMAGED" | "LOST";
+export type DrPaymentKind = "RENTAL_FEE" | "BATTERY_SWAP_FEE" | "LATE_FEE";
+export type DrChecklistPhase = "PICKUP" | "RETURN";
+
+export type DrShopRow = {
+  id: string;
+  human_id: string;
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  google_maps_url: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DrMerchantShopRow = {
+  staff_user_id: string;
+  shop_id: string;
+  created_at: string;
+};
+
+export type DrDroneRow = {
+  id: string;
+  human_id: string;
+  shop_id: string;
+  model: string;
+  serial_number: string | null;
+  cost_price_myr: number;
+  status: DrDroneStatus;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DrBatteryRow = {
+  id: string;
+  human_id: string;
+  drone_id: string;
+  status: DrBatteryStatus;
+  current_booking_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DrBookingRow = {
+  id: string;
+  human_id: string;
+  secure_token: string;
+  customer_id: string;
+  shop_id: string;
+  drone_id: string;
+  status: DrBookingStatus;
+  start_time: string;
+  end_time: string;
+  actual_pickup_time: string | null;
+  actual_return_time: string | null;
+  rental_fee_myr: number;
+  deposit_myr: number;
+  deposit_outcome: DrDepositOutcome;
+  deposit_deduction_myr: number;
+  source: DrBookingSource;
+  created_by_staff_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DrBatterySwapRow = {
+  id: string;
+  booking_id: string;
+  released_battery_id: string | null;
+  issued_battery_id: string;
+  fee_myr: number;
+  performed_by_staff_id: string;
+  created_at: string;
+};
+
+export type DrChecklistItemRow = {
+  id: string;
+  item_key: string;
+  label: string;
+  sort_order: number;
+  active: boolean;
+  created_at: string;
+};
+
+export type DrChecklistRecordRow = {
+  id: string;
+  booking_id: string;
+  phase: DrChecklistPhase;
+  acknowledgements: Record<string, boolean>;
+  customer_signed_name: string | null;
+  signed_at: string | null;
+  performed_by_staff_id: string;
+  notes: string | null;
+  created_at: string;
+};
+
+export type DrChecklistPhotoRow = {
+  id: string;
+  booking_id: string;
+  phase: DrChecklistPhase;
+  storage_path: string;
+  taken_by_staff_id: string;
+  created_at: string;
+};
+
+export type DrPaymentRow = {
+  id: string;
+  booking_id: string;
+  kind: DrPaymentKind;
+  provider: string;
+  provider_ref: string;
+  amount_myr: number;
+  status: PaymentStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DrDepositAuthorizationRow = {
+  id: string;
+  booking_id: string;
+  provider: string;
+  provider_ref: string;
+  amount_myr: number;
+  status: DepositStatus;
+  created_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
+};
+
 type TableDef<Row> = { Row: Row; Insert: Partial<Row>; Update: Partial<Row>; Relationships: [] };
 
 export interface Database {
@@ -574,6 +715,17 @@ export interface Database {
       photo_orders: TableDef<PhotoOrderRow>;
       photo_order_files: TableDef<PhotoOrderFileRow>;
       demand_signals: TableDef<DemandSignalRow>;
+      dr_shops: TableDef<DrShopRow>;
+      dr_merchant_shops: TableDef<DrMerchantShopRow>;
+      dr_drones: TableDef<DrDroneRow>;
+      dr_batteries: TableDef<DrBatteryRow>;
+      dr_bookings: TableDef<DrBookingRow>;
+      dr_battery_swaps: TableDef<DrBatterySwapRow>;
+      dr_checklist_items: TableDef<DrChecklistItemRow>;
+      dr_checklist_records: TableDef<DrChecklistRecordRow>;
+      dr_checklist_photos: TableDef<DrChecklistPhotoRow>;
+      dr_payments: TableDef<DrPaymentRow>;
+      dr_deposit_authorizations: TableDef<DrDepositAuthorizationRow>;
     };
     Views: Record<string, never>;
     Functions: {
@@ -613,6 +765,21 @@ export interface Database {
           p_referral_code?: string | null;
         };
         Returns: BookingRow;
+      };
+      create_drone_booking_atomic: {
+        Args: {
+          p_customer_id: string;
+          p_shop_id: string;
+          p_drone_id: string;
+          p_start_time: string;
+          p_end_time: string;
+          p_rental_fee_myr: number;
+          p_deposit_myr: number;
+          p_secure_token: string;
+          p_source: DrBookingSource;
+          p_created_by_staff_id?: string | null;
+        };
+        Returns: DrBookingRow;
       };
     };
     Enums: Record<string, never>;

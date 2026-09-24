@@ -5,6 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { confirmBookingAfterPayment } from "@/lib/booking/confirm";
 import { assertValidDepositTransition } from "@/lib/state-machine/deposit";
 import { logAudit } from "@/lib/audit";
+import { confirmDroneBookingAfterPayment } from "@/lib/droneRental/payment";
 
 /**
  * Orchestrates the payment side of the booking lifecycle:
@@ -38,9 +39,10 @@ export async function POST(req: Request) {
     switch (event.type) {
       case "payment_intent.succeeded": {
         const intent = event.data.object as Stripe.PaymentIntent;
-        const { bookingId, photoOrderId, kind } = intent.metadata as {
+        const { bookingId, photoOrderId, droneBookingId, kind } = intent.metadata as {
           bookingId?: string;
           photoOrderId?: string;
+          droneBookingId?: string;
           kind?: string;
         };
 
@@ -53,6 +55,17 @@ export async function POST(req: Request) {
           break;
         }
 
+        if (kind === "DRONE_RENTAL_FEE" && droneBookingId) {
+          await supabase.from("dr_payments").update({ status: "SUCCEEDED" }).eq("provider_ref", intent.id);
+          await confirmDroneBookingAfterPayment(droneBookingId);
+          break;
+        }
+
+        if (kind === "DRONE_BATTERY_SWAP_FEE" || kind === "DRONE_LATE_FEE") {
+          await supabase.from("dr_payments").update({ status: "SUCCEEDED" }).eq("provider_ref", intent.id);
+          break;
+        }
+
         if (!bookingId || kind !== "RENTAL_FEE") break;
 
         await supabase.from("payments").update({ status: "SUCCEEDED" }).eq("provider_ref", intent.id);
@@ -62,6 +75,11 @@ export async function POST(req: Request) {
 
       case "payment_intent.payment_failed": {
         const intent = event.data.object as Stripe.PaymentIntent;
+        const { kind } = intent.metadata as { kind?: string };
+        if (kind === "DRONE_RENTAL_FEE" || kind === "DRONE_BATTERY_SWAP_FEE" || kind === "DRONE_LATE_FEE") {
+          await supabase.from("dr_payments").update({ status: "FAILED" }).eq("provider_ref", intent.id);
+          break;
+        }
         await supabase.from("payments").update({ status: "FAILED" }).eq("provider_ref", intent.id);
         break;
       }
@@ -77,6 +95,22 @@ export async function POST(req: Request) {
         // the time this arrives, so only a genuine timeout matches here.
         const intent = event.data.object as Stripe.PaymentIntent;
         const { bookingId, kind } = intent.metadata as { bookingId?: string; kind?: string };
+
+        if (kind === "DRONE_DEPOSIT") {
+          const { data: droneDeposit } = await supabase
+            .from("dr_deposit_authorizations")
+            .select("id,status")
+            .eq("provider_ref", intent.id)
+            .maybeSingle();
+          if (droneDeposit && droneDeposit.status === "AUTHORIZED") {
+            await supabase
+              .from("dr_deposit_authorizations")
+              .update({ status: "EXPIRED", resolved_at: new Date().toISOString() })
+              .eq("id", droneDeposit.id);
+          }
+          break;
+        }
+
         if (kind !== "DEPOSIT") break;
 
         const { data: deposit } = await supabase

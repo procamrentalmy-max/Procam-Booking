@@ -14,6 +14,7 @@ const SECTIONS = [
   { href: "/admin/batteries", label: "Batteries", note: "Battery fleet by property" },
   { href: "/admin/staff", label: "Staff", note: "Add and manage staff & admin accounts" },
   { href: "/admin/branding", label: "Branding", note: "Upload the logo used across the site" },
+  { href: "/admin/drone-rental", label: "Drone Rental", note: "Shops, drones, batteries, merchant assignments" },
 ];
 
 export default function AdminHome() {

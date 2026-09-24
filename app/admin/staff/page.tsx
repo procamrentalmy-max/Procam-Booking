@@ -50,6 +50,7 @@ export default async function StaffAdminPage() {
           <select name="role" defaultValue="PROCAM_STAFF" className={inputClass}>
             <option value="PROCAM_STAFF">Staff</option>
             <option value="ADMIN">Admin</option>
+            <option value="DRONE_MERCHANT">Drone Merchant</option>
           </select>
           <button type="submit" className={`${primaryButtonClass} sm:col-span-2`}>
             Create Account
@@ -73,7 +74,10 @@ export default async function StaffAdminPage() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-medium text-black dark:text-zinc-50">
-                    {s.name} <span className="text-zinc-400">— {s.role === "ADMIN" ? "Admin" : "Staff"}</span>
+                    {s.name}{" "}
+                    <span className="text-zinc-400">
+                      — {s.role === "ADMIN" ? "Admin" : s.role === "DRONE_MERCHANT" ? "Drone Merchant" : "Staff"}
+                    </span>
                   </p>
                   <p className="text-sm text-zinc-500">
                     {mode === "username" ? `Username: ${identifier}` : identifier || "—"}

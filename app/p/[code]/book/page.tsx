@@ -33,11 +33,17 @@ export default async function BookPage({
 
   const { data: product } = await supabase
     .from("rental_products")
-    .select("id,slug,customer_facing_name,requires_phone_compatibility")
+    .select("id,slug,customer_facing_name,requires_phone_compatibility,category")
     .eq("id", productId)
     .eq("active", true)
     .maybeSingle();
   if (!product) redirect(`/p/${partner.referral_code}`);
+
+  // Drones book through the merchant-mediated flow now (app/rent) — this
+  // wizard is the self-service locker flow every other category still
+  // uses. Guards direct/stale links to this URL, not just the landing
+  // page's own tile (already pointed at /rent — see app/p/[code]/page.tsx).
+  if (product.category === "DRONE") redirect("/rent");
 
   const [{ data: packages }, { data: lockerPartners }, terms] = await Promise.all([
     supabase

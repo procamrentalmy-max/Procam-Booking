@@ -5,6 +5,7 @@ import { pruneOldConditionPhotos } from "@/lib/booking/photoRetention";
 import { expireUncollectedPickups } from "@/lib/photoPrint/expirePickups";
 import { PENDING_PAYMENT_TIMEOUT_MINUTES } from "@/lib/state-machine/booking";
 import { logAudit } from "@/lib/audit";
+import { expireStalePendingDroneBookings } from "@/lib/droneRental/expire";
 
 /**
  * Four time-driven jobs that don't belong on any request path:
@@ -23,6 +24,11 @@ import { logAudit } from "@/lib/audit";
  *    the wooden box (see lib/photoPrint/expirePickups.ts) — a backstop for
  *    the primary per-visit sweep in app/staff/route/actions.ts, freeing
  *    the numbered pickup slot they were occupying either way.
+ * 5. Expire stale PENDING_PAYMENT drone-rental bookings (see
+ *    lib/droneRental/expire.ts) — same reasoning as #1, for the dr_bookings
+ *    table: an abandoned online booking, or a walk-in whose customer never
+ *    finished paying on the merchant's device, would otherwise squat that
+ *    drone's slot (and, for a walk-in, the whole drone right now) forever.
  *
  * Schedule this with Vercel Cron (vercel.json) or any external scheduler
  * hitting this URL every few minutes with the CRON_SECRET bearer token.
@@ -107,5 +113,14 @@ export async function GET(req: Request) {
     result.errors.push(`box pickups: ${(err as Error).message}`);
   }
 
-  return NextResponse.json(result);
+  let expiredDroneBookings = 0;
+  try {
+    const droneResult = await expireStalePendingDroneBookings();
+    expiredDroneBookings = droneResult.expired;
+    result.errors.push(...droneResult.errors);
+  } catch (err) {
+    result.errors.push(`expire drone bookings: ${(err as Error).message}`);
+  }
+
+  return NextResponse.json({ ...result, expiredDroneBookings });
 }

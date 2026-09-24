@@ -13,7 +13,7 @@ const createStaffSchema = z.object({
     .string()
     .refine(isValidUsername, "3-32 characters: letters, numbers, dots, underscores, hyphens only"),
   password: z.string().min(8, "Password must be at least 8 characters"),
-  role: z.enum(["ADMIN", "PROCAM_STAFF"]),
+  role: z.enum(["ADMIN", "PROCAM_STAFF", "DRONE_MERCHANT"]),
 });
 
 /**

@@ -9,7 +9,8 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
  */
 export type AuthContext =
   | { kind: "admin"; staffId: string; name: string }
-  | { kind: "staff"; staffId: string; name: string };
+  | { kind: "staff"; staffId: string; name: string }
+  | { kind: "merchant"; staffId: string; name: string };
 
 export async function getAuthContext(): Promise<AuthContext | null> {
   const supabase = await createServerSupabaseClient();
@@ -25,9 +26,9 @@ export async function getAuthContext(): Promise<AuthContext | null> {
     .maybeSingle();
 
   if (staffRow && staffRow.active) {
-    return staffRow.role === "ADMIN"
-      ? { kind: "admin", staffId: staffRow.id, name: staffRow.name }
-      : { kind: "staff", staffId: staffRow.id, name: staffRow.name };
+    if (staffRow.role === "ADMIN") return { kind: "admin", staffId: staffRow.id, name: staffRow.name };
+    if (staffRow.role === "DRONE_MERCHANT") return { kind: "merchant", staffId: staffRow.id, name: staffRow.name };
+    return { kind: "staff", staffId: staffRow.id, name: staffRow.name };
   }
 
   return null;
@@ -44,7 +45,15 @@ export function hasStaffAccess(
   return ctx?.kind === "admin" || ctx?.kind === "staff";
 }
 
+/** Admin has a superset of merchant permissions (matches the is_drone_merchant() RLS helper). */
+export function hasMerchantAccess(
+  ctx: AuthContext | null
+): ctx is Extract<AuthContext, { kind: "admin" | "merchant" }> {
+  return ctx?.kind === "admin" || ctx?.kind === "merchant";
+}
+
 export const ROLE_HOME: Record<AuthContext["kind"], string> = {
   admin: "/admin",
   staff: "/staff",
+  merchant: "/merchant",
 };

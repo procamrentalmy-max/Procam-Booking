@@ -48,7 +48,21 @@ export default async function PartnerLandingPage({ params }: { params: Promise<{
     };
   }
 
-  const drones = (products ?? []).filter((p) => p.category === "DRONE").map(toCategoryProduct);
+  // Drones now book through the merchant-mediated flow (app/rent) instead
+  // of the self-service locker wizard every other product still uses —
+  // fixed shop pickup, staff-taken condition photos, no lockers. /rent
+  // isn't scoped to this partner/referral code (it has its own shop picker
+  // with its own map), so this just routes in rather than reusing
+  // toCategoryProduct's `/p/[code]/book` href.
+  const drones = (products ?? [])
+    .filter((p) => p.category === "DRONE")
+    .map((p) => ({
+      id: p.id,
+      href: "/rent",
+      name: p.customer_facing_name,
+      tagline: p.tagline,
+      imageUrl: p.image_path ? getProductImageUrl(p.image_path) : null,
+    }));
   const cameras = (products ?? []).filter((p) => p.category === "CAMERA").map(toCategoryProduct);
 
   // Not a rental_products row on purpose — printing has no pickup, dropoff,
