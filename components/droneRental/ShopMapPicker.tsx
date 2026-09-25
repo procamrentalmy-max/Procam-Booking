@@ -23,41 +23,39 @@ const DEFAULT_ZOOM = 6;
 const LOCATED_ZOOM = 12;
 
 let mapsLoaderPromise: Promise<void> | null = null;
+let mapsCallbackCounter = 0;
 
 /**
  * Loads the Google Maps JS API exactly once per page, however many times
- * this component mounts, and only resolves once google.maps.Map and
- * google.maps.Marker are actually safe to construct.
+ * this component mounts, resolving only once google.maps.Map/Marker are
+ * genuinely safe to construct.
  *
- * With `loading=async`, the <script> tag's own `onload` fires as soon as
- * the small bootstrap loader is fetched — NOT once the actual Map/Marker
- * classes are ready, which load as separate dynamic chunks in the
- * background afterward. Constructing `new google.maps.Map(...)` right on
- * `onload` was racing that background load and throwing intermittently.
- * `google.maps.importLibrary(...)` is Google's own API for awaiting a
- * given library's real readiness — see
- * https://developers.google.com/maps/documentation/javascript/load-maps-js-api.
+ * Uses the classic `callback=` query param rather than `loading=async` +
+ * `importLibrary`: that combination requires Google's special inline
+ * bootstrap snippet to actually define `google.maps.importLibrary` — a
+ * plain <script src="...&loading=async"> tag's own `onload` fires as soon
+ * as that small stub is fetched, well before `importLibrary` exists at
+ * all, which was throwing "google.maps.importLibrary is not a function"
+ * every time. `callback=` is the older, plainer contract: Google calls the
+ * named global function only once the full library (Map, Marker, the
+ * works) is actually loaded and ready to use — nothing to import.
  */
-async function loadGoogleMaps(apiKey: string): Promise<void> {
-  if (typeof window === "undefined") return;
+function loadGoogleMaps(apiKey: string): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  if (window.google?.maps?.Map) return Promise.resolve();
+  if (mapsLoaderPromise) return mapsLoaderPromise;
 
-  if (!mapsLoaderPromise) {
-    mapsLoaderPromise = new Promise((resolve, reject) => {
-      if (window.google?.maps) {
-        resolve();
-        return;
-      }
-      const script = document.createElement("script");
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&loading=async`;
-      script.async = true;
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error("Failed to load Google Maps"));
-      document.head.appendChild(script);
-    });
-  }
+  mapsLoaderPromise = new Promise((resolve, reject) => {
+    const callbackName = `__shopMapPickerInit${mapsCallbackCounter++}`;
+    (window as unknown as Record<string, () => void>)[callbackName] = () => resolve();
 
-  await mapsLoaderPromise;
-  await Promise.all([google.maps.importLibrary("maps"), google.maps.importLibrary("marker")]);
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&callback=${callbackName}`;
+    script.async = true;
+    script.onerror = () => reject(new Error("Failed to load Google Maps"));
+    document.head.appendChild(script);
+  });
+  return mapsLoaderPromise;
 }
 
 function availabilityLabel(shop: ShopMarker): string {
@@ -123,10 +121,7 @@ export function ShopMapPicker({ initialShops }: { initialShops: ShopMarker[] }) 
         });
         setMapsReady(true);
       })
-      .catch((err) => {
-        // TEMP DEBUG — remove once the race is confirmed fixed.
-        console.error("[ShopMapPicker] map load failed", err);
-        (window as unknown as { __mapsDebugError?: unknown }).__mapsDebugError = err;
+      .catch(() => {
         if (!cancelled) setMapsError(true);
       });
     return () => {
