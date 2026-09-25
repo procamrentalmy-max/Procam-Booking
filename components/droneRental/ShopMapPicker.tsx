@@ -24,21 +24,40 @@ const LOCATED_ZOOM = 12;
 
 let mapsLoaderPromise: Promise<void> | null = null;
 
-/** Loads the Google Maps JS API exactly once per page, however many times this component mounts. */
-function loadGoogleMaps(apiKey: string): Promise<void> {
-  if (typeof window === "undefined") return Promise.resolve();
-  if (window.google?.maps) return Promise.resolve();
-  if (mapsLoaderPromise) return mapsLoaderPromise;
+/**
+ * Loads the Google Maps JS API exactly once per page, however many times
+ * this component mounts, and only resolves once google.maps.Map and
+ * google.maps.Marker are actually safe to construct.
+ *
+ * With `loading=async`, the <script> tag's own `onload` fires as soon as
+ * the small bootstrap loader is fetched — NOT once the actual Map/Marker
+ * classes are ready, which load as separate dynamic chunks in the
+ * background afterward. Constructing `new google.maps.Map(...)` right on
+ * `onload` was racing that background load and throwing intermittently.
+ * `google.maps.importLibrary(...)` is Google's own API for awaiting a
+ * given library's real readiness — see
+ * https://developers.google.com/maps/documentation/javascript/load-maps-js-api.
+ */
+async function loadGoogleMaps(apiKey: string): Promise<void> {
+  if (typeof window === "undefined") return;
 
-  mapsLoaderPromise = new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&loading=async`;
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Google Maps"));
-    document.head.appendChild(script);
-  });
-  return mapsLoaderPromise;
+  if (!mapsLoaderPromise) {
+    mapsLoaderPromise = new Promise((resolve, reject) => {
+      if (window.google?.maps) {
+        resolve();
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&loading=async`;
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Failed to load Google Maps"));
+      document.head.appendChild(script);
+    });
+  }
+
+  await mapsLoaderPromise;
+  await Promise.all([google.maps.importLibrary("maps"), google.maps.importLibrary("marker")]);
 }
 
 function availabilityLabel(shop: ShopMarker): string {
