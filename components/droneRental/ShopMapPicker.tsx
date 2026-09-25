@@ -123,7 +123,10 @@ export function ShopMapPicker({ initialShops }: { initialShops: ShopMarker[] }) 
         });
         setMapsReady(true);
       })
-      .catch(() => {
+      .catch((err) => {
+        // TEMP DEBUG — remove once the race is confirmed fixed.
+        console.error("[ShopMapPicker] map load failed", err);
+        (window as unknown as { __mapsDebugError?: unknown }).__mapsDebugError = err;
         if (!cancelled) setMapsError(true);
       });
     return () => {
