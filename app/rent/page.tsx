@@ -1,6 +1,12 @@
 import { listActiveShopsWithAvailability } from "@/lib/droneRental/shops";
 import { ShopMapPicker } from "@/components/droneRental/ShopMapPicker";
 
+// Shop list + "first available now/at HH:MM" both depend on live DB state
+// (which shops are active, which drones are free right now) — this must
+// never be statically prerendered, or it freezes at whatever the database
+// looked like at build time (bit us once already: 0 shops existed then).
+export const dynamic = "force-dynamic";
+
 export default async function RentLandingPage() {
   // Server-rendered without a customer location yet (a browser API, not
   // available server-side) — the client re-fetches sorted-by-distance the
