@@ -1,24 +1,68 @@
 import Link from "next/link";
 import { getAuthContext } from "@/lib/auth/session";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { formatMalaysiaTime } from "@/lib/i18n/locale";
+import { createServiceRoleClient } from "@/lib/supabase/service";
+import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
+import { describeDue, formatClock, formatDayLabel, formatDuration } from "@/lib/droneRental/format";
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+const NO_SHOPS = "00000000-0000-0000-0000-000000000000";
+
+type BookingRow = {
+  id: string;
+  human_id: string;
+  status: string;
+  start_time: string;
+  end_time: string;
+  shop_id: string;
+  drone_id: string;
+  customer_id: string;
+};
+
+function Stat({ value, label, tone }: { value: string; label: string; tone?: "alert" }) {
   return (
-    <section className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-      <h2 className="mb-2 text-sm font-semibold text-black dark:text-zinc-50">{title}</h2>
-      {children}
-    </section>
+    <div
+      className={`rounded-2xl border p-3 text-center ${
+        tone === "alert" ? "border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950" : "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+      }`}
+    >
+      <p className={`text-2xl font-bold leading-none ${tone === "alert" ? "text-red-700 dark:text-red-300" : "text-black dark:text-zinc-50"}`}>{value}</p>
+      <p className="mt-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500">{label}</p>
+    </div>
   );
 }
 
-function EmptyState() {
-  return <p className="text-sm text-zinc-400">Nothing here right now.</p>;
+function SectionHeading({ title, count }: { title: string; count: number }) {
+  return (
+    <h2 className="mb-2 flex items-center gap-2 px-1 text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+      {title}
+      <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-xs font-bold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">{count}</span>
+    </h2>
+  );
+}
+
+function Empty({ children }: { children: React.ReactNode }) {
+  return <p className="rounded-2xl border border-dashed border-zinc-300 p-5 text-center text-sm text-zinc-400 dark:border-zinc-700">{children}</p>;
+}
+
+function CustomerLine({ name, phone }: { name: string; phone: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="truncate text-lg font-semibold text-black dark:text-zinc-50">{name}</p>
+      <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="text-sm text-zinc-500 underline underline-offset-2">
+        {phone}
+      </a>
+    </div>
+  );
+}
+
+function DroneChip({ id }: { id: string }) {
+  return <span className="shrink-0 rounded-lg bg-black px-2.5 py-1 text-sm font-bold tracking-wide text-white dark:bg-white dark:text-black">{id}</span>;
 }
 
 export default async function MerchantHomePage() {
   const ctx = await getAuthContext();
   const supabase = await createServerSupabaseClient();
+  const now = new Date();
 
   // Admin sees every shop; a merchant only sees the shop(s) they're
   // assigned to (dr_merchant_shops) — see 0035_drone_rental_schema.sql.
@@ -27,79 +71,181 @@ export default async function MerchantHomePage() {
     const { data: assignments } = await supabase.from("dr_merchant_shops").select("shop_id").eq("staff_user_id", ctx.staffId);
     shopIds = (assignments ?? []).map((a) => a.shop_id);
   }
+  const scoped = shopIds ? (shopIds.length ? shopIds : [NO_SHOPS]) : null;
 
   const bookingsQuery = supabase
     .from("dr_bookings")
-    .select("id,human_id,status,start_time,end_time,shop_id,drone_id")
+    .select("id,human_id,status,start_time,end_time,shop_id,drone_id,customer_id")
     .in("status", ["CONFIRMED", "ACTIVE"])
     .order("start_time", { ascending: true });
-  const { data: bookings } = shopIds ? await bookingsQuery.in("shop_id", shopIds.length ? shopIds : ["00000000-0000-0000-0000-000000000000"]) : await bookingsQuery;
-
-  const shopIdsToLoad = [...new Set((bookings ?? []).map((b) => b.shop_id))];
-  const droneIdsToLoad = [...new Set((bookings ?? []).map((b) => b.drone_id))];
-  const [{ data: shops }, { data: drones }] = await Promise.all([
-    shopIdsToLoad.length ? supabase.from("dr_shops").select("id,name").in("id", shopIdsToLoad) : Promise.resolve({ data: [] }),
-    droneIdsToLoad.length ? supabase.from("dr_drones").select("id,human_id").in("id", droneIdsToLoad) : Promise.resolve({ data: [] }),
+  const dronesQuery = supabase.from("dr_drones").select("id,human_id,status,shop_id");
+  const [{ data: bookingRows }, { data: allDrones }] = await Promise.all([
+    scoped ? bookingsQuery.in("shop_id", scoped) : bookingsQuery,
+    scoped ? dronesQuery.in("shop_id", scoped) : dronesQuery,
   ]);
-  const shopNameById = new Map((shops ?? []).map((s) => [s.id, s.name]));
-  const droneHumanIdById = new Map((drones ?? []).map((d) => [d.id, d.human_id]));
+  const bookings: BookingRow[] = bookingRows ?? [];
+  const drones = allDrones ?? [];
 
-  const pickups = (bookings ?? []).filter((b) => b.status === "CONFIRMED");
-  const active = (bookings ?? []).filter((b) => b.status === "ACTIVE");
+  const droneIds = drones.map((d) => d.id);
+  const customerIds = [...new Set(bookings.map((b) => b.customer_id))];
+  const shopIdsShown = [...new Set(drones.map((d) => d.shop_id))];
+  const [{ data: batteries }, { data: customers }, { data: shops }] = await Promise.all([
+    droneIds.length ? supabase.from("dr_batteries").select("status").in("drone_id", droneIds) : Promise.resolve({ data: [] }),
+    // Names/phones for the cards — read with the service role after the
+    // layout's merchant/admin gate, same as the pickup and return pages.
+    customerIds.length ? createServiceRoleClient().from("customers").select("id,name,phone").in("id", customerIds) : Promise.resolve({ data: [] }),
+    shopIdsShown.length ? supabase.from("dr_shops").select("id,name").in("id", shopIdsShown) : Promise.resolve({ data: [] }),
+  ]);
+
+  const customerById = new Map((customers ?? []).map((c) => [c.id, c]));
+  const droneHumanId = new Map(drones.map((d) => [d.id, d.human_id]));
+  const shopNameById = new Map((shops ?? []).map((s) => [s.id, s.name]));
+  const showShopName = shopIdsShown.length > 1;
+
+  const pickups = bookings.filter((b) => b.status === "CONFIRMED");
+  const outNow = bookings
+    .filter((b) => b.status === "ACTIVE")
+    .sort((a, b) => new Date(a.end_time).getTime() - new Date(b.end_time).getTime());
+  const overdue = outNow.filter((b) => describeDue(new Date(b.end_time), now).overdue);
+
+  const dronesFree = drones.filter((d) => d.status === "AVAILABLE").length;
+  const batteriesAtShop = (batteries ?? []).filter((b) => b.status === "AT_SHOP").length;
 
   return (
-    <div className="space-y-4 pb-8 pt-4">
+    <div className="space-y-5 pb-10 pt-4">
+      <AutoRefresh seconds={30} />
+
       <Link
         href="/merchant/instant-booking"
-        className="flex h-12 items-center justify-center rounded-full bg-black text-sm font-semibold text-white dark:bg-white dark:text-black"
+        className="flex h-14 items-center justify-center rounded-2xl bg-black text-base font-semibold text-white shadow-sm dark:bg-white dark:text-black"
       >
-        New Walk-In Booking
+        + New walk-in booking
       </Link>
 
-      <Section title="Ready for Pickup">
-        {pickups.length ? (
-          <ul className="space-y-2 text-sm">
-            {pickups.map((b) => (
-              <li key={b.id} className="flex items-center justify-between">
-                <span>
-                  {b.human_id} — {droneHumanIdById.get(b.drone_id) ?? "—"} — {shopNameById.get(b.shop_id) ?? "—"} —{" "}
-                  {formatMalaysiaTime(new Date(b.start_time), "en")}
-                </span>
-                <Link href={`/merchant/pickup/${b.id}`} className="shrink-0 underline underline-offset-2">
-                  Hand over
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <EmptyState />
-        )}
-      </Section>
+      {overdue.length > 0 && (
+        <div className="rounded-2xl border-2 border-red-500 bg-red-50 p-4 dark:bg-red-950">
+          <p className="text-sm font-bold uppercase tracking-wide text-red-700 dark:text-red-300">
+            {overdue.length} overdue — chase {overdue.length === 1 ? "this one" : "these"}
+          </p>
+          <p className="mt-1 text-base font-semibold text-red-900 dark:text-red-100">
+            {overdue
+              .map((b) => `${droneHumanId.get(b.drone_id) ?? "—"} · ${customerById.get(b.customer_id)?.name ?? "—"} (${describeDue(new Date(b.end_time), now).label})`)
+              .join("  |  ")}
+          </p>
+        </div>
+      )}
 
-      <Section title="Out on Rental">
-        {active.length ? (
-          <ul className="space-y-2 text-sm">
-            {active.map((b) => (
-              <li key={b.id} className="flex items-center justify-between">
-                <span>
-                  {b.human_id} — {droneHumanIdById.get(b.drone_id) ?? "—"} — due{" "}
-                  {formatMalaysiaTime(new Date(b.end_time), "en")}
-                </span>
-                <div className="flex shrink-0 gap-3">
-                  <Link href={`/merchant/battery-swap/${b.id}`} className="underline underline-offset-2">
-                    Swap battery
+      <div className="space-y-2">
+        <div className="grid grid-cols-3 gap-2">
+          <Stat value={String(pickups.length)} label="To hand over" />
+          <Stat value={String(outNow.length)} label="Out now" tone={overdue.length > 0 ? "alert" : undefined} />
+          <Stat value={`${dronesFree}/${drones.length}`} label="Drones free" />
+        </div>
+        <p className="text-center text-xs text-zinc-500">
+          Batteries at the shop: <span className="font-semibold">{batteriesAtShop}</span> of {(batteries ?? []).length}
+        </p>
+      </div>
+
+      <section>
+        <SectionHeading title="Ready for pickup" count={pickups.length} />
+        {pickups.length ? (
+          <ul className="space-y-3">
+            {pickups.map((b) => {
+              const c = customerById.get(b.customer_id);
+              const start = new Date(b.start_time);
+              const started = start.getTime() <= now.getTime();
+              return (
+                <li key={b.id} className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+                  <div className="flex items-start justify-between gap-3">
+                    <CustomerLine name={c?.name ?? "—"} phone={c?.phone ?? "—"} />
+                    <DroneChip id={droneHumanId.get(b.drone_id) ?? "—"} />
+                  </div>
+                  <div className="mt-3 flex items-end justify-between">
+                    <div>
+                      <p className="text-3xl font-bold leading-none text-black dark:text-zinc-50">{formatClock(start)}</p>
+                      <p className="mt-1 text-sm text-zinc-500">{formatDayLabel(start, now)}</p>
+                    </div>
+                    <p className={`text-sm font-semibold ${started ? "text-amber-700 dark:text-amber-400" : "text-zinc-600 dark:text-zinc-400"}`}>
+                      {started ? `Start time passed ${formatDuration(now.getTime() - start.getTime())} ago` : `Starts in ${formatDuration(start.getTime() - now.getTime())}`}
+                    </p>
+                  </div>
+                  <Link
+                    href={`/merchant/pickup/${b.id}`}
+                    className="mt-4 flex h-12 items-center justify-center rounded-xl bg-black text-base font-semibold text-white dark:bg-white dark:text-black"
+                  >
+                    Hand over
                   </Link>
-                  <Link href={`/merchant/return/${b.id}`} className="underline underline-offset-2">
-                    Return
-                  </Link>
-                </div>
-              </li>
-            ))}
+                  <p className="mt-2 text-xs text-zinc-400">
+                    {b.human_id}
+                    {showShopName ? ` · ${shopNameById.get(b.shop_id) ?? ""}` : ""}
+                  </p>
+                </li>
+              );
+            })}
           </ul>
         ) : (
-          <EmptyState />
+          <Empty>No pickups waiting.</Empty>
         )}
-      </Section>
+      </section>
+
+      <section>
+        <SectionHeading title="Out on rental" count={outNow.length} />
+        {outNow.length ? (
+          <ul className="space-y-3">
+            {outNow.map((b) => {
+              const c = customerById.get(b.customer_id);
+              const due = new Date(b.end_time);
+              const status = describeDue(due, now);
+              return (
+                <li
+                  key={b.id}
+                  className={`rounded-2xl border p-4 shadow-sm ${
+                    status.overdue ? "border-2 border-red-500 bg-red-50 dark:bg-red-950" : "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <CustomerLine name={c?.name ?? "—"} phone={c?.phone ?? "—"} />
+                    <DroneChip id={droneHumanId.get(b.drone_id) ?? "—"} />
+                  </div>
+                  <div className="mt-3 flex items-end justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Due back</p>
+                      <p className="text-3xl font-bold leading-none text-black dark:text-zinc-50">{formatClock(due)}</p>
+                    </div>
+                    <span
+                      className={`rounded-full px-3 py-1 text-sm font-bold ${
+                        status.overdue ? "bg-red-600 text-white" : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                      }`}
+                    >
+                      {status.label}
+                    </span>
+                  </div>
+                  <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
+                    <Link
+                      href={`/merchant/return/${b.id}`}
+                      className="flex h-12 items-center justify-center rounded-xl bg-black text-base font-semibold text-white dark:bg-white dark:text-black"
+                    >
+                      Return
+                    </Link>
+                    <Link
+                      href={`/merchant/battery-swap/${b.id}`}
+                      className="flex h-12 items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 text-sm font-semibold dark:border-zinc-700 dark:bg-zinc-900"
+                    >
+                      Swap battery
+                    </Link>
+                  </div>
+                  <p className="mt-2 text-xs text-zinc-400">
+                    {b.human_id}
+                    {showShopName ? ` · ${shopNameById.get(b.shop_id) ?? ""}` : ""}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <Empty>Nothing out on rental.</Empty>
+        )}
+      </section>
     </div>
   );
 }

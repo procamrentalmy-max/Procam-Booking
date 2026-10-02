@@ -5,34 +5,113 @@ import { useRouter } from "next/navigation";
 import { CameraCaptureField } from "@/components/CameraCaptureField";
 import { en } from "@/lib/i18n/dictionaries/en";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
-import { DEPOSIT_MYR, DAMAGE_DEDUCTION_MYR, LOSS_DEDUCTION_MYR } from "@/lib/droneRental/pricingRules";
-import { submitReturnAction } from "./actions";
+import {
+  DEPOSIT_MYR,
+  DEPOSIT_DRONE_MYR,
+  DEPOSIT_CONTROLLER_MYR,
+  computeDepositCapture,
+  DepositCaptureError,
+  formatMyr,
+  type ItemOutcome,
+} from "@/lib/droneRental/pricingRules";
+import { submitReturnAction, type ReturnResult } from "./actions";
 
-type Outcome = "NONE" | "DAMAGED" | "LOST";
-
-const OUTCOMES: { value: Outcome; label: string; hint: string }[] = [
-  { value: "NONE", label: "All good", hint: `Full RM${DEPOSIT_MYR} deposit released` },
-  { value: "DAMAGED", label: "Damaged", hint: `RM${DAMAGE_DEDUCTION_MYR} kept from deposit` },
-  { value: "LOST", label: "Lost", hint: `Full RM${LOSS_DEDUCTION_MYR} deposit kept` },
+const OUTCOME_OPTIONS: { value: ItemOutcome; label: string; active: string }[] = [
+  { value: "NONE", label: "Fine", active: "border-green-600 bg-green-600 text-white" },
+  { value: "DAMAGED", label: "Damaged", active: "border-amber-500 bg-amber-500 text-white" },
+  { value: "LOST", label: "Lost", active: "border-red-600 bg-red-600 text-white" },
 ];
+
+function ItemVerdict({
+  title,
+  heldMyr,
+  outcome,
+  damage,
+  onOutcome,
+  onDamage,
+}: {
+  title: string;
+  heldMyr: number;
+  outcome: ItemOutcome;
+  damage: string;
+  onOutcome: (o: ItemOutcome) => void;
+  onDamage: (v: string) => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="mb-3 flex items-baseline justify-between">
+        <p className="text-base font-semibold text-black dark:text-zinc-50">{title}</p>
+        <p className="text-sm text-zinc-500">{formatMyr(heldMyr)} held</p>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {OUTCOME_OPTIONS.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onOutcome(o.value)}
+            className={`h-11 rounded-xl border text-sm font-semibold ${
+              outcome === o.value ? o.active : "border-zinc-300 text-zinc-700 dark:border-zinc-700 dark:text-zinc-300"
+            }`}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+      {outcome === "DAMAGED" && (
+        <label className="mt-3 block text-sm">
+          <span className="font-medium">Damage charge (RM)</span>
+          <input
+            inputMode="decimal"
+            value={damage}
+            onChange={(e) => onDamage(e.target.value)}
+            placeholder={`Up to ${heldMyr}`}
+            className={`mt-1 w-full ${inputClass}`}
+          />
+        </label>
+      )}
+      {outcome === "LOST" && <p className="mt-3 text-sm font-medium text-red-700 dark:text-red-400">Full {formatMyr(heldMyr)} will be kept.</p>}
+    </div>
+  );
+}
 
 export function ReturnForm({
   bookingId,
   checklistItems,
   disabled,
+  holdOnFile,
 }: {
   bookingId: string;
   checklistItems: { item_key: string; label: string }[];
   disabled: boolean;
+  holdOnFile: boolean;
 }) {
   const router = useRouter();
   const [photos, setPhotos] = useState<File[]>([]);
   const [acks, setAcks] = useState<Record<string, boolean>>(() => Object.fromEntries(checklistItems.map((i) => [i.item_key, false])));
-  const [outcome, setOutcome] = useState<Outcome>("NONE");
+  const [droneOutcome, setDroneOutcome] = useState<ItemOutcome>("NONE");
+  const [controllerOutcome, setControllerOutcome] = useState<ItemOutcome>("NONE");
+  const [droneDamage, setDroneDamage] = useState("");
+  const [controllerDamage, setControllerDamage] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [completedLateFee, setCompletedLateFee] = useState<number | null>(null);
+  const [result, setResult] = useState<ReturnResult | null>(null);
+
+  // The same rule the server applies — so what the merchant sees here is
+  // exactly what will be captured, and a bad amount is caught before submit.
+  let capture: ReturnType<typeof computeDepositCapture> | null = null;
+  let captureProblem: string | null = null;
+  try {
+    capture = computeDepositCapture(
+      { outcome: droneOutcome, damageMyr: droneDamage === "" ? undefined : Number(droneDamage) },
+      { outcome: controllerOutcome, damageMyr: controllerDamage === "" ? undefined : Number(controllerDamage) }
+    );
+  } catch (err) {
+    captureProblem = err instanceof DepositCaptureError ? err.message : "Check the amounts.";
+  }
+
+  const anythingWrong = droneOutcome !== "NONE" || controllerOutcome !== "NONE";
+  const canSubmit = !loading && photos.length > 0 && capture !== null;
 
   async function submit() {
     setLoading(true);
@@ -40,33 +119,51 @@ export function ReturnForm({
     try {
       const formData = new FormData();
       formData.set("bookingId", bookingId);
-      formData.set("outcome", outcome);
+      formData.set("droneOutcome", droneOutcome);
+      formData.set("controllerOutcome", controllerOutcome);
+      if (droneOutcome === "DAMAGED") formData.set("droneDamageMyr", droneDamage);
+      if (controllerOutcome === "DAMAGED") formData.set("controllerDamageMyr", controllerDamage);
       formData.set("acknowledgements", JSON.stringify(acks));
       formData.set("notes", notes);
       for (const p of photos) formData.append("photos", p);
-      const result = await submitReturnAction(formData);
-      if (result.lateFeeMyr > 0) {
-        // Pause on a confirmation screen instead of auto-redirecting — the
-        // merchant needs to actually see a late fee was charged, not have
-        // it flash by.
-        setCompletedLateFee(result.lateFeeMyr);
-        setLoading(false);
-        return;
-      }
-      router.push("/merchant");
-      router.refresh();
+      setResult(await submitReturnAction(formData));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
       setLoading(false);
     }
   }
 
-  if (completedLateFee !== null) {
+  if (disabled) {
+    return <p className="text-center text-sm text-zinc-400">This booking isn&apos;t currently active.</p>;
+  }
+
+  if (result) {
     return (
-      <div className="space-y-4 text-center">
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Return completed. This drone came back late — RM{completedLateFee} was charged to the customer&apos;s saved card.
-        </p>
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-green-300 bg-green-50 p-4 text-center dark:border-green-800 dark:bg-green-950">
+          <p className="text-lg font-semibold text-green-900 dark:text-green-100">Return completed</p>
+          {result.holdFound && (
+            <p className="mt-1 text-sm text-green-800 dark:text-green-200">
+              {result.capturedMyr > 0
+                ? `${formatMyr(result.capturedMyr)} kept from the deposit; the rest was released.`
+                : "The whole deposit was released back to the customer."}
+            </p>
+          )}
+        </div>
+        {!result.holdFound && (
+          <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+            There was no card hold on file for this booking, so nothing was charged automatically.
+            {result.capturedMyr > 0 ? ` Collect ${formatMyr(result.capturedMyr)} from the customer another way.` : ""}
+          </p>
+        )}
+        {result.lateFeeMyr > 0 && (
+          <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+            {result.lateFeeCharged
+              ? `Returned late — a ${formatMyr(result.lateFeeMyr)} late fee was charged to the customer's saved card.`
+              : `Returned late — a ${formatMyr(result.lateFeeMyr)} late fee is due, but the saved card couldn't be charged. Collect it from the customer another way.`}
+          </p>
+        )}
         <button
           type="button"
           onClick={() => {
@@ -81,19 +178,15 @@ export function ReturnForm({
     );
   }
 
-  if (disabled) {
-    return <p className="text-center text-sm text-zinc-400">This booking isn&apos;t currently active.</p>;
-  }
-
   return (
-    <div className="space-y-5">
-      <div>
-        <p className="mb-2 text-sm font-medium">Condition photos</p>
+    <div className="space-y-6">
+      <section>
+        <p className="mb-2 text-sm font-semibold">Condition photos</p>
         <CameraCaptureField dict={en} photos={photos} onChange={setPhotos} multiple />
-      </div>
+      </section>
 
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Return checklist</p>
+      <section className="space-y-2">
+        <p className="text-sm font-semibold">Return checklist</p>
         {checklistItems.map((item) => (
           <label key={item.item_key} className="flex items-start gap-2 text-sm text-zinc-600 dark:text-zinc-400">
             <input
@@ -105,22 +198,61 @@ export function ReturnForm({
             {item.label}
           </label>
         ))}
-      </div>
+      </section>
 
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Deposit outcome</p>
-        {OUTCOMES.map((o) => (
-          <label key={o.value} className="flex items-center justify-between rounded-lg border border-zinc-200 p-3 text-sm dark:border-zinc-800">
-            <span className="flex items-center gap-2">
-              <input type="radio" name="outcome" checked={outcome === o.value} onChange={() => setOutcome(o.value)} />
-              {o.label}
-            </span>
-            <span className="text-xs text-zinc-500">{o.hint}</span>
-          </label>
-        ))}
-      </div>
+      <section className="space-y-3">
+        <div>
+          <p className="text-sm font-semibold">Deposit — how did each item come back?</p>
+          <p className="text-xs text-zinc-500">
+            {formatMyr(DEPOSIT_MYR)} is held on the customer&apos;s card. Anything you don&apos;t keep is released.
+          </p>
+        </div>
+        <ItemVerdict
+          title="Drone"
+          heldMyr={DEPOSIT_DRONE_MYR}
+          outcome={droneOutcome}
+          damage={droneDamage}
+          onOutcome={setDroneOutcome}
+          onDamage={setDroneDamage}
+        />
+        <ItemVerdict
+          title="RC-N3 controller"
+          heldMyr={DEPOSIT_CONTROLLER_MYR}
+          outcome={controllerOutcome}
+          damage={controllerDamage}
+          onOutcome={setControllerOutcome}
+          onDamage={setControllerDamage}
+        />
 
-      {outcome !== "NONE" && (
+        <div
+          className={`rounded-2xl border-2 p-4 ${
+            capture && capture.totalMyr > 0 ? "border-amber-400 bg-amber-50 dark:bg-amber-950" : "border-green-300 bg-green-50 dark:border-green-800 dark:bg-green-950"
+          }`}
+        >
+          {capture ? (
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-zinc-500">Keep from deposit</p>
+                <p className="text-2xl font-bold text-black dark:text-zinc-50">{formatMyr(capture.totalMyr)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs uppercase tracking-wide text-zinc-500">Release to customer</p>
+                <p className="text-lg font-semibold text-zinc-700 dark:text-zinc-300">{formatMyr(DEPOSIT_MYR - capture.totalMyr)}</p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm font-medium text-amber-900 dark:text-amber-200">{captureProblem}</p>
+          )}
+        </div>
+
+        {!holdOnFile && (
+          <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+            No card hold is on file for this booking, so nothing can be captured automatically — you&apos;d need to collect any amount owed another way.
+          </p>
+        )}
+      </section>
+
+      {anythingWrong && (
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -132,9 +264,14 @@ export function ReturnForm({
 
       {error && <p className="text-center text-sm text-red-600">{error}</p>}
 
-      <button type="button" disabled={loading || photos.length === 0} onClick={submit} className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}>
-        {loading ? "Completing…" : "Complete return"}
+      <button type="button" disabled={!canSubmit} onClick={submit} className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}>
+        {loading
+          ? "Completing…"
+          : capture && capture.totalMyr > 0
+            ? `Complete return · keep ${formatMyr(capture.totalMyr)}`
+            : "Complete return · release deposit"}
       </button>
+      {photos.length === 0 && <p className="-mt-3 text-center text-xs text-zinc-400">Take at least one photo to complete the return.</p>}
     </div>
   );
 }

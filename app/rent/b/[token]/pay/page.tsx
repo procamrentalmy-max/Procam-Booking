@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { createDroneRentalFeePaymentIntent } from "@/lib/droneRental/payment";
 import { PaymentForm } from "@/components/PaymentForm";
+import { formatMyr } from "@/lib/droneRental/pricingRules";
 import { devBypassDronePaymentAction } from "./actions";
 
 /** Only ever a same-origin relative path (e.g. /merchant/pickup/<id> for a walk-in) — never an absolute/protocol-relative URL, so this can't be turned into an open redirect via the `next` query param. */
@@ -47,7 +48,10 @@ export default async function DroneBookingPayPage({
       <div className="text-center">
         <h1 className="text-xl font-semibold text-black dark:text-zinc-50">Pay to confirm</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          RM{booking.rental_fee_myr} rental fee now · RM{booking.deposit_myr} refundable deposit held on your card too.
+          {formatMyr(booking.rental_fee_myr)} rental fee now, plus a {formatMyr(booking.deposit_myr)} deposit hold on your card.
+        </p>
+        <p className="mt-1 text-xs text-zinc-400">
+          The deposit is only a hold, not a charge — it&apos;s released when you return the drone and controller in good condition.
         </p>
       </div>
 

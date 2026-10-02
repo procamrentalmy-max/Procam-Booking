@@ -1,7 +1,7 @@
 import "server-only";
 import { getStripe, toCents } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { BATTERY_SWAP_FEE_MYR } from "./pricingRules";
+import { BATTERY_SWAP_FEE_MYR, type DepositCapture, type ItemOutcome } from "./pricingRules";
 
 /**
  * Creates (or reuses) the rental-fee PaymentIntent for a drone booking.
@@ -63,7 +63,7 @@ export async function createDroneRentalFeePaymentIntent(bookingId: string): Prom
 }
 
 /**
- * Places the RM100 deposit hold — a second PaymentIntent, manual capture,
+ * Places the deposit hold (DEPOSIT_MYR, drone + controller) — a second PaymentIntent, manual capture,
  * on the same card the rental fee just succeeded on. Called from the Stripe
  * webhook right after the rental-fee payment_intent.succeeds for this
  * vertical (see app/api/webhooks/stripe/route.ts), which is what "book then
@@ -189,47 +189,68 @@ export async function chargeLateFee(bookingId: string, amountMyr: number): Promi
 }
 
 /**
- * Resolves the deposit hold at return: releases it in full (outcome NONE),
- * or captures just the deduction (DAMAGED -> RM50, LOST -> RM100) and
- * releases the rest via Stripe's partial-capture support.
+ * Settles the deposit hold at return, per the merchant's per-item verdict
+ * (see computeDepositCapture): nothing to capture releases the whole hold;
+ * otherwise exactly that total is captured and Stripe's partial-capture
+ * releases the rest back to the customer.
+ *
+ * The verdict is always written to the booking, even when there's no hold
+ * to act on (the deposit hold failed to place, or the booking never went
+ * through card payment) — otherwise a missing hold would leave the
+ * merchant unable to finish a return at all. `holdFound: false` tells the
+ * caller that any amount owed has to be collected another way.
  */
 export async function resolveDroneDeposit(params: {
   bookingId: string;
-  outcome: "NONE" | "DAMAGED" | "LOST";
-  deductionMyr: number;
+  capture: DepositCapture;
+  droneOutcome: ItemOutcome;
+  controllerOutcome: ItemOutcome;
   resolvedByStaffId: string;
-}): Promise<void> {
+}): Promise<{ holdFound: boolean }> {
   const supabase = createServiceRoleClient();
-  const stripe = getStripe();
+  const { capture } = params;
 
   const { data: deposit } = await supabase
     .from("dr_deposit_authorizations")
     .select("id,provider_ref,status,amount_myr")
     .eq("booking_id", params.bookingId)
-    .single();
-  if (!deposit) throw new Error("No deposit hold found for this booking.");
-  if (deposit.status !== "AUTHORIZED") return; // already resolved — return submitted twice
+    .maybeSingle();
 
-  if (params.deductionMyr <= 0) {
-    await stripe.paymentIntents.cancel(deposit.provider_ref);
-    await supabase
-      .from("dr_deposit_authorizations")
-      .update({ status: "RELEASED", resolved_at: new Date().toISOString(), resolved_by: params.resolvedByStaffId })
-      .eq("id", deposit.id);
-  } else {
-    await stripe.paymentIntents.capture(deposit.provider_ref, { amount_to_capture: toCents(params.deductionMyr) });
-    await supabase
-      .from("dr_deposit_authorizations")
-      .update({
-        status: params.deductionMyr >= deposit.amount_myr ? "CAPTURED" : "PARTIALLY_CAPTURED",
-        resolved_at: new Date().toISOString(),
-        resolved_by: params.resolvedByStaffId,
-      })
-      .eq("id", deposit.id);
+  if (deposit && deposit.status === "AUTHORIZED") {
+    const stripe = getStripe();
+    if (capture.totalMyr > deposit.amount_myr) {
+      throw new Error("The amount to capture is more than the deposit that was held.");
+    }
+    if (capture.totalMyr <= 0) {
+      await stripe.paymentIntents.cancel(deposit.provider_ref);
+      await supabase
+        .from("dr_deposit_authorizations")
+        .update({ status: "RELEASED", resolved_at: new Date().toISOString(), resolved_by: params.resolvedByStaffId })
+        .eq("id", deposit.id);
+    } else {
+      await stripe.paymentIntents.capture(deposit.provider_ref, { amount_to_capture: toCents(capture.totalMyr) });
+      await supabase
+        .from("dr_deposit_authorizations")
+        .update({
+          status: capture.totalMyr >= deposit.amount_myr ? "CAPTURED" : "PARTIALLY_CAPTURED",
+          resolved_at: new Date().toISOString(),
+          resolved_by: params.resolvedByStaffId,
+        })
+        .eq("id", deposit.id);
+    }
   }
 
   await supabase
     .from("dr_bookings")
-    .update({ deposit_outcome: params.outcome, deposit_deduction_myr: params.deductionMyr })
+    .update({
+      deposit_outcome: capture.overallOutcome,
+      deposit_deduction_myr: capture.totalMyr,
+      drone_outcome: params.droneOutcome,
+      controller_outcome: params.controllerOutcome,
+      drone_charge_myr: capture.droneChargeMyr,
+      controller_charge_myr: capture.controllerChargeMyr,
+    })
     .eq("id", params.bookingId);
+
+  return { holdFound: !!deposit };
 }

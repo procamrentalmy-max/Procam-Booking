@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { MAX_BATTERIES_HELD, BATTERY_SWAP_FEE_MYR } from "@/lib/droneRental/pricingRules";
 import { BatterySwapForm } from "./BatterySwapForm";
 
 export default async function BatterySwapPage({ params }: { params: Promise<{ bookingId: string }> }) {
@@ -19,7 +20,8 @@ export default async function BatterySwapPage({ params }: { params: Promise<{ bo
   return (
     <div className="space-y-4 pt-4">
       <p className="text-center text-sm text-zinc-500">
-        The customer can hold 2 batteries at a time — pick which one they&apos;re handing back for a fresh one (RM6).
+        The customer holds {MAX_BATTERIES_HELD} batteries at a time. Pick the one they&apos;re handing back — you give them a fresh, charged one for RM
+        {BATTERY_SWAP_FEE_MYR}, and the returned one gets charged at the shop.
       </p>
       {booking.status !== "ACTIVE" ? (
         <p className="text-center text-sm text-zinc-400">This booking isn&apos;t currently active.</p>

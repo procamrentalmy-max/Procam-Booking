@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { BATTERIES_INCLUDED, DEPOSIT_CONTROLLER_MYR, DEPOSIT_DRONE_MYR, formatMyr } from "@/lib/droneRental/pricingRules";
 import { PickupForm } from "./PickupForm";
 
 export default async function MerchantPickupPage({ params }: { params: Promise<{ bookingId: string }> }) {
@@ -8,24 +9,51 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
 
   const { data: booking } = await supabase
     .from("dr_bookings")
-    .select("id,status,customer_id,drone_id,start_time,end_time")
+    .select("id,status,customer_id,drone_id,start_time,end_time,deposit_myr")
     .eq("id", bookingId)
     .maybeSingle();
   if (!booking) notFound();
 
-  const [{ data: customer }, { data: drone }, { data: items }] = await Promise.all([
+  const [{ data: customer }, { data: drone }, { data: items }, { data: hold }] = await Promise.all([
     supabase.from("customers").select("name,phone").eq("id", booking.customer_id).single(),
     supabase.from("dr_drones").select("human_id").eq("id", booking.drone_id).single(),
     supabase.from("dr_checklist_items").select("item_key,label").eq("active", true).order("sort_order"),
+    supabase.from("dr_deposit_authorizations").select("status").eq("booking_id", bookingId).maybeSingle(),
   ]);
+
+  const holdOnFile = hold?.status === "AUTHORIZED";
 
   return (
     <div className="space-y-4 pt-4">
-      <div className="rounded-xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">
-        <p className="font-medium text-black dark:text-zinc-50">{customer?.name ?? "—"}</p>
-        <p className="text-zinc-500">{customer?.phone ?? "—"}</p>
-        <p className="mt-1 text-zinc-500">Drone {drone?.human_id ?? "—"}</p>
+      <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <p className="text-lg font-semibold text-black dark:text-zinc-50">{customer?.name ?? "—"}</p>
+        <p className="text-sm text-zinc-500">{customer?.phone ?? "—"}</p>
       </div>
+
+      <div className="rounded-2xl border-2 border-black bg-white p-4 dark:border-white dark:bg-zinc-900">
+        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Hand over</p>
+        <ul className="mt-2 space-y-1 text-base font-semibold text-black dark:text-zinc-50">
+          <li>Drone {drone?.human_id ?? "—"}</li>
+          <li>RC-N3 controller</li>
+          <li>
+            {BATTERIES_INCLUDED} batteries <span className="font-normal text-zinc-500">(one in the drone, one spare)</span>
+          </li>
+        </ul>
+        <p className="mt-2 text-xs text-zinc-500">Nothing else goes out — no case, no charging cable.</p>
+      </div>
+
+      {holdOnFile ? (
+        <p className="rounded-xl border border-green-300 bg-green-50 p-3 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
+          <span className="font-semibold">Deposit held: {formatMyr(booking.deposit_myr)}</span> (drone {formatMyr(DEPOSIT_DRONE_MYR)} + controller{" "}
+          {formatMyr(DEPOSIT_CONTROLLER_MYR)})
+        </p>
+      ) : (
+        <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+          <span className="font-semibold">No card hold on file</span> for this booking — expected deposit is {formatMyr(booking.deposit_myr)}. Sort that out
+          before handing anything over.
+        </p>
+      )}
+
       <PickupForm bookingId={booking.id} checklistItems={items ?? []} disabled={booking.status !== "CONFIRMED"} />
     </div>
   );

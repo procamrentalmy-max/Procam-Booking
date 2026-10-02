@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { primaryButtonClass } from "@/components/formStyles";
+import { BATTERY_SWAP_FEE_MYR } from "@/lib/droneRental/pricingRules";
 import { submitBatterySwapAction } from "./actions";
 
 export function BatterySwapForm({ bookingId, heldBatteries }: { bookingId: string; heldBatteries: { id: string; human_id: string }[] }) {
@@ -43,7 +44,7 @@ export function BatterySwapForm({ bookingId, heldBatteries }: { bookingId: strin
       </div>
       {error && <p className="text-center text-sm text-red-600">{error}</p>}
       <button type="button" disabled={loading} onClick={submit} className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}>
-        {loading ? "Charging RM6…" : "Swap battery (charge RM6)"}
+        {loading ? `Charging RM${BATTERY_SWAP_FEE_MYR}…` : `Swap battery (charge RM${BATTERY_SWAP_FEE_MYR})`}
       </button>
     </div>
   );

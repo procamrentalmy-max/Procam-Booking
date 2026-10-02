@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { SESSION_COOKIE_OPTIONS } from "@/lib/supabase/cookieOptions";
 
-const PROTECTED_PREFIXES = ["/admin", "/staff", "/post-login"];
+const PROTECTED_PREFIXES = ["/admin", "/staff", "/merchant", "/post-login"];
 
 /**
  * Refreshes the Supabase auth cookie on every request and gates the
@@ -17,6 +18,7 @@ export async function proxy(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      cookieOptions: SESSION_COOKIE_OPTIONS,
       cookies: {
         getAll() {
           return request.cookies.getAll();

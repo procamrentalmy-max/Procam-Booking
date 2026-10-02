@@ -603,6 +603,10 @@ export type DrBookingRow = {
   deposit_myr: number;
   deposit_outcome: DrDepositOutcome;
   deposit_deduction_myr: number;
+  drone_outcome: DrDepositOutcome;
+  controller_outcome: DrDepositOutcome;
+  drone_charge_myr: number;
+  controller_charge_myr: number;
   source: DrBookingSource;
   created_by_staff_id: string | null;
   created_at: string;

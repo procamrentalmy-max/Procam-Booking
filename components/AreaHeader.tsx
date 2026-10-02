@@ -14,12 +14,12 @@ export function AreaHeader({
   logoUrl: string | null;
 }) {
   return (
-    <header className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+    <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
       <div>
         <Brand logoUrl={logoUrl} href={homeHref ?? "/"} size={20} />
         <p className="mt-0.5 text-xs text-zinc-500">{title}</p>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         {homeHref && (
           <Link href={homeHref} className="text-sm font-medium text-zinc-500 underline underline-offset-2">
             Home

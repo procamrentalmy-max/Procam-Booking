@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
-import { rentalFeeMyr } from "@/lib/droneRental/pricingRules";
+import { rentalFeeMyr, formatMyr, DEPOSIT_MYR } from "@/lib/droneRental/pricingRules";
 import { getMerchantInstantOptionsAction, createInstantBookingAction } from "./actions";
 import type { MerchantInstantOptions } from "@/lib/droneRental/merchantBooking";
 
@@ -138,7 +138,7 @@ export function InstantBookingForm({ shops, drones }: { shops: Shop[]; drones: D
         {loading ? "Booking…" : "Book now & collect payment"}
       </button>
       <p className="text-center text-xs text-zinc-400">
-        Next: hand your device to the customer to pay by card — the RM100 deposit hold goes on automatically, same as an online booking.
+        Next: hand your device to the customer to pay by card — the {formatMyr(DEPOSIT_MYR)} deposit hold goes on automatically, same as an online booking.
       </p>
     </div>
   );

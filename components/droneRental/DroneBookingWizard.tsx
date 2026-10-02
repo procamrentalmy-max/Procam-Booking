@@ -5,7 +5,17 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
-import { FIRST_HOUR_RATE_MYR, ADDITIONAL_HOUR_RATE_MYR, BATTERIES_INCLUDED, BATTERY_SWAP_FEE_MYR, DEPOSIT_MYR, rentalFeeMyr } from "@/lib/droneRental/pricingRules";
+import {
+  FIRST_HOUR_RATE_MYR,
+  ADDITIONAL_HOUR_RATE_MYR,
+  BATTERIES_INCLUDED,
+  BATTERY_SWAP_FEE_MYR,
+  DEPOSIT_MYR,
+  DEPOSIT_DRONE_MYR,
+  DEPOSIT_CONTROLLER_MYR,
+  formatMyr,
+  rentalFeeMyr,
+} from "@/lib/droneRental/pricingRules";
 import { getUnavailableDroneStartsAction, createDroneBookingAction } from "@/app/rent/[shopId]/actions";
 
 /**
@@ -117,12 +127,19 @@ export function DroneBookingWizard({ shopId }: { shopId: string }) {
     return (
       <div className="space-y-6">
         <div className="rounded-xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">
-          <p>DJI Neo 2 Fly More Combo</p>
+          <p className="font-medium">DJI Neo 2 + RC-N3 controller</p>
           <p className="mt-1 text-zinc-500">
-            RM{FIRST_HOUR_RATE_MYR} first hour ({BATTERIES_INCLUDED} batteries included) · RM{ADDITIONAL_HOUR_RATE_MYR}/hour after · RM{DEPOSIT_MYR} refundable deposit
+            RM{FIRST_HOUR_RATE_MYR} first hour · RM{ADDITIONAL_HOUR_RATE_MYR}/hour after
           </p>
-          <p className="mt-1 text-xs text-zinc-400">
-            Need more flight time mid-rental? Swap for a fresh battery at the shop for RM{BATTERY_SWAP_FEE_MYR} each.
+          <p className="mt-2 text-zinc-500">
+            Includes the drone, the controller and {BATTERIES_INCLUDED} batteries (one spare). Everything is charged at the shop.
+          </p>
+          <p className="mt-2 text-zinc-500">
+            {formatMyr(DEPOSIT_MYR)} refundable deposit — a hold on your card (drone {formatMyr(DEPOSIT_DRONE_MYR)} + controller{" "}
+            {formatMyr(DEPOSIT_CONTROLLER_MYR)}), released when you return everything in good condition.
+          </p>
+          <p className="mt-2 text-xs text-zinc-400">
+            Need more flight time mid-rental? Swap a battery for a fresh one at the shop for RM{BATTERY_SWAP_FEE_MYR}.
           </p>
         </div>
 
@@ -202,7 +219,7 @@ export function DroneBookingWizard({ shopId }: { shopId: string }) {
       <div className="space-y-4">
         {selectedStart && (
           <p className="text-center text-sm text-zinc-500">
-            {durationHours}h starting {formatMalaysiaTime(selectedStart, "en")} · RM{rentalFee} + RM{DEPOSIT_MYR} deposit
+            {durationHours}h starting {formatMalaysiaTime(selectedStart, "en")} · {formatMyr(rentalFee)} + {formatMyr(DEPOSIT_MYR)} deposit hold
           </p>
         )}
         <div className="space-y-2">

@@ -13,7 +13,7 @@ const schema = z.object({ bookingId: uuidSchema, returnedBatteryId: uuidSchema }
  * A customer can hold at most MAX_BATTERIES_HELD (2) batteries — swapping
  * in a fresh one always means returning one of the two they're currently
  * holding first, so the merchant always picks exactly one to take back.
- * Charges the RM6 swap fee off-session before touching any battery state,
+ * Charges the swap fee (BATTERY_SWAP_FEE_MYR) off-session before touching any battery state,
  * so a declined card stops the swap before any battery physically changes
  * hands.
  */

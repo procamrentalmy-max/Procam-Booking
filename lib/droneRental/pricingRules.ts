@@ -21,14 +21,19 @@ export const MAX_BATTERIES_HELD = 2;
 /** Charged per battery swapped in beyond the initial handout. */
 export const BATTERY_SWAP_FEE_MYR = 7;
 
-/** Refundable security deposit taken at booking. */
-export const DEPOSIT_MYR = 100;
+/**
+ * The deposit is a card hold sized to what's actually handed over: the
+ * drone and the controller are each held for their own replacement value.
+ * (The batteries aren't part of it — they're charged and kept at the shop.)
+ */
+export const DEPOSIT_DRONE_MYR = 900;
+export const DEPOSIT_CONTROLLER_MYR = 400;
+export const DEPOSIT_MYR = DEPOSIT_DRONE_MYR + DEPOSIT_CONTROLLER_MYR;
 
-/** Kept from the deposit if the drone/kit comes back damaged in any way. */
-export const DAMAGE_DEDUCTION_MYR = 50;
-
-/** Kept from the deposit (the full amount) if equipment is lost. */
-export const LOSS_DEDUCTION_MYR = DEPOSIT_MYR;
+/** "RM1,300" — thousands separator so a four-digit deposit stays readable. */
+export function formatMyr(amount: number): string {
+  return `RM${amount.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+}
 
 /** Rental fee for a booking of this many minutes: FIRST_HOUR_RATE_MYR for the first hour, ADDITIONAL_HOUR_RATE_MYR for every hour after, rounded up to the nearest whole hour. */
 export function rentalFeeMyr(durationMinutes: number): number {
@@ -37,11 +42,54 @@ export function rentalFeeMyr(durationMinutes: number): number {
   return FIRST_HOUR_RATE_MYR + (hours - 1) * ADDITIONAL_HOUR_RATE_MYR;
 }
 
-/** How much of the deposit the merchant actually keeps for a given return outcome. */
-export function depositDeductionMyr(outcome: "NONE" | "DAMAGED" | "LOST"): number {
-  if (outcome === "LOST") return LOSS_DEDUCTION_MYR;
-  if (outcome === "DAMAGED") return DAMAGE_DEDUCTION_MYR;
-  return 0;
+export type ItemOutcome = "NONE" | "DAMAGED" | "LOST";
+/** What the merchant found for one item at return. `damageMyr` is only read when the outcome is DAMAGED. */
+export type ItemReturn = { outcome: ItemOutcome; damageMyr?: number };
+
+export type DepositCapture = {
+  droneChargeMyr: number;
+  controllerChargeMyr: number;
+  totalMyr: number;
+  /** Worst of the two items — what's stored as the booking's single headline outcome. */
+  overallOutcome: ItemOutcome;
+};
+
+export class DepositCaptureError extends Error {
+  constructor(reason: string) {
+    super(reason);
+    this.name = "DepositCaptureError";
+  }
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * What to capture for one item: nothing if it's fine, its full value if
+ * it's lost, and whatever damage amount the merchant assessed if it's
+ * damaged (never more than the item's own deposit — the hold can't cover
+ * more than that item was held for).
+ */
+export function itemCaptureMyr(itemName: string, itemValueMyr: number, item: ItemReturn): number {
+  if (item.outcome === "NONE") return 0;
+  if (item.outcome === "LOST") return itemValueMyr;
+
+  const damage = item.damageMyr;
+  if (damage === undefined || !Number.isFinite(damage) || damage <= 0) {
+    throw new DepositCaptureError(`Enter the damage charge for the ${itemName}.`);
+  }
+  if (damage > itemValueMyr) {
+    throw new DepositCaptureError(`The ${itemName} damage charge can't be more than its ${formatMyr(itemValueMyr)} deposit.`);
+  }
+  return round2(damage);
+}
+
+/** Total to capture from the held deposit; whatever isn't captured is released back to the customer. */
+export function computeDepositCapture(drone: ItemReturn, controller: ItemReturn): DepositCapture {
+  const droneChargeMyr = itemCaptureMyr("drone", DEPOSIT_DRONE_MYR, drone);
+  const controllerChargeMyr = itemCaptureMyr("controller", DEPOSIT_CONTROLLER_MYR, controller);
+  const outcomes = [drone.outcome, controller.outcome];
+  const overallOutcome: ItemOutcome = outcomes.includes("LOST") ? "LOST" : outcomes.includes("DAMAGED") ? "DAMAGED" : "NONE";
+  return { droneChargeMyr, controllerChargeMyr, totalMyr: round2(droneChargeMyr + controllerChargeMyr), overallOutcome };
 }
 
 /**

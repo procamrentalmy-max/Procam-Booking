@@ -2,9 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
-import { usernameToEmail } from "@/lib/auth/username";
 import { devLoginAction } from "./devActions";
+import { signInAction } from "./actions";
 
 export function LoginForm() {
   const router = useRouter();
@@ -19,18 +18,15 @@ export function LoginForm() {
     setLoading(true);
     setError(null);
 
-    const email = identifier.includes("@") ? identifier : usernameToEmail(identifier);
-    const supabase = createBrowserSupabaseClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    const result = await signInAction({ identifier, password, next: searchParams.get("next") });
 
-    if (signInError) {
+    if (!result.ok) {
       setError("Incorrect username/email or password.");
       setLoading(false);
       return;
     }
 
-    const next = searchParams.get("next");
-    router.push(next ? `/post-login?next=${encodeURIComponent(next)}` : "/post-login");
+    router.push(result.redirectTo);
     router.refresh();
   }
 
