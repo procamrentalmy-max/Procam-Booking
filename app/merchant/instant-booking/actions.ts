@@ -3,9 +3,10 @@
 import { z } from "zod";
 import { uuidSchema } from "@/lib/zod-helpers";
 import { getAuthContext, hasMerchantAccess } from "@/lib/auth/session";
+import { canAccessShop } from "@/lib/droneRental/access";
 import { buildShopFleetSnapshot } from "@/lib/droneRental/snapshot";
 import { computeMerchantInstantOptions, type MerchantInstantOptions } from "@/lib/droneRental/merchantBooking";
-import { findOrCreateCustomer, createMerchantInstantBooking, NoDroneAvailableError } from "@/lib/droneRental/createBooking";
+import { createWalkInRequest, WalkInError } from "@/lib/droneRental/walkInRequests";
 
 const optionsSchema = z.object({ shopId: uuidSchema, droneId: uuidSchema });
 
@@ -14,54 +15,34 @@ export async function getMerchantInstantOptionsAction(input: { shopId: string; d
   if (!hasMerchantAccess(ctx)) throw new Error("Not authorized");
 
   const parsed = optionsSchema.parse(input);
+  if (!(await canAccessShop(ctx, parsed.shopId))) throw new Error("Not authorized");
   const snapshot = await buildShopFleetSnapshot(parsed.shopId);
   return computeMerchantInstantOptions(snapshot.bookings, parsed.droneId, new Date());
 }
 
-const createSchema = z.object({
+const startSchema = z.object({
   shopId: uuidSchema,
   droneId: uuidSchema,
   durationMinutes: z.number().int().positive(),
-  name: z.string().min(1, "Name is required"),
-  phone: z.string().min(6, "Enter a valid phone number"),
-  email: z.string().email("Enter a valid email"),
 });
 
-export async function createInstantBookingAction(input: {
-  shopId: string;
-  droneId: string;
-  durationMinutes: number;
-  name: string;
-  phone: string;
-  email: string;
-}): Promise<{ bookingId: string; secureToken: string }> {
+/**
+ * Starts a walk-in: no customer details yet — the customer fills those in
+ * themselves from the QR code on the next screen, and the merchant
+ * approves them there (see app/merchant/walk-in/[requestId]).
+ */
+export async function startWalkInAction(input: { shopId: string; droneId: string; durationMinutes: number }): Promise<{ requestId: string }> {
   const ctx = await getAuthContext();
   if (!hasMerchantAccess(ctx)) throw new Error("Not authorized");
 
-  const parsed = createSchema.parse(input);
-
-  // Re-validate right before creating — the options the merchant saw might
-  // be a few seconds stale (another booking could have landed in between);
-  // the drone_bookings exclude constraint is still the final backstop.
-  const snapshot = await buildShopFleetSnapshot(parsed.shopId);
-  const options = computeMerchantInstantOptions(snapshot.bookings, parsed.droneId, new Date());
-  if (!options.allowed || parsed.durationMinutes > options.maxDurationMinutes) {
-    throw new Error("This drone can no longer be booked for that long right now — check the available durations again.");
-  }
-
-  const customerId = await findOrCreateCustomer({ name: parsed.name, phone: parsed.phone, email: parsed.email });
+  const parsed = startSchema.parse(input);
+  if (!(await canAccessShop(ctx, parsed.shopId))) throw new Error("Not authorized");
 
   try {
-    const booking = await createMerchantInstantBooking({
-      customerId,
-      shopId: parsed.shopId,
-      droneId: parsed.droneId,
-      durationMinutes: parsed.durationMinutes,
-      createdByStaffId: ctx.staffId,
-    });
-    return { bookingId: booking.id, secureToken: booking.secure_token };
+    const { id } = await createWalkInRequest({ ...parsed, createdByStaffId: ctx.staffId });
+    return { requestId: id };
   } catch (err) {
-    if (err instanceof NoDroneAvailableError) throw new Error("That drone was just booked by someone else — pick another.");
+    if (err instanceof WalkInError) throw new Error(err.message);
     throw err;
   }
 }

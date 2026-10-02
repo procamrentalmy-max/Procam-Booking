@@ -24,7 +24,7 @@ export default async function DroneBookingDashboardPage({ params }: { params: Pr
 
   const { data: booking } = await supabase
     .from("dr_bookings")
-    .select("human_id,status,start_time,end_time,shop_id,drone_id,rental_fee_myr,deposit_myr")
+    .select("human_id,status,source,start_time,end_time,shop_id,drone_id,rental_fee_myr,deposit_myr")
     .eq("secure_token", token)
     .maybeSingle();
   if (!booking) notFound();
@@ -46,9 +46,11 @@ export default async function DroneBookingDashboardPage({ params }: { params: Pr
       {booking.status === "CONFIRMED" && (
         <div className="rounded-xl border border-zinc-200 p-4 text-center dark:border-zinc-800">
           <p className="text-base font-medium text-black dark:text-zinc-50">
-            Booking completed. Please collect at {shop?.name ?? "the shop"}.
+            {booking.source === "MERCHANT_INSTANT"
+              ? "Payment received. The staff will hand over your drone now."
+              : `Booking completed. Please collect at ${shop?.name ?? "the shop"}.`}
           </p>
-          {shop?.google_maps_url && (
+          {booking.source !== "MERCHANT_INSTANT" && shop?.google_maps_url && (
             <a
               href={shop.google_maps_url}
               target="_blank"

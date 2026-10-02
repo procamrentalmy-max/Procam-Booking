@@ -677,6 +677,26 @@ export type DrDepositAuthorizationRow = {
   resolved_by: string | null;
 };
 
+export type DrWalkInStatus = "WAITING" | "SUBMITTED" | "ACCEPTED" | "DECLINED" | "CANCELLED";
+
+export type DrWalkInRequestRow = {
+  id: string;
+  public_token: string;
+  shop_id: string;
+  drone_id: string;
+  duration_minutes: number;
+  created_by_staff_id: string;
+  status: DrWalkInStatus;
+  customer_name: string | null;
+  customer_phone: string | null;
+  customer_email: string | null;
+  submitted_at: string | null;
+  booking_id: string | null;
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
 type TableDef<Row> = { Row: Row; Insert: Partial<Row>; Update: Partial<Row>; Relationships: [] };
 
 export interface Database {
@@ -730,6 +750,7 @@ export interface Database {
       dr_checklist_photos: TableDef<DrChecklistPhotoRow>;
       dr_payments: TableDef<DrPaymentRow>;
       dr_deposit_authorizations: TableDef<DrDepositAuthorizationRow>;
+      dr_walkin_requests: TableDef<DrWalkInRequestRow>;
     };
     Views: Record<string, never>;
     Functions: {

@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
 import { describeDue, formatClock, formatDayLabel, formatDuration } from "@/lib/droneRental/format";
+import { walkInView } from "@/lib/droneRental/walkIn";
 
 const NO_SHOPS = "00000000-0000-0000-0000-000000000000";
 
@@ -86,6 +87,25 @@ export default async function MerchantHomePage() {
   const bookings: BookingRow[] = bookingRows ?? [];
   const drones = allDrones ?? [];
 
+  // Walk-ins that are still moving: a QR nobody's scanned, details waiting
+  // for approval, or an accepted booking not yet paid. Recent only — old
+  // accepted ones pile up and are all finished business.
+  const walkInsQuery = supabase
+    .from("dr_walkin_requests")
+    .select("id,status,customer_name,drone_id,expires_at,booking_id")
+    .in("status", ["WAITING", "SUBMITTED", "ACCEPTED"])
+    .gte("created_at", new Date(now.getTime() - 24 * 60 * 60_000).toISOString())
+    .order("created_at", { ascending: false });
+  const { data: walkInRows } = await (scoped ? walkInsQuery.in("shop_id", scoped) : walkInsQuery);
+  const acceptedBookingIds = (walkInRows ?? []).filter((w) => w.status === "ACCEPTED" && w.booking_id).map((w) => w.booking_id as string);
+  const { data: acceptedBookings } = acceptedBookingIds.length
+    ? await supabase.from("dr_bookings").select("id,status").in("id", acceptedBookingIds)
+    : { data: [] };
+  const bookingStatusById = new Map((acceptedBookings ?? []).map((b) => [b.id, b.status]));
+  const walkIns = (walkInRows ?? [])
+    .map((w) => ({ ...w, view: walkInView(w.status, new Date(w.expires_at), now) }))
+    .filter((w) => w.view === "WAITING" || w.view === "SUBMITTED" || (w.view === "ACCEPTED" && bookingStatusById.get(w.booking_id ?? "") === "PENDING_PAYMENT"));
+
   const droneIds = drones.map((d) => d.id);
   const customerIds = [...new Set(bookings.map((b) => b.customer_id))];
   const shopIdsShown = [...new Set(drones.map((d) => d.shop_id))];
@@ -113,7 +133,7 @@ export default async function MerchantHomePage() {
 
   return (
     <div className="space-y-5 pb-10 pt-4">
-      <AutoRefresh seconds={30} />
+      <AutoRefresh seconds={walkIns.length ? 5 : 30} />
 
       <Link
         href="/merchant/instant-booking"
@@ -121,6 +141,38 @@ export default async function MerchantHomePage() {
       >
         + New walk-in booking
       </Link>
+
+      {walkIns.length > 0 && (
+        <section>
+          <SectionHeading title="Walk-ins in progress" count={walkIns.length} />
+          <ul className="space-y-3">
+            {walkIns.map((w) => {
+              const ready = w.view === "SUBMITTED";
+              return (
+                <li
+                  key={w.id}
+                  className={`flex items-center justify-between gap-3 rounded-2xl border-2 p-4 ${
+                    ready ? "border-green-500 bg-green-50 dark:bg-green-950" : "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950"
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <p className="text-base font-semibold leading-snug text-black dark:text-zinc-50">
+                      {ready ? `${w.customer_name} sent their details` : w.view === "WAITING" ? "QR waiting for the customer" : `Waiting for ${w.customer_name} to pay`}
+                    </p>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">{droneHumanId.get(w.drone_id) ?? "—"}</p>
+                  </div>
+                  <Link
+                    href={`/merchant/walk-in/${w.id}`}
+                    className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-semibold ${ready ? "bg-green-600 text-white" : "bg-white text-black dark:bg-zinc-900 dark:text-white"}`}
+                  >
+                    {ready ? "Review & accept" : "Open"}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       {overdue.length > 0 && (
         <div className="rounded-2xl border-2 border-red-500 bg-red-50 p-4 dark:bg-red-950">

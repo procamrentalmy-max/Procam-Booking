@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import { rentalFeeMyr, formatMyr, DEPOSIT_MYR } from "@/lib/droneRental/pricingRules";
-import { getMerchantInstantOptionsAction, createInstantBookingAction } from "./actions";
+import { getMerchantInstantOptionsAction, startWalkInAction } from "./actions";
 import type { MerchantInstantOptions } from "@/lib/droneRental/merchantBooking";
 
 type Shop = { id: string; name: string };
@@ -17,9 +17,6 @@ export function InstantBookingForm({ shops, drones }: { shops: Shop[]; drones: D
   const [droneId, setDroneId] = useState(dronesForShop[0]?.id ?? "");
   const [options, setOptions] = useState<MerchantInstantOptions | null>(null);
   const [durationMinutes, setDurationMinutes] = useState<number | null>(null);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -54,12 +51,8 @@ export function InstantBookingForm({ shops, drones }: { shops: Shop[]; drones: D
     setLoading(true);
     setError(null);
     try {
-      const result = await createInstantBookingAction({ shopId, droneId, durationMinutes, name, phone, email });
-      // Same pay -> webhook -> CONFIRMED path an online booking goes
-      // through — hand the device to the customer to pay here, then the
-      // deposit hold gets placed automatically same as online (see
-      // lib/droneRental/payment.ts::confirmDroneBookingAfterPayment).
-      router.push(`/rent/b/${result.secureToken}/pay?next=${encodeURIComponent(`/merchant/pickup/${result.bookingId}`)}`);
+      const result = await startWalkInAction({ shopId, droneId, durationMinutes });
+      router.push(`/merchant/walk-in/${result.requestId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
       setLoading(false);
@@ -85,13 +78,16 @@ export function InstantBookingForm({ shops, drones }: { shops: Shop[]; drones: D
       {dronesForShop.length === 0 ? (
         <p className="text-center text-sm text-zinc-400">No drones available at this shop right now.</p>
       ) : (
-        <select value={droneId} onChange={(e) => setDroneId(e.target.value)} className={`w-full ${inputClass}`}>
-          {dronesForShop.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.human_id}
-            </option>
-          ))}
-        </select>
+        <div>
+          <p className="mb-1 text-sm font-medium">Drone</p>
+          <select value={droneId} onChange={(e) => setDroneId(e.target.value)} className={`w-full ${inputClass}`}>
+            {dronesForShop.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.human_id}
+              </option>
+            ))}
+          </select>
+        </div>
       )}
 
       {options && !options.allowed && (
@@ -117,28 +113,26 @@ export function InstantBookingForm({ shops, drones }: { shops: Shop[]; drones: D
               </button>
             ))}
           </div>
-          {durationMinutes && <p className="mt-2 text-center text-sm text-zinc-500">RM{rentalFeeMyr(durationMinutes)} rental fee</p>}
+          {durationMinutes && (
+            <p className="mt-2 text-center text-sm text-zinc-500">
+              {formatMyr(rentalFeeMyr(durationMinutes))} rental fee + {formatMyr(DEPOSIT_MYR)} deposit hold
+            </p>
+          )}
         </div>
       )}
-
-      <div className="space-y-2">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Customer name" className={`w-full ${inputClass}`} />
-        <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" className={`w-full ${inputClass}`} />
-        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" className={`w-full ${inputClass}`} />
-      </div>
 
       {error && <p className="text-center text-sm text-red-600">{error}</p>}
 
       <button
         type="button"
-        disabled={loading || !options?.allowed || !durationMinutes || !name || !phone || !email}
+        disabled={loading || !options?.allowed || !durationMinutes}
         onClick={submit}
         className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}
       >
-        {loading ? "Booking…" : "Book now & collect payment"}
+        {loading ? "Starting…" : "Show QR for the customer"}
       </button>
       <p className="text-center text-xs text-zinc-400">
-        Next: hand your device to the customer to pay by card — the {formatMyr(DEPOSIT_MYR)} deposit hold goes on automatically, same as an online booking.
+        The customer scans the QR and fills in their own details. You then approve the booking, and they pay on their own phone.
       </p>
     </div>
   );
