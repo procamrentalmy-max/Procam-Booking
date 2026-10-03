@@ -26,7 +26,6 @@ export const en = {
     ctaSecondary: "How it works",
     stats: [
       { value: "{hourly}", label: "per hour, plus {battery1} for 1 battery or {battery2} for 2" },
-      { value: "30 min", label: "booking slots, no waiting period" },
       { value: "{deposit}", label: "deposit, a card hold and not a charge" },
     ],
     stepsTitle: "Three steps",

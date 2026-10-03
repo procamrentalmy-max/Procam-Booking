@@ -28,7 +28,6 @@ export const ms: Dictionary = {
     ctaSecondary: "Cara ia berfungsi",
     stats: [
       { value: "{hourly}", label: "sejam, tambah {battery1} untuk 1 bateri atau {battery2} untuk 2" },
-      { value: "30 min", label: "slot tempahan, tanpa tempoh menunggu" },
       { value: "{deposit}", label: "deposit, tahanan pada kad dan bukan caj" },
     ],
     stepsTitle: "Tiga langkah",

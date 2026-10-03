@@ -102,7 +102,7 @@ export default async function Home() {
         </section>
 
         <section className="border-y border-zinc-800 bg-zinc-950">
-          <dl className="mx-auto grid max-w-5xl gap-8 px-6 py-10 sm:grid-cols-3">
+          <dl className="mx-auto grid max-w-5xl gap-8 px-6 py-10 sm:grid-cols-2">
             {t.stats.map((stat) => (
               <div key={stat.value}>
                 <dt className="text-3xl font-semibold tracking-tight text-white">{fill(stat.value)}</dt>

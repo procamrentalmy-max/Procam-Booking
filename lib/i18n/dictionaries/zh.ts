@@ -28,7 +28,6 @@ export const zh: Dictionary = {
     ctaSecondary: "租用流程",
     stats: [
       { value: "{hourly}", label: "每小时，另加 1 块电池 {battery1} 或 2 块电池 {battery2}" },
-      { value: "30 分钟", label: "预订时段，无需提前等待" },
       { value: "{deposit}", label: "押金，仅在银行卡上冻结，不会扣款" },
     ],
     stepsTitle: "三个步骤",
