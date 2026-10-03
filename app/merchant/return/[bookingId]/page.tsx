@@ -6,7 +6,7 @@ export default async function MerchantReturnPage({ params }: { params: Promise<{
   const { bookingId } = await params;
   const supabase = createServiceRoleClient();
 
-  const { data: booking } = await supabase.from("dr_bookings").select("id,status,customer_id,drone_id").eq("id", bookingId).maybeSingle();
+  const { data: booking } = await supabase.from("dr_bookings").select("id,status,customer_id,drone_id,batteries_count").eq("id", bookingId).maybeSingle();
   if (!booking) notFound();
 
   const [{ data: customer }, { data: drone }, { data: items }, { data: hold }] = await Promise.all([
@@ -28,6 +28,7 @@ export default async function MerchantReturnPage({ params }: { params: Promise<{
         checklistItems={items ?? []}
         disabled={booking.status !== "ACTIVE"}
         holdOnFile={hold?.status === "AUTHORIZED"}
+        batteriesCount={booking.batteries_count}
       />
     </div>
   );

@@ -2,33 +2,44 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CameraCaptureField } from "@/components/CameraCaptureField";
-import { en } from "@/lib/i18n/dictionaries/en";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
+import { dronePhotoSteps } from "@/lib/droneRental/photoSteps";
+import { PhotoStepPage, StepTitle } from "@/components/droneRental/PhotoStepPage";
 import { submitPickupAction, type PickupResult } from "./actions";
 
+/**
+ * The handover: one guided photo per page (what to photograph is spelled out on each), then a last page with the
+ * checklist and the customer's typed name. Every photo is required.
+ */
 export function PickupForm({
   bookingId,
   checklistItems,
   disabled,
   batteriesCount,
+  summary,
 }: {
+  /** Who it's for, what goes out, and the deposit status. Shown on the first and last pages, not on every photo page. */
+  summary: React.ReactNode;
   batteriesCount: number;
   bookingId: string;
   checklistItems: { item_key: string; label: string }[];
   disabled: boolean;
 }) {
   const router = useRouter();
-  const [photos, setPhotos] = useState<File[]>([]);
+  const steps = dronePhotoSteps(batteriesCount, "pickup");
+  const [step, setStep] = useState(0); // 0..steps.length-1 are photos; steps.length is the confirm page
+  const [photos, setPhotos] = useState<Record<string, File>>({});
   const [acks, setAcks] = useState<Record<string, boolean>>(() => Object.fromEntries(checklistItems.map((i) => [i.item_key, false])));
   const [customerSignedName, setCustomerSignedName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [shortened, setShortened] = useState<PickupResult | null>(null);
 
+  const allPhotos = steps.every((s) => photos[s.key]);
   const allChecked = checklistItems.every((i) => acks[i.item_key]);
-  const canSubmit = !disabled && photos.length > 0 && allChecked && customerSignedName.trim().length > 0;
+  const canSubmit = !disabled && allPhotos && allChecked && customerSignedName.trim().length > 0;
+  const total = steps.length + 1;
 
   async function submit() {
     setLoading(true);
@@ -38,7 +49,7 @@ export function PickupForm({
       formData.set("bookingId", bookingId);
       formData.set("customerSignedName", customerSignedName);
       formData.set("acknowledgements", JSON.stringify(acks));
-      for (const p of photos) formData.append("photos", p);
+      for (const s of steps) formData.set(`photo_${s.key}`, photos[s.key]);
       const result = await submitPickupAction(formData);
       // Almost always straight back to the dashboard. If a following booking forced the rental to be shorter
       // than the customer paid for, the merchant needs to see that and tell them before they leave.
@@ -78,15 +89,36 @@ export function PickupForm({
   }
 
   if (disabled) {
-    return <p className="text-center text-sm text-zinc-400">This booking isn&apos;t ready for pickup.</p>;
+    return (
+      <div className="space-y-4">
+        {summary}
+        <p className="text-center text-sm text-zinc-400">This booking isn&apos;t ready for pickup.</p>
+      </div>
+    );
+  }
+
+  if (step < steps.length) {
+    const current = steps[step];
+    return (
+      <div className="space-y-4">
+        {step === 0 && summary}
+        <PhotoStepPage
+          step={current}
+          index={step}
+          total={total}
+          photo={photos[current.key]}
+          onPhoto={(file) => setPhotos((prev) => ({ ...prev, [current.key]: file }))}
+          onBack={step > 0 ? () => setStep(step - 1) : undefined}
+          onNext={() => setStep(step + 1)}
+        />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-5">
-      <div>
-        <p className="mb-2 text-sm font-medium">Condition photos</p>
-        <CameraCaptureField dict={en} photos={photos} onChange={setPhotos} multiple />
-      </div>
+      {summary}
+      <StepTitle index={steps.length} total={total} title="Checklist and handover" />
 
       <div className="space-y-2">
         <p className="text-sm font-medium">Walk the customer through the checklist</p>
@@ -117,6 +149,9 @@ export function PickupForm({
 
       <button type="button" disabled={!canSubmit || loading} onClick={submit} className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}>
         {loading ? "Handing over…" : `Confirm handover — hand out ${batteriesCount} ${batteriesCount === 1 ? "battery" : "batteries"}`}
+      </button>
+      <button type="button" onClick={() => setStep(steps.length - 1)} className="w-full text-center text-sm text-zinc-500 underline underline-offset-2">
+        Back to photos
       </button>
     </div>
   );

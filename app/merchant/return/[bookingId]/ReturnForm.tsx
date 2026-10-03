@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CameraCaptureField } from "@/components/CameraCaptureField";
-import { en } from "@/lib/i18n/dictionaries/en";
+import { dronePhotoSteps } from "@/lib/droneRental/photoSteps";
+import { PhotoStepPage, StepTitle } from "@/components/droneRental/PhotoStepPage";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import {
   DEPOSIT_MYR,
@@ -79,14 +79,18 @@ export function ReturnForm({
   checklistItems,
   disabled,
   holdOnFile,
+  batteriesCount,
 }: {
+  batteriesCount: number;
   bookingId: string;
   checklistItems: { item_key: string; label: string }[];
   disabled: boolean;
   holdOnFile: boolean;
 }) {
   const router = useRouter();
-  const [photos, setPhotos] = useState<File[]>([]);
+  const steps = dronePhotoSteps(batteriesCount, "return");
+  const [step, setStep] = useState(0); // 0..steps.length-1 are the guided photos; steps.length is the verdict page
+  const [photos, setPhotos] = useState<Record<string, File>>({});
   const [acks, setAcks] = useState<Record<string, boolean>>(() => Object.fromEntries(checklistItems.map((i) => [i.item_key, false])));
   const [droneOutcome, setDroneOutcome] = useState<ItemOutcome>("NONE");
   const [controllerOutcome, setControllerOutcome] = useState<ItemOutcome>("NONE");
@@ -111,7 +115,8 @@ export function ReturnForm({
   }
 
   const anythingWrong = droneOutcome !== "NONE" || controllerOutcome !== "NONE";
-  const canSubmit = !loading && photos.length > 0 && capture !== null;
+  const allPhotos = steps.every((s) => photos[s.key]);
+  const canSubmit = !loading && allPhotos && capture !== null;
 
   async function submit() {
     setLoading(true);
@@ -125,7 +130,7 @@ export function ReturnForm({
       if (controllerOutcome === "DAMAGED") formData.set("controllerDamageMyr", controllerDamage);
       formData.set("acknowledgements", JSON.stringify(acks));
       formData.set("notes", notes);
-      for (const p of photos) formData.append("photos", p);
+      for (const s of steps) formData.set(`photo_${s.key}`, photos[s.key]);
       setResult(await submitReturnAction(formData));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -178,12 +183,24 @@ export function ReturnForm({
     );
   }
 
+  if (step < steps.length) {
+    const current = steps[step];
+    return (
+      <PhotoStepPage
+        step={current}
+        index={step}
+        total={steps.length + 1}
+        photo={photos[current.key]}
+        onPhoto={(file) => setPhotos((prev) => ({ ...prev, [current.key]: file }))}
+        onBack={step > 0 ? () => setStep(step - 1) : undefined}
+        onNext={() => setStep(step + 1)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <section>
-        <p className="mb-2 text-sm font-semibold">Condition photos</p>
-        <CameraCaptureField dict={en} photos={photos} onChange={setPhotos} multiple />
-      </section>
+      <StepTitle index={steps.length} total={steps.length + 1} title="Checklist and deposit" />
 
       <section className="space-y-2">
         <p className="text-sm font-semibold">Return checklist</p>
@@ -271,7 +288,9 @@ export function ReturnForm({
             ? `Complete return · keep ${formatMyr(capture.totalMyr)}`
             : "Complete return · release deposit"}
       </button>
-      {photos.length === 0 && <p className="-mt-3 text-center text-xs text-zinc-400">Take at least one photo to complete the return.</p>}
+      <button type="button" onClick={() => setStep(steps.length - 1)} className="w-full text-center text-sm text-zinc-500 underline underline-offset-2">
+        Back to photos
+      </button>
     </div>
   );
 }

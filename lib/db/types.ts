@@ -655,6 +655,8 @@ export type DrChecklistPhotoRow = {
   booking_id: string;
   phase: DrChecklistPhase;
   storage_path: string;
+  /** The guided photo step this answers (see lib/droneRental/photoSteps.ts); null on older photos. */
+  item_key: string | null;
   taken_by_staff_id: string;
   created_at: string;
 };

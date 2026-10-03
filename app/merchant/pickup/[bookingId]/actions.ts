@@ -7,6 +7,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { uploadChecklistPhoto, checklistPhotoPath } from "@/lib/droneRental/storage";
 import { computeHandoverWindow } from "@/lib/droneRental/handover";
 import { findChargedBatteries } from "@/lib/droneRental/batteries";
+import { dronePhotoSteps } from "@/lib/droneRental/photoSteps";
 
 export type PickupResult = {
   /** When the customer has to bring everything back (the rental's end), as an ISO string. */
@@ -35,6 +36,13 @@ export async function submitPickupAction(formData: FormData): Promise<PickupResu
   if (!booking) throw new Error("Booking not found.");
   if (booking.status !== "CONFIRMED") throw new Error("This booking isn't ready for pickup.");
 
+  // Every guided photo is required — checked before anything is saved, so a missing one stops the handover cleanly.
+  const photoSteps = dronePhotoSteps(booking.batteries_count, "pickup");
+  const stepPhotos = photoSteps.map((step) => ({ step, file: formData.get(`photo_${step.key}`) }));
+  for (const { step, file } of stepPhotos) {
+    if (!(file instanceof File) || file.size === 0) throw new Error(`Missing photo: ${step.label}`);
+  }
+
   const { data: items } = await supabase.from("dr_checklist_items").select("item_key").eq("active", true);
   for (const item of items ?? []) {
     if (!acknowledgements[item.item_key]) throw new Error(`Please confirm: ${item.item_key}`);
@@ -57,11 +65,12 @@ export async function submitPickupAction(formData: FormData): Promise<PickupResu
     .single();
   if (recordError || !record) throw new Error("Could not save the checklist.");
 
-  const photos = formData.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
-  for (let i = 0; i < photos.length; i++) {
-    const path = checklistPhotoPath(bookingId, "pickup", i);
-    await uploadChecklistPhoto(path, photos[i]);
-    await supabase.from("dr_checklist_photos").insert({ booking_id: bookingId, phase: "PICKUP", storage_path: path, taken_by_staff_id: ctx.staffId });
+  for (const { step, file } of stepPhotos) {
+    const path = checklistPhotoPath(bookingId, "pickup", step.key);
+    await uploadChecklistPhoto(path, file as File);
+    await supabase
+      .from("dr_checklist_photos")
+      .insert({ booking_id: bookingId, phase: "PICKUP", storage_path: path, item_key: step.key, taken_by_staff_id: ctx.staffId });
   }
 
   // Hand out the batteries the customer chose (1 or 2): this drone's own first, then any other charged

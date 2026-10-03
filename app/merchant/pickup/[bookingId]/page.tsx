@@ -23,8 +23,8 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
 
   const holdOnFile = hold?.status === "AUTHORIZED";
 
-  return (
-    <div className="space-y-4 pt-4">
+  const summary = (
+    <>
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <p className="text-lg font-semibold text-black dark:text-zinc-50">{customer?.name ?? "—"}</p>
         <p className="text-sm text-zinc-500">{customer?.phone ?? "—"}</p>
@@ -54,8 +54,18 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
           before handing anything over.
         </p>
       )}
+    </>
+  );
 
-      <PickupForm bookingId={booking.id} checklistItems={items ?? []} disabled={booking.status !== "CONFIRMED"} batteriesCount={booking.batteries_count} />
+  return (
+    <div className="space-y-4 pt-4">
+      <PickupForm
+        bookingId={booking.id}
+        checklistItems={items ?? []}
+        disabled={booking.status !== "CONFIRMED"}
+        batteriesCount={booking.batteries_count}
+        summary={summary}
+      />
     </div>
   );
 }

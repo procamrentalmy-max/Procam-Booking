@@ -8,6 +8,7 @@ import { uploadChecklistPhoto, checklistPhotoPath } from "@/lib/droneRental/stor
 import { resolveDroneDeposit, chargeLateFee } from "@/lib/droneRental/payment";
 import { computeDepositCapture, lateFeeMyr, DepositCaptureError } from "@/lib/droneRental/pricingRules";
 import { isReturnLate } from "@/lib/droneRental/slots";
+import { dronePhotoSteps } from "@/lib/droneRental/photoSteps";
 
 const outcomeSchema = z.enum(["NONE", "DAMAGED", "LOST"]);
 
@@ -58,9 +59,16 @@ export async function submitReturnAction(formData: FormData): Promise<ReturnResu
 
   const supabase = createServiceRoleClient();
 
-  const { data: booking } = await supabase.from("dr_bookings").select("id,status,drone_id,end_time").eq("id", parsed.bookingId).single();
+  const { data: booking } = await supabase.from("dr_bookings").select("id,status,drone_id,end_time,batteries_count").eq("id", parsed.bookingId).single();
   if (!booking) throw new Error("Booking not found.");
   if (booking.status !== "ACTIVE") throw new Error("This booking isn't currently active.");
+
+  // Every guided photo is required — checked before anything is saved, so a missing one stops the return cleanly.
+  const photoSteps = dronePhotoSteps(booking.batteries_count, "return");
+  const stepPhotos = photoSteps.map((step) => ({ step, file: formData.get(`photo_${step.key}`) }));
+  for (const { step, file } of stepPhotos) {
+    if (!(file instanceof File) || file.size === 0) throw new Error(`Missing photo: ${step.label}`);
+  }
 
   const { data: record, error: recordError } = await supabase
     .from("dr_checklist_records")
@@ -78,11 +86,12 @@ export async function submitReturnAction(formData: FormData): Promise<ReturnResu
     .single();
   if (recordError || !record) throw new Error("Could not save the return checklist.");
 
-  const photos = formData.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
-  for (let i = 0; i < photos.length; i++) {
-    const path = checklistPhotoPath(parsed.bookingId, "return", i);
-    await uploadChecklistPhoto(path, photos[i]);
-    await supabase.from("dr_checklist_photos").insert({ booking_id: parsed.bookingId, phase: "RETURN", storage_path: path, taken_by_staff_id: ctx.staffId });
+  for (const { step, file } of stepPhotos) {
+    const path = checklistPhotoPath(parsed.bookingId, "return", step.key);
+    await uploadChecklistPhoto(path, file as File);
+    await supabase
+      .from("dr_checklist_photos")
+      .insert({ booking_id: parsed.bookingId, phase: "RETURN", storage_path: path, item_key: step.key, taken_by_staff_id: ctx.staffId });
   }
 
   const { holdFound } = await resolveDroneDeposit({

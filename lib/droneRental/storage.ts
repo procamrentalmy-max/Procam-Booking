@@ -3,8 +3,9 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 
 const CHECKLIST_PHOTOS_BUCKET = "drone-checklist-photos";
 
-export function checklistPhotoPath(bookingId: string, phase: "pickup" | "return", index: number): string {
-  return `${bookingId}/${phase}/photo-${index}.jpg`;
+/** Where a handover/return photo lives. A guided photo step is named by its key (e.g. "front"); older numbered photos by index. */
+export function checklistPhotoPath(bookingId: string, phase: "pickup" | "return", keyOrIndex: string | number): string {
+  return typeof keyOrIndex === "number" ? `${bookingId}/${phase}/photo-${keyOrIndex}.jpg` : `${bookingId}/${phase}/${keyOrIndex}.jpg`;
 }
 
 export async function uploadChecklistPhoto(path: string, file: File): Promise<void> {
