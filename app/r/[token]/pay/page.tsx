@@ -52,16 +52,18 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
       )}
 
       {/* DEV ONLY — remove this before launch. Bypasses Stripe entirely. */}
-      <form action={devBypassPaymentAction} className="border-t border-dashed border-amber-400 pt-4">
-        <input type="hidden" name="token" value={token} />
-        <input type="hidden" name="locale" value={locale} />
-        <button
-          type="submit"
-          className="flex h-10 w-full items-center justify-center rounded-full border border-dashed border-amber-500 text-xs font-medium text-amber-700 dark:text-amber-400"
-        >
-          {dict.pay.devSkip}
-        </button>
-      </form>
+      {process.env.NODE_ENV !== "production" && (
+        <form action={devBypassPaymentAction} className="border-t border-dashed border-amber-400 pt-4">
+          <input type="hidden" name="token" value={token} />
+          <input type="hidden" name="locale" value={locale} />
+          <button
+            type="submit"
+            className="flex h-10 w-full items-center justify-center rounded-full border border-dashed border-amber-500 text-xs font-medium text-amber-700 dark:text-amber-400"
+          >
+            {dict.pay.devSkip}
+          </button>
+        </form>
+      )}
     </div>
   );
 }

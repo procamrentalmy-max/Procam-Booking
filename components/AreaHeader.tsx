@@ -21,13 +21,13 @@ export function AreaHeader({
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         {homeHref && (
-          <Link href={homeHref} className="text-sm font-medium text-zinc-500 underline underline-offset-2">
+          <Link href={homeHref} className="inline-flex min-h-10 items-center px-1 text-sm font-medium text-zinc-500 underline underline-offset-2">
             Home
           </Link>
         )}
         <form action={signOutAction} className="flex items-center gap-3">
           <span className="text-sm text-zinc-600 dark:text-zinc-400">{name}</span>
-          <button type="submit" className="text-sm font-medium text-zinc-500 underline underline-offset-2">
+          <button type="submit" className="min-h-10 px-1 text-sm font-medium text-zinc-500 underline underline-offset-2">
             Sign out
           </button>
         </form>

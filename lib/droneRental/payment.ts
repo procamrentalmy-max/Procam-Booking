@@ -1,7 +1,7 @@
 import "server-only";
 import { getStripe, toCents } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { BATTERY_SWAP_FEE_MYR, type DepositCapture, type ItemOutcome } from "./pricingRules";
+import { BATTERY_PACKAGE_FEE_MYR, type BatteryCount, type DepositCapture, type ItemOutcome } from "./pricingRules";
 
 /**
  * Creates (or reuses) the rental-fee PaymentIntent for a drone booking.
@@ -144,7 +144,13 @@ async function chargeOffSessionFee(params: {
     supabase.from("customers").select("stripe_customer_id").eq("id", booking.customer_id).single(),
     supabase.from("dr_payments").select("provider_ref").eq("booking_id", params.bookingId).eq("kind", "RENTAL_FEE").eq("status", "SUCCEEDED").single(),
   ]);
-  if (!customer?.stripe_customer_id || !rentalFeePayment) throw new Error("No saved payment method on this booking.");
+  if (!customer?.stripe_customer_id || !rentalFeePayment) {
+    // A booking confirmed with the local dev "skip payment" shortcut never had a card. That can only happen outside
+    // production (the shortcut doesn't exist there), so let the swap or fee through while developing; in production
+    // it stays a hard stop so a fee is never silently skipped.
+    if (process.env.NODE_ENV !== "production") return { paymentId: "dev-no-card", providerRef: "dev-no-card" };
+    throw new Error("No saved payment method on this booking.");
+  }
 
   const rentalFeeIntent = await stripe.paymentIntents.retrieve(rentalFeePayment.provider_ref);
   const paymentMethodId =
@@ -178,9 +184,9 @@ async function chargeOffSessionFee(params: {
   return { paymentId: payment.id, providerRef: feeIntent.id };
 }
 
-/** Merchant taps "swap battery" mid-rental — charges BATTERY_SWAP_FEE_MYR off-session. */
-export async function chargeBatterySwapFee(bookingId: string): Promise<{ paymentId: string; providerRef: string }> {
-  return chargeOffSessionFee({ bookingId, amountMyr: BATTERY_SWAP_FEE_MYR, dbKind: "BATTERY_SWAP_FEE", stripeMetadataKind: "DRONE_BATTERY_SWAP_FEE" });
+/** Merchant swaps one or two batteries mid-rental — charges RM7 or RM10 off-session. */
+export async function chargeBatterySwapFee(bookingId: string, count: BatteryCount): Promise<{ paymentId: string; providerRef: string }> {
+  return chargeOffSessionFee({ bookingId, amountMyr: BATTERY_PACKAGE_FEE_MYR[count], dbKind: "BATTERY_SWAP_FEE", stripeMetadataKind: "DRONE_BATTERY_SWAP_FEE" });
 }
 
 /** Charged at return when the drone comes back past RETURN_GRACE_MINUTES late — see lib/droneRental/slots.ts::isReturnLate and pricingRules.ts::lateFeeMyr. */

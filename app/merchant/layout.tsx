@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getAuthContext, hasMerchantAccess } from "@/lib/auth/session";
 import { getLogoUrl } from "@/lib/branding";
 import { AreaHeader } from "@/components/AreaHeader";
+import { BackToDashboard } from "@/components/BackToDashboard";
 
 export default async function MerchantLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getAuthContext();
@@ -12,7 +13,10 @@ export default async function MerchantLayout({ children }: { children: React.Rea
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
       <AreaHeader title="Drone Rental — Merchant" name={ctx.name} homeHref="/merchant" logoUrl={logoUrl} />
-      <main className="mx-auto max-w-md p-4">{children}</main>
+      <main className="mx-auto max-w-md p-4">
+        <BackToDashboard href="/merchant" />
+        {children}
+      </main>
     </div>
   );
 }

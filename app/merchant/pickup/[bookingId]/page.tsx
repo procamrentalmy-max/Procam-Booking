@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { BATTERIES_INCLUDED, DEPOSIT_CONTROLLER_MYR, DEPOSIT_DRONE_MYR, formatMyr } from "@/lib/droneRental/pricingRules";
+import { DEPOSIT_CONTROLLER_MYR, DEPOSIT_DRONE_MYR, formatMyr } from "@/lib/droneRental/pricingRules";
 import { PickupForm } from "./PickupForm";
 
 export default async function MerchantPickupPage({ params }: { params: Promise<{ bookingId: string }> }) {
@@ -9,7 +9,7 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
 
   const { data: booking } = await supabase
     .from("dr_bookings")
-    .select("id,status,customer_id,drone_id,start_time,end_time,deposit_myr")
+    .select("id,status,customer_id,drone_id,start_time,end_time,deposit_myr,batteries_count")
     .eq("id", bookingId)
     .maybeSingle();
   if (!booking) notFound();
@@ -36,7 +36,8 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
           <li>Drone {drone?.human_id ?? "—"}</li>
           <li>RC-N3 controller</li>
           <li>
-            {BATTERIES_INCLUDED} batteries <span className="font-normal text-zinc-500">(one in the drone, one spare)</span>
+            {booking.batteries_count} {booking.batteries_count === 1 ? "battery" : "batteries"}{" "}
+            <span className="font-normal text-zinc-500">{booking.batteries_count === 1 ? "(in the drone)" : "(one in the drone, one spare)"}</span>
           </li>
         </ul>
         <p className="mt-2 text-xs text-zinc-500">Nothing else goes out — no case, no charging cable.</p>
@@ -54,7 +55,7 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
         </p>
       )}
 
-      <PickupForm bookingId={booking.id} checklistItems={items ?? []} disabled={booking.status !== "CONFIRMED"} />
+      <PickupForm bookingId={booking.id} checklistItems={items ?? []} disabled={booking.status !== "CONFIRMED"} batteriesCount={booking.batteries_count} />
     </div>
   );
 }

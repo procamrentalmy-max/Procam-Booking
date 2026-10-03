@@ -36,7 +36,7 @@ export function LoginForm() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="text-center">
             <h1 className="text-xl font-semibold text-black dark:text-zinc-50">ProCam Staff Login</h1>
-            <p className="mt-1 text-sm text-zinc-500">Reception, ProCam staff, and admin sign in here.</p>
+            <p className="mt-1 text-sm text-zinc-500">Reception, shop merchants, ProCam staff, and admins sign in here.</p>
           </div>
 
           <div className="space-y-2">
@@ -72,15 +72,17 @@ export function LoginForm() {
         </form>
 
         {/* DEV ONLY — remove before launch. See app/login/devActions.ts. */}
-        <form action={devLoginAction} className="border-t border-dashed border-amber-400 pt-4">
-          <input type="hidden" name="next" value={searchParams.get("next") ?? ""} />
-          <button
-            type="submit"
-            className="flex h-10 w-full items-center justify-center rounded-full border border-dashed border-amber-500 text-xs font-medium text-amber-700 dark:text-amber-400"
-          >
-            [DEV] Sign in as ProCam Admin
-          </button>
-        </form>
+        {process.env.NODE_ENV !== "production" && (
+          <form action={devLoginAction} className="border-t border-dashed border-amber-400 pt-4">
+            <input type="hidden" name="next" value={searchParams.get("next") ?? ""} />
+            <button
+              type="submit"
+              className="flex h-10 w-full items-center justify-center rounded-full border border-dashed border-amber-500 text-xs font-medium text-amber-700 dark:text-amber-400"
+            >
+              [DEV] Sign in as ProCam Admin
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

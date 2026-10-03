@@ -4,11 +4,15 @@ import { z } from "zod";
 import { uuidSchema } from "@/lib/zod-helpers";
 import { buildShopFleetSnapshot } from "@/lib/droneRental/snapshot";
 import { computeUnavailableStarts } from "@/lib/droneRental/slots";
+import { isWithinOperatingHours } from "@/lib/droneRental/hours";
+import { isValidRentalMinutes } from "@/lib/droneRental/pricingRules";
 import { findOrCreateCustomer, createPendingDroneBooking, NoDroneAvailableError } from "@/lib/droneRental/createBooking";
+
+const rentalMinutesSchema = z.number().refine(isValidRentalMinutes, "Choose a rental length of 1 to 6 hours.");
 
 const unavailableStartsSchema = z.object({
   shopId: uuidSchema,
-  durationMinutes: z.number().int().positive(),
+  durationMinutes: rentalMinutesSchema,
   starts: z.array(z.string().min(1)).max(64),
 });
 
@@ -21,43 +25,51 @@ export async function getUnavailableDroneStartsAction(input: {
   const parsed = unavailableStartsSchema.parse(input);
   const snapshot = await buildShopFleetSnapshot(parsed.shopId);
   const dates = parsed.starts.map((s) => new Date(s));
-  const unavailable = computeUnavailableStarts(snapshot.drones, snapshot.bookings, parsed.durationMinutes, dates);
+  const noDrone = computeUnavailableStarts(snapshot.drones, snapshot.bookings, parsed.durationMinutes, dates);
+  // A start the shop is closed for (before opening, or running past closing) is unavailable too.
+  const unavailable = dates.map((d, i) => noDrone[i] || !isWithinOperatingHours(d, parsed.durationMinutes));
   return { unavailable };
 }
 
 const createBookingSchema = z.object({
   shopId: uuidSchema,
-  durationMinutes: z.number().int().positive(),
+  durationMinutes: rentalMinutesSchema,
   startTime: z.string().min(1),
-  name: z.string().min(1, "Name is required"),
-  phone: z.string().min(6, "Enter a valid phone number"),
-  email: z.string().email("Enter a valid email"),
+  batteries: z.union([z.literal(1), z.literal(2)]),
+  name: z.string().trim().min(1, "Enter your name"),
+  phone: z.string().trim().regex(/^[0-9+\-()\s]{6,30}$/, "Enter a valid phone number"),
+  email: z.string().trim().email("Enter a valid email"),
 });
 
 export async function createDroneBookingAction(input: {
   shopId: string;
   durationMinutes: number;
   startTime: string;
+  batteries: 1 | 2;
   name: string;
   phone: string;
   email: string;
 }): Promise<{ secureToken: string; startTime: string; endTime: string }> {
-  const parsed = createBookingSchema.parse(input);
-  const start = new Date(parsed.startTime);
+  const parsed = createBookingSchema.safeParse(input);
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Check your details and try again.");
+  const data = parsed.data;
+  const start = new Date(data.startTime);
   if (Number.isNaN(start.getTime())) throw new Error("Invalid date/time.");
+  if (!isWithinOperatingHours(start, data.durationMinutes)) throw new Error("The shop is closed at that time — pick another slot.");
 
-  const customerId = await findOrCreateCustomer({ name: parsed.name, phone: parsed.phone, email: parsed.email });
+  const customerId = await findOrCreateCustomer({ name: data.name, phone: data.phone, email: data.email });
 
   try {
     const booking = await createPendingDroneBooking({
       customerId,
-      shopId: parsed.shopId,
-      durationMinutes: parsed.durationMinutes,
-      earliestStartTime: start,
+      shopId: data.shopId,
+      durationMinutes: data.durationMinutes,
+      startTime: start,
+      batteries: data.batteries,
     });
     return { secureToken: booking.secure_token, startTime: booking.start_time, endTime: booking.end_time };
   } catch (err) {
-    if (err instanceof NoDroneAvailableError) throw new Error("No drone is available for that time — try another slot or shop.");
+    if (err instanceof NoDroneAvailableError) throw new Error("Sorry, that time was just taken — pick another slot.");
     throw err;
   }
 }

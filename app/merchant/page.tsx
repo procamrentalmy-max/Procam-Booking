@@ -17,6 +17,8 @@ type BookingRow = {
   shop_id: string;
   drone_id: string;
   customer_id: string;
+  checked_in_at: string | null;
+  source: string;
 };
 
 function Stat({ value, label, tone }: { value: string; label: string; tone?: "alert" }) {
@@ -76,7 +78,7 @@ export default async function MerchantHomePage() {
 
   const bookingsQuery = supabase
     .from("dr_bookings")
-    .select("id,human_id,status,start_time,end_time,shop_id,drone_id,customer_id")
+    .select("id,human_id,status,source,start_time,end_time,shop_id,drone_id,customer_id,checked_in_at")
     .in("status", ["CONFIRMED", "ACTIVE"])
     .order("start_time", { ascending: true });
   const dronesQuery = supabase.from("dr_drones").select("id,human_id,status,shop_id");
@@ -87,13 +89,12 @@ export default async function MerchantHomePage() {
   const bookings: BookingRow[] = bookingRows ?? [];
   const drones = allDrones ?? [];
 
-  // Walk-ins that are still moving: a QR nobody's scanned, details waiting
-  // for approval, or an accepted booking not yet paid. Recent only — old
-  // accepted ones pile up and are all finished business.
+  // Walk-in orders that are still moving: an order from the shop's QR waiting for the merchant to confirm,
+  // or a confirmed one not yet paid. Recent only — old accepted ones pile up and are all finished business.
   const walkInsQuery = supabase
     .from("dr_walkin_requests")
-    .select("id,status,customer_name,drone_id,expires_at,booking_id")
-    .in("status", ["WAITING", "SUBMITTED", "ACCEPTED"])
+    .select("id,status,customer_name,duration_minutes,batteries_count,expires_at,booking_id")
+    .in("status", ["SUBMITTED", "ACCEPTED"])
     .gte("created_at", new Date(now.getTime() - 24 * 60 * 60_000).toISOString())
     .order("created_at", { ascending: false });
   const { data: walkInRows } = await (scoped ? walkInsQuery.in("shop_id", scoped) : walkInsQuery);
@@ -104,7 +105,7 @@ export default async function MerchantHomePage() {
   const bookingStatusById = new Map((acceptedBookings ?? []).map((b) => [b.id, b.status]));
   const walkIns = (walkInRows ?? [])
     .map((w) => ({ ...w, view: walkInView(w.status, new Date(w.expires_at), now) }))
-    .filter((w) => w.view === "WAITING" || w.view === "SUBMITTED" || (w.view === "ACCEPTED" && bookingStatusById.get(w.booking_id ?? "") === "PENDING_PAYMENT"));
+    .filter((w) => w.view === "SUBMITTED" || (w.view === "ACCEPTED" && bookingStatusById.get(w.booking_id ?? "") === "PENDING_PAYMENT"));
 
   const droneIds = drones.map((d) => d.id);
   const customerIds = [...new Set(bookings.map((b) => b.customer_id))];
@@ -136,15 +137,15 @@ export default async function MerchantHomePage() {
       <AutoRefresh seconds={walkIns.length ? 5 : 30} />
 
       <Link
-        href="/merchant/instant-booking"
+        href="/merchant/walk-in-qr"
         className="flex h-14 items-center justify-center rounded-2xl bg-black text-base font-semibold text-white shadow-sm dark:bg-white dark:text-black"
       >
-        + New walk-in booking
+        Walk-in QR
       </Link>
 
       {walkIns.length > 0 && (
         <section>
-          <SectionHeading title="Walk-ins in progress" count={walkIns.length} />
+          <SectionHeading title="Walk-in orders" count={walkIns.length} />
           <ul className="space-y-3">
             {walkIns.map((w) => {
               const ready = w.view === "SUBMITTED";
@@ -157,15 +158,17 @@ export default async function MerchantHomePage() {
                 >
                   <div className="min-w-0">
                     <p className="text-base font-semibold leading-snug text-black dark:text-zinc-50">
-                      {ready ? `${w.customer_name} sent their details` : w.view === "WAITING" ? "QR waiting for the customer" : `Waiting for ${w.customer_name} to pay`}
+                      {ready ? `${w.customer_name} sent an order` : `Waiting for ${w.customer_name} to pay`}
                     </p>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">{droneHumanId.get(w.drone_id) ?? "—"}</p>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      {w.duration_minutes / 60}h · {w.batteries_count} {w.batteries_count === 1 ? "battery" : "batteries"}
+                    </p>
                   </div>
                   <Link
                     href={`/merchant/walk-in/${w.id}`}
                     className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-semibold ${ready ? "bg-green-600 text-white" : "bg-white text-black dark:bg-zinc-900 dark:text-white"}`}
                   >
-                    {ready ? "Review & accept" : "Open"}
+                    {ready ? "Review & confirm" : "Open"}
                   </Link>
                 </li>
               );
@@ -212,15 +215,24 @@ export default async function MerchantHomePage() {
                     <CustomerLine name={c?.name ?? "—"} phone={c?.phone ?? "—"} />
                     <DroneChip id={droneHumanId.get(b.drone_id) ?? "—"} />
                   </div>
-                  <div className="mt-3 flex items-end justify-between">
-                    <div>
-                      <p className="text-3xl font-bold leading-none text-black dark:text-zinc-50">{formatClock(start)}</p>
-                      <p className="mt-1 text-sm text-zinc-500">{formatDayLabel(start, now)}</p>
+                  {b.source === "MERCHANT_INSTANT" ? (
+                    <div className="mt-3">
+                      <p className="text-xl font-bold leading-none text-black dark:text-zinc-50">Walk-in, paid</p>
+                      <p className="mt-1 text-sm text-zinc-500">
+                        {formatDuration(new Date(b.end_time).getTime() - start.getTime())} rental
+                      </p>
                     </div>
-                    <p className={`text-sm font-semibold ${started ? "text-amber-700 dark:text-amber-400" : "text-zinc-600 dark:text-zinc-400"}`}>
-                      {started ? `Start time passed ${formatDuration(now.getTime() - start.getTime())} ago` : `Starts in ${formatDuration(start.getTime() - now.getTime())}`}
-                    </p>
-                  </div>
+                  ) : (
+                    <div className="mt-3 flex items-end justify-between">
+                      <div>
+                        <p className="text-3xl font-bold leading-none text-black dark:text-zinc-50">{formatClock(start)}</p>
+                        <p className="mt-1 text-sm text-zinc-500">{formatDayLabel(start, now)}</p>
+                      </div>
+                      <p className={`text-sm font-semibold ${started ? "text-amber-700 dark:text-amber-400" : "text-zinc-600 dark:text-zinc-400"}`}>
+                        {started ? `Start time passed ${formatDuration(now.getTime() - start.getTime())} ago` : `Starts in ${formatDuration(start.getTime() - now.getTime())}`}
+                      </p>
+                    </div>
+                  )}
                   <Link
                     href={`/merchant/pickup/${b.id}`}
                     className="mt-4 flex h-12 items-center justify-center rounded-xl bg-black text-base font-semibold text-white dark:bg-white dark:text-black"
@@ -229,6 +241,7 @@ export default async function MerchantHomePage() {
                   </Link>
                   <p className="mt-2 text-xs text-zinc-400">
                     {b.human_id}
+                    {b.checked_in_at ? " · Order accepted" : ""}
                     {showShopName ? ` · ${shopNameById.get(b.shop_id) ?? ""}` : ""}
                   </p>
                 </li>

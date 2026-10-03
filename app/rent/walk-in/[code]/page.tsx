@@ -1,0 +1,37 @@
+import { notFound } from "next/navigation";
+import { getLogoUrl } from "@/lib/branding";
+import { Brand } from "@/components/Brand";
+import { findShopByWalkInCode, walkInDurationOptions } from "@/lib/droneRental/walkInRequests";
+import { WalkInOrderForm } from "./WalkInOrderForm";
+
+// Which lengths are offered depends on which drones are free right now — never cache this.
+export const dynamic = "force-dynamic";
+
+/** What a customer sees after scanning the shop's standing walk-in QR: pick a length and batteries, enter details, send the order. */
+export default async function WalkInOrderPage({ params }: { params: Promise<{ code: string }> }) {
+  const { code } = await params;
+  const shop = await findShopByWalkInCode(code);
+  if (!shop) notFound();
+
+  const [durations, logoUrl] = await Promise.all([walkInDurationOptions(shop.id), getLogoUrl()]);
+
+  return (
+    <div className="mx-auto flex min-h-screen max-w-md flex-col gap-5 px-6 py-6">
+      <Brand logoUrl={logoUrl} size={22} />
+      <div>
+        <p className="text-xs uppercase tracking-wide text-zinc-400">{shop.name}</p>
+        <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">Rent a drone now</h1>
+        <p className="mt-1 text-sm text-zinc-500">DJI Neo 2 with the RC-N3 controller, charged and ready at this shop.</p>
+      </div>
+
+      {durations.length === 0 ? (
+        <div className="rounded-2xl border border-zinc-200 p-5 text-center dark:border-zinc-800">
+          <p className="text-lg font-semibold text-black dark:text-zinc-50">No drone is free right now</p>
+          <p className="mt-1 text-sm text-zinc-500">Please ask the staff when one will be back.</p>
+        </div>
+      ) : (
+        <WalkInOrderForm code={code} durationsMinutes={durations} />
+      )}
+    </div>
+  );
+}

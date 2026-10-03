@@ -554,6 +554,8 @@ export type DrShopRow = {
   lng: number;
   google_maps_url: string | null;
   active: boolean;
+  /** The permanent code in the shop's standing walk-in QR. */
+  walkin_code: string;
   created_at: string;
   updated_at: string;
 };
@@ -599,6 +601,10 @@ export type DrBookingRow = {
   end_time: string;
   actual_pickup_time: string | null;
   actual_return_time: string | null;
+  checked_in_at: string | null;
+  checked_in_by_staff_id: string | null;
+  /** How many batteries the customer chose at booking (1 or 2). */
+  batteries_count: number;
   rental_fee_myr: number;
   deposit_myr: number;
   deposit_outcome: DrDepositOutcome;
@@ -683,9 +689,11 @@ export type DrWalkInRequestRow = {
   id: string;
   public_token: string;
   shop_id: string;
-  drone_id: string;
+  /** Assigned when the merchant confirms the order; null until then. */
+  drone_id: string | null;
   duration_minutes: number;
-  created_by_staff_id: string;
+  batteries_count: number;
+  created_by_staff_id: string | null;
   status: DrWalkInStatus;
   customer_name: string | null;
   customer_phone: string | null;
@@ -803,6 +811,7 @@ export interface Database {
           p_secure_token: string;
           p_source: DrBookingSource;
           p_created_by_staff_id?: string | null;
+          p_batteries_count?: number;
         };
         Returns: DrBookingRow;
       };

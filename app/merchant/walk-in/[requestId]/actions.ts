@@ -15,26 +15,23 @@ async function authorize(requestId: string) {
   return { ctx, request };
 }
 
-/** Approves the customer's details: creates the booking, and the customer's phone moves on to payment by itself. */
-export async function acceptWalkInAction(requestId: string): Promise<void> {
+/** Confirms the customer's order: assigns the drone and creates the booking; the customer's phone then moves on to payment by itself. */
+export async function confirmWalkInOrderAction(requestId: string, droneId?: string): Promise<void> {
   const { ctx, request } = await authorize(requestId);
+  const chosenDroneId = droneId ? uuidSchema.parse(droneId) : undefined;
   try {
-    await acceptWalkInRequest(request.id, ctx.staffId);
+    await acceptWalkInRequest(request.id, ctx.staffId, chosenDroneId);
   } catch (err) {
     if (err instanceof WalkInError) throw new Error(err.message);
     throw err;
   }
   revalidatePath(`/merchant/walk-in/${request.id}`);
+  revalidatePath("/merchant");
 }
 
-export async function declineWalkInAction(requestId: string): Promise<void> {
+export async function declineWalkInOrderAction(requestId: string): Promise<void> {
   const { request } = await authorize(requestId);
   await closeWalkInRequest(request.id, "DECLINED");
   revalidatePath(`/merchant/walk-in/${request.id}`);
-}
-
-export async function cancelWalkInAction(requestId: string): Promise<void> {
-  const { request } = await authorize(requestId);
-  await closeWalkInRequest(request.id, "CANCELLED");
-  revalidatePath(`/merchant/walk-in/${request.id}`);
+  revalidatePath("/merchant");
 }

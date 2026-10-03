@@ -17,6 +17,8 @@ import { isLocale, DEFAULT_LOCALE } from "@/lib/i18n/locale";
  * be confirmed by the webhook, never this.
  */
 export async function devBypassPaymentAction(formData: FormData) {
+  // Hiding the button isn't enough: a server action can be POSTed directly, so refuse in production here too.
+  if (process.env.NODE_ENV === "production") throw new Error("Not available in production.");
   const token = z.string().min(1).parse(formData.get("token"));
   const rawLocale = formData.get("locale");
   const locale = typeof rawLocale === "string" && isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;

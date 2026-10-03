@@ -6,20 +6,27 @@
  * editable yet. Revisit if/when a second product or rate plan shows up.
  */
 
-/** First hour's rate — bundles the initial BATTERIES_INCLUDED handout, so it costs more than a plain additional hour. */
-export const FIRST_HOUR_RATE_MYR = 20;
+/** Rental time costs this much for every hour booked, however many hours that is. */
+export const HOURLY_RATE_MYR = 10;
 
-/** Every hour after the first — no extra batteries bundled in (those come via a paid swap — see BATTERY_SWAP_FEE_MYR). */
-export const ADDITIONAL_HOUR_RATE_MYR = 10;
+/** The customer chooses how many batteries to start with when they book. */
+export const BATTERY_OPTIONS = [1, 2] as const;
+export type BatteryCount = (typeof BATTERY_OPTIONS)[number];
+export const DEFAULT_BATTERIES: BatteryCount = 2;
 
-/** Batteries handed out at pickup, included in the first-hour rate. */
-export const BATTERIES_INCLUDED = 2;
+export function isBatteryCount(value: unknown): value is BatteryCount {
+  return (BATTERY_OPTIONS as readonly unknown[]).includes(value);
+}
+
+/**
+ * What each battery choice costs: 1 battery RM7, 2 batteries RM10. The same prices apply to swapping used
+ * batteries for fully charged ones mid-rental (1 swapped RM7, 2 swapped RM10).
+ */
+export const BATTERY_PACKAGE_FEE_MYR: Record<BatteryCount, number> = { 1: 7, 2: 10 };
 
 /** A customer can hold at most this many batteries at once — swapping in one more requires returning one first. */
 export const MAX_BATTERIES_HELD = 2;
 
-/** Charged per battery swapped in beyond the initial handout. */
-export const BATTERY_SWAP_FEE_MYR = 7;
 
 /**
  * The deposit is a card hold sized to what's actually handed over: the
@@ -30,16 +37,30 @@ export const DEPOSIT_DRONE_MYR = 900;
 export const DEPOSIT_CONTROLLER_MYR = 400;
 export const DEPOSIT_MYR = DEPOSIT_DRONE_MYR + DEPOSIT_CONTROLLER_MYR;
 
+/** About how long one full battery flies (same figure the hotel-locker flow tells customers). Shown so nobody thinks a 2-hour rental means 2 hours in the air. */
+export const BATTERY_FLIGHT_MINUTES_MIN = 12;
+export const BATTERY_FLIGHT_MINUTES_MAX = 15;
+
+/** The same figures for what a customer actually starts with, ready to show: 1 battery ~12–15 min, 2 batteries ~25–30 min. */
+export const BATTERY_FLIGHT_LABEL: Record<BatteryCount, string> = { 1: "12–15", 2: "25–30" };
+
 /** "RM1,300" — thousands separator so a four-digit deposit stays readable. */
 export function formatMyr(amount: number): string {
   return `RM${amount.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
 }
 
-/** Rental fee for a booking of this many minutes: FIRST_HOUR_RATE_MYR for the first hour, ADDITIONAL_HOUR_RATE_MYR for every hour after, rounded up to the nearest whole hour. */
-export function rentalFeeMyr(durationMinutes: number): number {
+/** The lengths an online customer can book: whole hours, 1 to 6. Checked on the server too, since a form can be posted with anything. */
+export const MIN_RENTAL_HOURS = 1;
+export const MAX_RENTAL_HOURS = 6;
+export function isValidRentalMinutes(minutes: number): boolean {
+  return Number.isInteger(minutes) && minutes % 60 === 0 && minutes >= MIN_RENTAL_HOURS * 60 && minutes <= MAX_RENTAL_HOURS * 60;
+}
+
+/** Rental fee: HOURLY_RATE_MYR for every hour (a partial hour counts as a full one) plus the price of the chosen batteries. */
+export function rentalFeeMyr(durationMinutes: number, batteries: BatteryCount = DEFAULT_BATTERIES): number {
   const hours = Math.ceil(durationMinutes / 60);
   if (hours <= 0) return 0;
-  return FIRST_HOUR_RATE_MYR + (hours - 1) * ADDITIONAL_HOUR_RATE_MYR;
+  return hours * HOURLY_RATE_MYR + BATTERY_PACKAGE_FEE_MYR[batteries];
 }
 
 export type ItemOutcome = "NONE" | "DAMAGED" | "LOST";
@@ -93,7 +114,7 @@ export function computeDepositCapture(drone: ItemReturn, controller: ItemReturn)
 }
 
 /**
- * A late return is billed like tacking on extra ADDITIONAL_HOUR_RATE_MYR
+ * A late return is billed like tacking on extra HOURLY_RATE_MYR
  * hours — not the first-hour rate, since lateness isn't a new rental with
  * its own battery handout, just running over on the existing one. Rounded
  * up: any part of an hour late is billed as a full hour, same convention
@@ -101,5 +122,5 @@ export function computeDepositCapture(drone: ItemReturn, controller: ItemReturn)
  */
 export function lateFeeMyr(minutesLate: number): number {
   if (minutesLate <= 0) return 0;
-  return Math.ceil(minutesLate / 60) * ADDITIONAL_HOUR_RATE_MYR;
+  return Math.ceil(minutesLate / 60) * HOURLY_RATE_MYR;
 }

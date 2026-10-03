@@ -6,30 +6,49 @@ import {
   itemCaptureMyr,
   formatMyr,
   DepositCaptureError,
-  FIRST_HOUR_RATE_MYR,
-  ADDITIONAL_HOUR_RATE_MYR,
+  HOURLY_RATE_MYR,
+  BATTERY_PACKAGE_FEE_MYR,
+  isValidRentalMinutes,
   DEPOSIT_MYR,
   DEPOSIT_DRONE_MYR,
   DEPOSIT_CONTROLLER_MYR,
 } from "./pricingRules";
 
 describe("rentalFeeMyr", () => {
-  it("charges just the first-hour rate for a 1-hour booking", () => {
-    expect(rentalFeeMyr(60)).toBe(FIRST_HOUR_RATE_MYR);
+  it("charges RM10 for every hour, the first included", () => {
+    expect(rentalFeeMyr(60, 2) - BATTERY_PACKAGE_FEE_MYR[2]).toBe(HOURLY_RATE_MYR);
+    expect(rentalFeeMyr(120, 2) - BATTERY_PACKAGE_FEE_MYR[2]).toBe(2 * HOURLY_RATE_MYR);
+    expect(rentalFeeMyr(180, 2) - BATTERY_PACKAGE_FEE_MYR[2]).toBe(3 * HOURLY_RATE_MYR);
   });
 
-  it("adds the additional-hour rate for each hour after the first", () => {
-    expect(rentalFeeMyr(120)).toBe(FIRST_HOUR_RATE_MYR + ADDITIONAL_HOUR_RATE_MYR);
-    expect(rentalFeeMyr(180)).toBe(FIRST_HOUR_RATE_MYR + 2 * ADDITIONAL_HOUR_RATE_MYR);
+  it("adds RM7 for one battery or RM10 for two", () => {
+    expect(rentalFeeMyr(60, 1)).toBe(17);
+    expect(rentalFeeMyr(60, 2)).toBe(20);
+    expect(rentalFeeMyr(120, 1)).toBe(27);
+    expect(rentalFeeMyr(120, 2)).toBe(30);
+  });
+
+  it("defaults to two batteries", () => {
+    expect(rentalFeeMyr(60)).toBe(20);
   });
 
   it("rounds a partial hour up to a full hour", () => {
-    expect(rentalFeeMyr(61)).toBe(FIRST_HOUR_RATE_MYR + ADDITIONAL_HOUR_RATE_MYR);
-    expect(rentalFeeMyr(30)).toBe(FIRST_HOUR_RATE_MYR);
+    expect(rentalFeeMyr(61, 2)).toBe(30);
+    expect(rentalFeeMyr(30, 1)).toBe(17);
   });
 
   it("returns 0 for a non-positive duration", () => {
     expect(rentalFeeMyr(0)).toBe(0);
+  });
+});
+
+describe("isValidRentalMinutes", () => {
+  it("accepts whole hours from 1 to 6", () => {
+    for (const h of [1, 2, 3, 4, 5, 6]) expect(isValidRentalMinutes(h * 60)).toBe(true);
+  });
+
+  it("rejects anything else", () => {
+    for (const m of [0, 1, 30, 61, 90, 420, 1440, -60, 60.5, Number.NaN]) expect(isValidRentalMinutes(m)).toBe(false);
   });
 });
 
@@ -40,13 +59,13 @@ describe("lateFeeMyr", () => {
   });
 
   it("charges one additional-hour rate for any lateness up to an hour", () => {
-    expect(lateFeeMyr(1)).toBe(ADDITIONAL_HOUR_RATE_MYR);
-    expect(lateFeeMyr(59)).toBe(ADDITIONAL_HOUR_RATE_MYR);
-    expect(lateFeeMyr(60)).toBe(ADDITIONAL_HOUR_RATE_MYR);
+    expect(lateFeeMyr(1)).toBe(HOURLY_RATE_MYR);
+    expect(lateFeeMyr(59)).toBe(HOURLY_RATE_MYR);
+    expect(lateFeeMyr(60)).toBe(HOURLY_RATE_MYR);
   });
 
   it("rounds up to two hours just past the first", () => {
-    expect(lateFeeMyr(61)).toBe(2 * ADDITIONAL_HOUR_RATE_MYR);
+    expect(lateFeeMyr(61)).toBe(2 * HOURLY_RATE_MYR);
   });
 });
 

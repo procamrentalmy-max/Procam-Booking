@@ -21,6 +21,7 @@ export type ShopMarker = {
 const DEFAULT_CENTER = { lat: 4.2105, lng: 101.9758 };
 const DEFAULT_ZOOM = 6;
 const LOCATED_ZOOM = 12;
+const SHOP_ZOOM = 14;
 
 let mapsLoaderPromise: Promise<void> | null = null;
 let mapsCallbackCounter = 0;
@@ -92,7 +93,8 @@ export function ShopMapPicker({ initialShops }: { initialShops: ShopMarker[] }) 
   const userMarkerRef = useRef<google.maps.Marker | null>(null);
   const wantNearestRef = useRef(false);
   const [shops, setShops] = useState<ShopMarker[]>(initialShops);
-  const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
+  // With a single shop there's nothing to choose between, so it starts selected (Book button showing).
+  const [selectedShopId, setSelectedShopId] = useState<string | null>(initialShops.length === 1 ? initialShops[0].id : null);
   const [userLocation, setUserLocation] = useState<LatLng | null>(null);
   const [locationStatus, setLocationStatus] = useState<LocationStatus>("idle");
   const [mapsReady, setMapsReady] = useState(false);
@@ -200,6 +202,22 @@ export function ShopMapPicker({ initialShops }: { initialShops: ShopMarker[] }) 
     });
   }, [mapsReady, shops]);
 
+  // Without a location fix, frame the shops themselves (not all of Malaysia). Capped at a street-level zoom
+  // so one lone shop doesn't zoom in absurdly far.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapsReady || !map || userLocation || shops.length === 0) return;
+    if (shops.length === 1) {
+      map.setCenter({ lat: shops[0].lat, lng: shops[0].lng });
+      map.setZoom(SHOP_ZOOM);
+      return;
+    }
+    const bounds = new google.maps.LatLngBounds();
+    shops.forEach((shop) => bounds.extend({ lat: shop.lat, lng: shop.lng }));
+    map.fitBounds(bounds, 56);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapsReady, shops.length]);
+
   // The customer's own "you are here" dot. Keyed on BOTH the map being ready
   // and a location fix existing, since either can arrive first — the old
   // version only recentered inside the geolocation callback, which silently
@@ -240,7 +258,6 @@ export function ShopMapPicker({ initialShops }: { initialShops: ShopMarker[] }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapsReady, userLocation]);
 
-  const selectedShop = shops.find((s) => s.id === selectedShopId) ?? null;
   const nearestId = userLocation ? (nearestShop(shops, userLocation)?.id ?? null) : null;
 
   return (
@@ -289,45 +306,52 @@ export function ShopMapPicker({ initialShops }: { initialShops: ShopMarker[] }) 
         </p>
       )}
 
-      {selectedShop && (
-        <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-          <p className="font-medium text-black dark:text-zinc-50">{selectedShop.name}</p>
-          <p className="text-sm text-zinc-500">{selectedShop.address}</p>
-          <p className="mt-1 text-sm font-medium">{availabilityLabel(selectedShop)}</p>
-          <Link
-            href={`/rent/${selectedShop.id}`}
-            className="mt-3 flex h-11 items-center justify-center rounded-full bg-black text-sm font-semibold text-white dark:bg-white dark:text-black"
-          >
-            Book at this shop
-          </Link>
-        </div>
-      )}
-
       <div className="space-y-2">
-        {shops.map((shop) => (
-          <button
-            key={shop.id}
-            type="button"
-            onClick={() => focusShop(shop, userLocation)}
-            className={`w-full rounded-xl border p-3 text-left text-sm ${
-              selectedShopId === shop.id ? "border-black dark:border-white" : "border-zinc-200 dark:border-zinc-800"
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-black dark:text-zinc-50">
-                {shop.name}
-                {nearestId === shop.id && (
-                  <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800 dark:bg-green-900 dark:text-green-200">
-                    Nearest
+        {shops.map((shop) => {
+          const selected = selectedShopId === shop.id;
+          return (
+            <div
+              key={shop.id}
+              className={`rounded-xl border p-3 text-sm ${selected ? "border-black dark:border-white" : "border-zinc-200 dark:border-zinc-800"}`}
+            >
+              <button type="button" onClick={() => focusShop(shop, userLocation)} className="w-full text-left" aria-pressed={selected}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-black dark:text-zinc-50">
+                    {shop.name}
+                    {nearestId === shop.id && (
+                      <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800 dark:bg-green-900 dark:text-green-200">
+                        Nearest
+                      </span>
+                    )}
                   </span>
-                )}
-              </span>
-              {shop.distanceKm !== null && <span className="text-xs text-zinc-400">{shop.distanceKm.toFixed(1)} km</span>}
+                  {shop.distanceKm !== null && <span className="shrink-0 text-xs text-zinc-400">{shop.distanceKm.toFixed(1)} km</span>}
+                </div>
+                <p className="mt-0.5 text-xs text-zinc-500">{shop.address}</p>
+                <p className="mt-1 text-xs font-medium">{availabilityLabel(shop)}</p>
+              </button>
+              {selected && (
+                <div className="mt-3 flex gap-2">
+                  <Link
+                    href={`/rent/${shop.id}`}
+                    className="flex h-11 flex-1 items-center justify-center rounded-full bg-black text-sm font-semibold text-white dark:bg-white dark:text-black"
+                  >
+                    Book at this shop
+                  </Link>
+                  {shop.googleMapsUrl && (
+                    <a
+                      href={shop.googleMapsUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex h-11 items-center justify-center rounded-full border border-zinc-300 px-4 text-sm font-medium dark:border-zinc-700"
+                    >
+                      Directions
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
-            <p className="text-xs text-zinc-500">{shop.address}</p>
-            <p className="mt-1 text-xs font-medium">{availabilityLabel(shop)}</p>
-          </button>
-        ))}
+          );
+        })}
         {shops.length === 0 && <p className="text-center text-sm text-zinc-400">No shops are open right now.</p>}
       </div>
     </div>

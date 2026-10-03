@@ -2,10 +2,11 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { buildShopFleetSnapshot } from "./snapshot";
-import { computeMerchantInstantOptions } from "./merchantBooking";
+import { eligibleWalkInDrones, walkInDurationsForShop } from "./merchantBooking";
 import { findOrCreateCustomer, createMerchantInstantBooking, NoDroneAvailableError } from "./createBooking";
 import { walkInExpiry, walkInView, type WalkInView } from "./walkIn";
 import type { DrWalkInRequestRow } from "@/lib/db/types";
+import type { BatteryCount } from "./pricingRules";
 
 export class WalkInError extends Error {
   constructor(message: string) {
@@ -18,44 +19,76 @@ function newPublicToken(): string {
   return randomBytes(24).toString("base64url");
 }
 
-/**
- * Starts a walk-in: checks the drone really is free for this long right
- * now (same rule the old typed-in flow used), then stores a request the
- * customer can fill in from a QR code. No booking exists yet.
- */
-export async function createWalkInRequest(params: {
-  shopId: string;
-  droneId: string;
-  durationMinutes: number;
-  createdByStaffId: string;
-}): Promise<{ id: string; publicToken: string }> {
+/** Open orders a shop will hold at once. A standing QR is public, so this stops it being used to flood the merchant's screen. */
+export const MAX_OPEN_WALKIN_ORDERS_PER_SHOP = 10;
+
+export async function findShopByWalkInCode(code: string): Promise<{ id: string; name: string; address: string } | null> {
   const supabase = createServiceRoleClient();
+  const { data } = await supabase.from("dr_shops").select("id,name,address,active").eq("walkin_code", code).maybeSingle();
+  if (!data || !data.active) return null;
+  return { id: data.id, name: data.name, address: data.address };
+}
 
-  const { data: drone } = await supabase.from("dr_drones").select("id,shop_id,status").eq("id", params.droneId).maybeSingle();
-  if (!drone || drone.shop_id !== params.shopId) throw new WalkInError("That drone isn't at this shop.");
-  if (drone.status !== "AVAILABLE") throw new WalkInError("That drone isn't available right now.");
+/** The lengths (in minutes) a customer scanning this shop's QR can choose right now — only what some drone at the shop can actually take. */
+export async function walkInDurationOptions(shopId: string): Promise<number[]> {
+  const snapshot = await buildShopFleetSnapshot(shopId);
+  return walkInDurationsForShop(snapshot.drones, snapshot.bookings, new Date());
+}
 
-  const snapshot = await buildShopFleetSnapshot(params.shopId);
-  const options = computeMerchantInstantOptions(snapshot.bookings, params.droneId, new Date());
-  if (!options.allowed || !options.offeredDurationsMinutes.includes(params.durationMinutes)) {
-    throw new WalkInError("This drone can't be booked for that long right now — check the available durations again.");
-  }
+export type SubmitWalkInOrderResult =
+  | { ok: true; publicToken: string }
+  | { ok: false; reason: "shop_not_found" | "length_unavailable" | "too_many_open" };
+
+/**
+ * A customer's walk-in order, made from the shop's standing QR: the length and batteries they chose plus their
+ * own details. Nothing is booked and no drone is chosen yet — the merchant confirms it (and the drone is assigned)
+ * from their dashboard, then the customer pays on their own phone.
+ *
+ * If this phone number already has an order waiting at the shop, that order is returned instead of making a second.
+ */
+export async function submitWalkInOrder(params: {
+  walkinCode: string;
+  durationMinutes: number;
+  batteries: BatteryCount;
+  name: string;
+  phone: string;
+  email: string;
+}): Promise<SubmitWalkInOrderResult> {
+  const shop = await findShopByWalkInCode(params.walkinCode);
+  if (!shop) return { ok: false, reason: "shop_not_found" };
+
+  const supabase = createServiceRoleClient();
+  const now = new Date();
+
+  const { data: open } = await supabase
+    .from("dr_walkin_requests")
+    .select("public_token,customer_phone")
+    .eq("shop_id", shop.id)
+    .eq("status", "SUBMITTED")
+    .gt("expires_at", now.toISOString());
+  const existing = (open ?? []).find((r) => r.customer_phone === params.phone);
+  if (existing) return { ok: true, publicToken: existing.public_token };
+  if ((open ?? []).length >= MAX_OPEN_WALKIN_ORDERS_PER_SHOP) return { ok: false, reason: "too_many_open" };
+
+  const allowed = await walkInDurationOptions(shop.id);
+  if (!allowed.includes(params.durationMinutes)) return { ok: false, reason: "length_unavailable" };
 
   const publicToken = newPublicToken();
-  const { data, error } = await supabase
-    .from("dr_walkin_requests")
-    .insert({
-      public_token: publicToken,
-      shop_id: params.shopId,
-      drone_id: params.droneId,
-      duration_minutes: params.durationMinutes,
-      created_by_staff_id: params.createdByStaffId,
-      expires_at: walkInExpiry(new Date()).toISOString(),
-    })
-    .select("id")
-    .single();
-  if (error || !data) throw new WalkInError("Could not start the walk-in. Try again.");
-  return { id: data.id, publicToken };
+  const { error } = await supabase.from("dr_walkin_requests").insert({
+    public_token: publicToken,
+    shop_id: shop.id,
+    drone_id: null,
+    duration_minutes: params.durationMinutes,
+    batteries_count: params.batteries,
+    status: "SUBMITTED",
+    customer_name: params.name,
+    customer_phone: params.phone,
+    customer_email: params.email.toLowerCase(),
+    submitted_at: now.toISOString(),
+    expires_at: walkInExpiry(now).toISOString(),
+  });
+  if (error) throw new Error("Could not send your order. Please try again.");
+  return { ok: true, publicToken };
 }
 
 export async function getWalkInRequestByToken(token: string): Promise<DrWalkInRequestRow | null> {
@@ -74,72 +107,50 @@ export function viewOf(request: DrWalkInRequestRow, now: Date = new Date()): Wal
   return walkInView(request.status, new Date(request.expires_at), now);
 }
 
-/**
- * The customer's submission. One shot: the update only matches a request
- * that's still WAITING and unexpired, so a second submit (or a stale tab)
- * can't overwrite the details the merchant is already looking at.
- */
-export async function submitCustomerDetails(
-  token: string,
-  details: { name: string; phone: string; email: string }
-): Promise<{ ok: true } | { ok: false; reason: "expired" | "already_submitted" | "closed" | "not_found" }> {
-  const request = await getWalkInRequestByToken(token);
-  if (!request) return { ok: false, reason: "not_found" };
-
-  const view = viewOf(request);
-  if (view === "EXPIRED") return { ok: false, reason: "expired" };
-  if (view === "SUBMITTED") return { ok: false, reason: "already_submitted" };
-  if (view !== "WAITING") return { ok: false, reason: "closed" };
-
-  const supabase = createServiceRoleClient();
-  const { data: updated } = await supabase
-    .from("dr_walkin_requests")
-    .update({
-      status: "SUBMITTED",
-      customer_name: details.name,
-      customer_phone: details.phone,
-      customer_email: details.email.toLowerCase(),
-      submitted_at: new Date().toISOString(),
-    })
-    .eq("id", request.id)
-    .eq("status", "WAITING")
-    .gt("expires_at", new Date().toISOString())
-    .select("id");
-
-  if (!updated || updated.length === 0) return { ok: false, reason: "already_submitted" };
-  return { ok: true };
+/** The drones that could be handed to this order right now, for the merchant's confirm screen (the first is the default). */
+export async function eligibleDronesForRequest(request: DrWalkInRequestRow): Promise<{ id: string; humanId: string }[]> {
+  const snapshot = await buildShopFleetSnapshot(request.shop_id);
+  return eligibleWalkInDrones(snapshot.drones, snapshot.bookings, request.duration_minutes, new Date()).map((d) => ({ id: d.id, humanId: d.humanId }));
 }
 
 /**
- * The merchant accepts what the customer submitted: claims the request
- * first (SUBMITTED -> ACCEPTED, only one caller can win), then creates the
- * customer and the booking. If booking creation fails — the drone got
- * booked in the meantime, say — the claim is released so the merchant can
- * decline or start over instead of being left with a dead request.
+ * The merchant confirms the customer's order: picks the drone (the one they chose, or the first free one),
+ * claims the request first (SUBMITTED -> ACCEPTED, only one caller can win), then creates the customer and
+ * the booking, which the customer's phone then follows to payment. If booking creation fails — the drone got
+ * booked in the meantime, say — the claim is released so the merchant can decline instead of being left with a
+ * dead request.
  *
- * The availability rule is re-checked here, not trusted from when the QR
- * was made: minutes may have passed and another booking may have landed.
+ * Availability is worked out here, at confirmation, not when the customer ordered: minutes may have passed and
+ * another booking may have landed.
  */
-export async function acceptWalkInRequest(requestId: string, staffId: string): Promise<{ bookingId: string; bookingToken: string }> {
+export async function acceptWalkInRequest(
+  requestId: string,
+  staffId: string,
+  chosenDroneId?: string
+): Promise<{ bookingId: string; bookingToken: string }> {
   const supabase = createServiceRoleClient();
   const request = await getWalkInRequestById(requestId);
-  if (!request) throw new WalkInError("Walk-in not found.");
-  if (viewOf(request) !== "SUBMITTED") throw new WalkInError("This walk-in isn't waiting for approval.");
-  if (!request.customer_name || !request.customer_phone || !request.customer_email) throw new WalkInError("The customer hasn't filled in their details yet.");
+  if (!request) throw new WalkInError("Order not found.");
+  if (viewOf(request) !== "SUBMITTED") throw new WalkInError("This order isn't waiting for confirmation.");
+  if (!request.customer_name || !request.customer_phone || !request.customer_email) throw new WalkInError("The customer's details are missing.");
 
-  const snapshot = await buildShopFleetSnapshot(request.shop_id);
-  const options = computeMerchantInstantOptions(snapshot.bookings, request.drone_id, new Date());
-  if (!options.allowed || request.duration_minutes > options.maxDurationMinutes) {
-    throw new WalkInError("This drone can no longer be booked for that long — another booking is too close. Decline and start a new walk-in.");
+  const eligible = await eligibleDronesForRequest(request);
+  const drone = chosenDroneId ? eligible.find((d) => d.id === chosenDroneId) : eligible[0];
+  if (!drone) {
+    throw new WalkInError(
+      chosenDroneId
+        ? "That drone can't take this order right now. Pick another one."
+        : "No drone is free for that long right now. Decline this order, or wait for a drone to come back."
+    );
   }
 
   const { data: claimed } = await supabase
     .from("dr_walkin_requests")
-    .update({ status: "ACCEPTED" })
+    .update({ status: "ACCEPTED", drone_id: drone.id })
     .eq("id", request.id)
     .eq("status", "SUBMITTED")
     .select("id");
-  if (!claimed || claimed.length === 0) throw new WalkInError("This walk-in was already handled.");
+  if (!claimed || claimed.length === 0) throw new WalkInError("This order was already handled.");
 
   try {
     const customerId = await findOrCreateCustomer({
@@ -150,20 +161,21 @@ export async function acceptWalkInRequest(requestId: string, staffId: string): P
     const booking = await createMerchantInstantBooking({
       customerId,
       shopId: request.shop_id,
-      droneId: request.drone_id,
+      droneId: drone.id,
       durationMinutes: request.duration_minutes,
+      batteries: request.batteries_count === 1 ? 1 : 2,
       createdByStaffId: staffId,
     });
     await supabase.from("dr_walkin_requests").update({ booking_id: booking.id }).eq("id", request.id);
     return { bookingId: booking.id, bookingToken: booking.secure_token };
   } catch (err) {
-    await supabase.from("dr_walkin_requests").update({ status: "SUBMITTED" }).eq("id", request.id).eq("status", "ACCEPTED").is("booking_id", null);
-    if (err instanceof NoDroneAvailableError) throw new WalkInError("That drone was just booked by someone else. Decline and start a new walk-in.");
+    await supabase.from("dr_walkin_requests").update({ status: "SUBMITTED", drone_id: null }).eq("id", request.id).eq("status", "ACCEPTED").is("booking_id", null);
+    if (err instanceof NoDroneAvailableError) throw new WalkInError("That drone was just booked by someone else. Try confirming again.");
     throw err;
   }
 }
 
-/** Merchant turns the customer away, or gives up on a QR nobody scanned. Only open requests can be closed. */
+/** The merchant turns the order away. Only open orders can be closed. */
 export async function closeWalkInRequest(requestId: string, outcome: "DECLINED" | "CANCELLED"): Promise<void> {
   const supabase = createServiceRoleClient();
   await supabase.from("dr_walkin_requests").update({ status: outcome }).eq("id", requestId).in("status", ["WAITING", "SUBMITTED"]);

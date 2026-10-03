@@ -2,8 +2,8 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { buildShopFleetSnapshot } from "./snapshot";
-import { findNextAvailableSlot, InvalidDroneBookingRequestError } from "./slots";
-import { rentalFeeMyr, DEPOSIT_MYR } from "./pricingRules";
+import { alignToNextInterval, findEligibleDrone, InvalidDroneBookingRequestError } from "./slots";
+import { rentalFeeMyr, DEPOSIT_MYR, type BatteryCount } from "./pricingRules";
 import type { DrBookingRow, DrBookingSource } from "@/lib/db/types";
 
 export { InvalidDroneBookingRequestError };
@@ -36,34 +36,41 @@ export async function findOrCreateCustomer(params: { name: string; phone: string
 
 /**
  * Creates a PENDING_PAYMENT booking for the online flow: no minimum lead
- * time (unlike the locker network's 120-minute rule) — the earliest start is
- * just the next 30-minute slot at or after `earliestStartTime`, which may
- * end up later than requested if the shop's drones are all busy right then
- * (the caller should surface the booking's own start/end, not just echo
- * back what was asked for).
+ * time (unlike the locker network's 120-minute rule). Books EXACTLY the slot
+ * the customer picked: if a drone was free when the grid was drawn but has
+ * been taken since, this throws NoDroneAvailableError so the customer is told
+ * and picks again — it never quietly moves them to a different time, which
+ * they'd only notice (if at all) on the payment page.
  */
 export async function createPendingDroneBooking(params: {
   customerId: string;
   shopId: string;
   durationMinutes: number;
-  earliestStartTime: Date;
+  startTime: Date;
+  batteries: BatteryCount;
 }): Promise<DrBookingRow> {
   const supabase = createServiceRoleClient();
 
   const { data: shop } = await supabase.from("dr_shops").select("id,active").eq("id", params.shopId).single();
   if (!shop || !shop.active) throw new Error("This shop is not currently active.");
+  if (params.durationMinutes <= 0) throw new InvalidDroneBookingRequestError(`durationMinutes must be positive, got ${params.durationMinutes}`);
+
+  const startTime = alignToNextInterval(params.startTime);
+  if (startTime.getTime() < Date.now() - 60_000) throw new NoDroneAvailableError();
+  const endTime = new Date(startTime.getTime() + params.durationMinutes * 60_000);
 
   const snapshot = await buildShopFleetSnapshot(params.shopId);
-  const result = findNextAvailableSlot(snapshot.drones, snapshot.bookings, params.durationMinutes, params.earliestStartTime);
-  if (result.outcome === "INFEASIBLE") throw new NoDroneAvailableError();
+  const droneId = findEligibleDrone(snapshot.drones, snapshot.bookings, startTime, endTime);
+  if (!droneId) throw new NoDroneAvailableError();
 
   return insertBooking(supabase, {
     customerId: params.customerId,
     shopId: params.shopId,
-    droneId: result.droneId,
-    startTime: result.startTime,
-    endTime: result.endTime,
+    droneId,
+    startTime,
+    endTime,
     source: "ONLINE",
+    batteries: params.batteries,
   });
 }
 
@@ -87,6 +94,7 @@ export async function createMerchantInstantBooking(params: {
   shopId: string;
   droneId: string;
   durationMinutes: number;
+  batteries: BatteryCount;
   createdByStaffId: string;
 }): Promise<DrBookingRow> {
   if (params.durationMinutes <= 0) {
@@ -104,6 +112,7 @@ export async function createMerchantInstantBooking(params: {
     endTime,
     source: "MERCHANT_INSTANT",
     createdByStaffId: params.createdByStaffId,
+    batteries: params.batteries,
   });
 }
 
@@ -117,6 +126,7 @@ async function insertBooking(
     endTime: Date;
     source: DrBookingSource;
     createdByStaffId?: string;
+    batteries: BatteryCount;
   }
 ): Promise<DrBookingRow> {
   const durationMinutes = (params.endTime.getTime() - params.startTime.getTime()) / 60_000;
@@ -127,11 +137,12 @@ async function insertBooking(
     p_drone_id: params.droneId,
     p_start_time: params.startTime.toISOString(),
     p_end_time: params.endTime.toISOString(),
-    p_rental_fee_myr: rentalFeeMyr(durationMinutes),
+    p_rental_fee_myr: rentalFeeMyr(durationMinutes, params.batteries),
     p_deposit_myr: DEPOSIT_MYR,
     p_secure_token: generateSecureToken(),
     p_source: params.source,
     p_created_by_staff_id: params.createdByStaffId ?? null,
+    p_batteries_count: params.batteries,
   });
 
   if (error) {

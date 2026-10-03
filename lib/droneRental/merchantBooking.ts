@@ -1,4 +1,4 @@
-import { TERMINAL_BOOKING_STATUSES, type BookingWindow } from "./slots";
+import { TERMINAL_BOOKING_STATUSES, alignToNextInterval, type BookingWindow, type DroneCandidate } from "./slots";
 
 /**
  * Merchant "instant" bookings are for walk-ins at the shop — they start
@@ -52,12 +52,50 @@ export function computeMerchantInstantOptions(
     return { allowed: false, reason: "UPCOMING_BOOKING_TOO_SOON", nextBookingStart: upcoming.startTime };
   }
 
-  const maxWholeHourMinutes = Math.floor((minutesUntilNext - MERCHANT_BUFFER_MINUTES) / 60) * 60;
-  const offered = allOffered.filter((m) => m <= maxWholeHourMinutes);
+  // The return time is rounded up to the next 30-minute mark at handover (see computeHandoverWindow), so a duration only
+  // fits if that rounded return time still leaves the buffer before the next booking.
+  const offered = allOffered.filter((m) => {
+    const roundedReturn = alignToNextInterval(new Date(now.getTime() + m * 60_000));
+    return roundedReturn.getTime() + MERCHANT_BUFFER_MINUTES * 60_000 <= upcoming.startTime.getTime();
+  });
 
   if (offered.length === 0) {
     return { allowed: false, reason: "UPCOMING_BOOKING_TOO_SOON", nextBookingStart: upcoming.startTime };
   }
 
   return { allowed: true, maxDurationMinutes: offered[offered.length - 1], offeredDurationsMinutes: offered };
+}
+
+/**
+ * The drones at a shop that can take a walk-in of exactly `durationMinutes` right now: available, not
+ * still sitting under an earlier booking (e.g. an online booking whose start time has passed but hasn't been
+ * collected yet), and with room before their next booking (see computeMerchantInstantOptions). Sorted by
+ * drone id so "the first one" is predictable.
+ */
+export function eligibleWalkInDrones(
+  drones: readonly DroneCandidate[],
+  bookings: readonly BookingWindow[],
+  durationMinutes: number,
+  now: Date
+): DroneCandidate[] {
+  return drones
+    .filter((d) => d.status === "AVAILABLE")
+    .filter((d) => {
+      const occupied = bookings.some(
+        (b) =>
+          b.droneId === d.id &&
+          !TERMINAL_BOOKING_STATUSES.includes(b.status) &&
+          b.startTime.getTime() <= now.getTime() &&
+          b.endTime.getTime() + MERCHANT_BUFFER_MINUTES * 60_000 > now.getTime()
+      );
+      if (occupied) return false;
+      const options = computeMerchantInstantOptions(bookings, d.id, now);
+      return options.allowed && options.offeredDurationsMinutes.includes(durationMinutes);
+    })
+    .sort((a, b) => a.humanId.localeCompare(b.humanId));
+}
+
+/** Every walk-in length (in minutes) at least one drone at the shop could take right now: what a customer scanning the shop's QR can choose from. */
+export function walkInDurationsForShop(drones: readonly DroneCandidate[], bookings: readonly BookingWindow[], now: Date): number[] {
+  return MERCHANT_OFFERED_DURATIONS_HOURS.map((h) => h * 60).filter((minutes) => eligibleWalkInDrones(drones, bookings, minutes, now).length > 0);
 }

@@ -5,7 +5,15 @@ import { uuidSchema } from "@/lib/zod-helpers";
 import { getAuthContext, hasMerchantAccess } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { uploadChecklistPhoto, checklistPhotoPath } from "@/lib/droneRental/storage";
-import { BATTERIES_INCLUDED } from "@/lib/droneRental/pricingRules";
+import { computeHandoverWindow } from "@/lib/droneRental/handover";
+import { findChargedBatteries } from "@/lib/droneRental/batteries";
+
+export type PickupResult = {
+  /** When the customer has to bring everything back (the rental's end), as an ISO string. */
+  returnBy: string;
+  /** Minutes the rental was cut short of the paid length because another booking follows closely; 0 almost always. */
+  shortenedByMinutes: number;
+};
 
 /**
  * Hands a confirmed booking over to the customer: merchant-taken condition
@@ -13,7 +21,7 @@ import { BATTERIES_INCLUDED } from "@/lib/droneRental/pricingRules";
  * customer self-check step exists in this vertical (see
  * app/r/[token]/pickup/actions.ts for that other flow), this IS the pickup.
  */
-export async function submitPickupAction(formData: FormData) {
+export async function submitPickupAction(formData: FormData): Promise<PickupResult> {
   const ctx = await getAuthContext();
   if (!hasMerchantAccess(ctx)) throw new Error("Not authorized");
 
@@ -23,7 +31,7 @@ export async function submitPickupAction(formData: FormData) {
 
   const supabase = createServiceRoleClient();
 
-  const { data: booking } = await supabase.from("dr_bookings").select("id,status,drone_id").eq("id", bookingId).single();
+  const { data: booking } = await supabase.from("dr_bookings").select("id,status,drone_id,source,start_time,end_time,batteries_count").eq("id", bookingId).single();
   if (!booking) throw new Error("Booking not found.");
   if (booking.status !== "CONFIRMED") throw new Error("This booking isn't ready for pickup.");
 
@@ -56,18 +64,12 @@ export async function submitPickupAction(formData: FormData) {
     await supabase.from("dr_checklist_photos").insert({ booking_id: bookingId, phase: "PICKUP", storage_path: path, taken_by_staff_id: ctx.staffId });
   }
 
-  // Hand out the first BATTERIES_INCLUDED (2) charged batteries for this
-  // drone — logged as swaps with no released_battery_id (nothing to
+  // Hand out the batteries the customer chose (1 or 2): this drone's own first, then any other charged
+  // battery at the shop — logged as swaps with no released_battery_id (nothing to
   // return, this is the initial handout) and a RM0 fee.
-  const { data: availableBatteries } = await supabase
-    .from("dr_batteries")
-    .select("id,human_id")
-    .eq("drone_id", booking.drone_id)
-    .eq("status", "AT_SHOP")
-    .order("human_id")
-    .limit(BATTERIES_INCLUDED);
-  if (!availableBatteries || availableBatteries.length < BATTERIES_INCLUDED) {
-    throw new Error(`Not enough charged batteries at the shop for this drone (need ${BATTERIES_INCLUDED}).`);
+  const availableBatteries = await findChargedBatteries(booking.drone_id, booking.batteries_count);
+  if (availableBatteries.length < booking.batteries_count) {
+    throw new Error(`Not enough charged batteries at the shop for this drone (need ${booking.batteries_count}).`);
   }
 
   for (const battery of availableBatteries) {
@@ -81,9 +83,38 @@ export async function submitPickupAction(formData: FormData) {
     });
   }
 
-  await supabase
+  // A walk-in's rental officially starts now, at handover (see computeHandoverWindow); an online booking keeps its slot.
+  const handoverAt = new Date();
+  const originalEnd = new Date(booking.end_time);
+  const { data: nextBooking } = await supabase
     .from("dr_bookings")
-    .update({ status: "ACTIVE", actual_pickup_time: new Date().toISOString() })
+    .select("start_time")
+    .eq("drone_id", booking.drone_id)
+    .neq("id", bookingId)
+    .not("status", "in", "(CANCELLED,EXPIRED,COMPLETED)")
+    .gte("start_time", originalEnd.toISOString())
+    .order("start_time", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const window = computeHandoverWindow({
+    source: booking.source,
+    start: new Date(booking.start_time),
+    end: originalEnd,
+    handoverAt,
+    nextStart: nextBooking ? new Date(nextBooking.start_time) : null,
+  });
+
+  const { error: updateError } = await supabase
+    .from("dr_bookings")
+    .update({
+      status: "ACTIVE",
+      actual_pickup_time: handoverAt.toISOString(),
+      start_time: window.start.toISOString(),
+      end_time: window.end.toISOString(),
+    })
     .eq("id", bookingId);
+  if (updateError) throw new Error("Couldn't record the handover: " + updateError.message);
   await supabase.from("dr_drones").update({ status: "RENTED" }).eq("id", booking.drone_id);
+
+  return { returnBy: window.end.toISOString(), shortenedByMinutes: window.shortenedByMinutes };
 }

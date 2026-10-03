@@ -4,13 +4,7 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLogoUrl } from "@/lib/branding";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { Brand } from "@/components/Brand";
-import {
-  ADDITIONAL_HOUR_RATE_MYR,
-  BATTERY_SWAP_FEE_MYR,
-  DEPOSIT_MYR,
-  FIRST_HOUR_RATE_MYR,
-  formatMyr,
-} from "@/lib/droneRental/pricingRules";
+import { BATTERY_PACKAGE_FEE_MYR, DEPOSIT_MYR, HOURLY_RATE_MYR, formatMyr } from "@/lib/droneRental/pricingRules";
 
 /** The page is always dark (white and grey on black) whatever the visitor's theme, so it uses fixed colors rather than dark: variants. */
 
@@ -56,11 +50,13 @@ export default async function Home() {
   // Prices come from the same constants the booking flow charges with, so this page can't drift from them.
   const fill = (text: string) =>
     text
-      .replace("{first}", formatMyr(FIRST_HOUR_RATE_MYR))
-      .replace("{extra}", formatMyr(ADDITIONAL_HOUR_RATE_MYR))
+      .replace("{hourly}", formatMyr(HOURLY_RATE_MYR))
+      .replace("{battery1}", formatMyr(BATTERY_PACKAGE_FEE_MYR[1]))
+      .replace("{battery2}", formatMyr(BATTERY_PACKAGE_FEE_MYR[2]))
       .replace("{deposit}", formatMyr(DEPOSIT_MYR))
-      .replace("{swap}", formatMyr(BATTERY_SWAP_FEE_MYR))
-      .replace("{late}", formatMyr(ADDITIONAL_HOUR_RATE_MYR));
+      .replace("{swap}", formatMyr(BATTERY_PACKAGE_FEE_MYR[1]))
+      .replace("{swap2}", formatMyr(BATTERY_PACKAGE_FEE_MYR[2]))
+      .replace("{late}", formatMyr(HOURLY_RATE_MYR));
 
   return (
     <div className="min-h-screen bg-black text-zinc-50">

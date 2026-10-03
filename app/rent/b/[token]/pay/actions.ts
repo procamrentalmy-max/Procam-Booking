@@ -14,6 +14,8 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
  * webhook. Delete this action and its button before launch.
  */
 export async function devBypassDronePaymentAction(formData: FormData) {
+  // Hiding the button isn't enough: a server action can be POSTed directly, so refuse in production here too.
+  if (process.env.NODE_ENV === "production") throw new Error("Not available in production.");
   const token = z.string().min(1).parse(formData.get("token"));
   const rawNext = formData.get("next");
   const next = typeof rawNext === "string" && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : null;
