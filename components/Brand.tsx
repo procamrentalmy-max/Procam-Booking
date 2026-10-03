@@ -29,17 +29,23 @@ export function Brand({
   href = "/",
   size = 28,
   className = "",
+  onDark = false,
 }: {
   logoUrl: string | null;
   href?: string;
   size?: number;
   className?: string;
+  /** For always-dark pages: renders an uploaded logo as a white silhouette so a dark logo stays visible, and forces white text. */
+  onDark?: boolean;
 }) {
   return (
-    <Link href={href} className={`inline-flex items-center gap-2 text-black dark:text-zinc-50 ${className}`}>
+    <Link
+      href={href}
+      className={`inline-flex items-center gap-2 ${onDark ? "text-white" : "text-black dark:text-zinc-50"} ${className}`}
+    >
       {logoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local optimizable asset
-        <img src={logoUrl} alt="" style={{ height: size, width: "auto" }} />
+        <img src={logoUrl} alt="" className={onDark ? "brightness-0 invert" : undefined} style={{ height: size, width: "auto" }} />
       ) : (
         <DefaultMark size={size} />
       )}
