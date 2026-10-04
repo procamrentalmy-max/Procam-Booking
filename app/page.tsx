@@ -4,7 +4,7 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLogoUrl } from "@/lib/branding";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { Brand } from "@/components/Brand";
-import { BATTERY_PACKAGE_FEE_MYR, DEPOSIT_MYR, HOURLY_RATE_MYR, formatMyr } from "@/lib/droneRental/pricingRules";
+import { DRONE_MODEL_PROFILES, depositMyrFor, formatMyr, type DroneModelProfile } from "@/lib/droneRental/pricingRules";
 
 /** The page is always dark (white and grey on black) whatever the visitor's theme, so it uses fixed colors rather than dark: variants. */
 
@@ -41,22 +41,44 @@ function DroneIllustration() {
   );
 }
 
+/** A tick (has it) or a cross (doesn't). Grey scale to match the page; the word is there for screen readers. */
+function Mark({ on, yes, no }: { on: boolean; yes: string; no: string }) {
+  return on ? (
+    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-black" role="img" aria-label={yes}>
+      <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M3 8.5l3.2 3.2L13 4.8" />
+      </svg>
+    </span>
+  ) : (
+    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-zinc-700 text-zinc-500" role="img" aria-label={no}>
+      <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+        <path d="M4 4l8 8M12 4l-8 8" />
+      </svg>
+    </span>
+  );
+}
+
 export default async function Home() {
   const locale = await getLocale();
   const dict = getDictionary(locale);
   const t = dict.home;
   const logoUrl = await getLogoUrl();
 
-  // Prices come from the same constants the booking flow charges with, so this page can't drift from them.
-  const fill = (text: string) =>
-    text
-      .replace("{hourly}", formatMyr(HOURLY_RATE_MYR))
-      .replace("{battery1}", formatMyr(BATTERY_PACKAGE_FEE_MYR[1]))
-      .replace("{battery2}", formatMyr(BATTERY_PACKAGE_FEE_MYR[2]))
-      .replace("{deposit}", formatMyr(DEPOSIT_MYR))
-      .replace("{swap}", formatMyr(BATTERY_PACKAGE_FEE_MYR[1]))
-      .replace("{swap2}", formatMyr(BATTERY_PACKAGE_FEE_MYR[2]))
-      .replace("{late}", formatMyr(HOURLY_RATE_MYR));
+  // Every price in the comparison comes from the same profiles the booking flow charges with, so this page can't drift from them.
+  const c = t.compare;
+  const neo2 = DRONE_MODEL_PROFILES.NEO2;
+  const gt50 = DRONE_MODEL_PROFILES.GT50;
+  const swapText = (p: DroneModelProfile) => c.swapValue.replace("{one}", formatMyr(p.batteryFeeMyr[1])).replace("{two}", formatMyr(p.batteryFeeMyr[2]));
+  const compareRows: [string, string, string][] = [
+    [c.rows.perHour, formatMyr(neo2.hourlyRateMyr), formatMyr(gt50.hourlyRateMyr)],
+    [c.rows.battery1, formatMyr(neo2.batteryFeeMyr[1]), formatMyr(gt50.batteryFeeMyr[1])],
+    [c.rows.battery2, formatMyr(neo2.batteryFeeMyr[2]), formatMyr(gt50.batteryFeeMyr[2])],
+    [c.rows.swap, swapText(neo2), swapText(gt50)],
+    [c.rows.late, formatMyr(neo2.hourlyRateMyr), formatMyr(gt50.hourlyRateMyr)],
+    [c.rows.deposit, formatMyr(depositMyrFor("NEO2")), formatMyr(depositMyrFor("GT50"))],
+    [c.rows.kit, c.kitNeo2, c.kitGt50],
+    [c.rows.handover, c.handoverNeo2, c.handoverGt50],
+  ];
 
   return (
     <div className="min-h-screen bg-black text-zinc-50">
@@ -66,6 +88,9 @@ export default async function Home() {
           <Link href="/rent" className="hidden hover:text-white sm:inline">
             {t.nav.drones}
           </Link>
+          <a href="#compare" className="hidden hover:text-white sm:inline">
+            {t.nav.compare}
+          </a>
           <a href="#how" className="hidden hover:text-white sm:inline">
             {t.nav.howItWorks}
           </a>
@@ -82,12 +107,12 @@ export default async function Home() {
             </h1>
             <p className="mt-5 max-w-md text-base leading-relaxed text-zinc-400">{t.sub}</p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                href="/rent"
+              <a
+                href="#compare"
                 className="inline-flex h-12 items-center rounded-full bg-white px-7 text-sm font-semibold text-black transition hover:bg-zinc-200"
               >
-                {t.ctaPrimary}
-              </Link>
+                {t.ctaChoose}
+              </a>
               <a
                 href="#how"
                 className="inline-flex h-12 items-center rounded-full border border-zinc-700 px-7 text-sm font-semibold text-zinc-200 transition hover:border-zinc-500 hover:text-white"
@@ -101,15 +126,90 @@ export default async function Home() {
           </div>
         </section>
 
-        <section className="border-y border-zinc-800 bg-zinc-950">
-          <dl className="mx-auto grid max-w-5xl gap-8 px-6 py-10 sm:grid-cols-2">
-            {t.stats.map((stat) => (
-              <div key={stat.value}>
-                <dt className="text-3xl font-semibold tracking-tight text-white">{fill(stat.value)}</dt>
-                <dd className="mt-1 text-sm text-zinc-500">{fill(stat.label)}</dd>
-              </div>
-            ))}
-          </dl>
+        <section id="compare" className="scroll-mt-6 border-y border-zinc-800 bg-zinc-950">
+          <div className="mx-auto max-w-5xl px-6 py-12 md:py-16">
+            <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{c.title}</h2>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-400">{c.sub}</p>
+            <div className="mt-8 overflow-x-auto rounded-2xl border border-zinc-800 bg-black">
+              <table className="w-full min-w-[22rem] border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-800">
+                    <th scope="col" className="px-4 py-4 text-xs font-medium uppercase tracking-wide text-zinc-500 md:px-6">
+                      {c.feature}
+                    </th>
+                    <th scope="col" className="whitespace-nowrap px-4 py-4 text-base font-semibold text-white md:px-6 md:text-lg">
+                      {c.neo2}
+                    </th>
+                    <th scope="col" className="whitespace-nowrap px-4 py-4 text-base font-semibold text-white md:px-6 md:text-lg">
+                      {c.gt50}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {compareRows.map(([label, a, b]) => (
+                    <tr key={label} className="border-b border-zinc-900 last:border-b-0">
+                      <th scope="row" className="px-4 py-3.5 text-left font-normal text-zinc-400 md:px-6">
+                        {label}
+                      </th>
+                      <td className="px-4 py-3.5 font-medium text-zinc-100 md:px-6">{a}</td>
+                      <td className="px-4 py-3.5 font-medium text-zinc-100 md:px-6">{b}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <h3 className="mt-12 text-lg font-semibold tracking-tight text-white sm:text-xl">{c.specsTitle}</h3>
+            <div className="mt-4 overflow-x-auto rounded-2xl border border-zinc-800 bg-black">
+              <table className="w-full min-w-[22rem] border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-800">
+                    <th scope="col" className="px-4 py-4 text-xs font-medium uppercase tracking-wide text-zinc-500 md:px-6">
+                      {c.feature}
+                    </th>
+                    <th scope="col" className="whitespace-nowrap px-4 py-4 text-base font-semibold text-white md:px-6 md:text-lg">
+                      {c.neo2}
+                    </th>
+                    <th scope="col" className="whitespace-nowrap px-4 py-4 text-base font-semibold text-white md:px-6 md:text-lg">
+                      {c.gt50}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {c.specs.map((row) => (
+                    <tr key={row.label} className="border-b border-zinc-900">
+                      <th scope="row" className="px-4 py-3.5 text-left font-normal text-zinc-400 md:px-6">
+                        {row.label}
+                      </th>
+                      <td className="px-4 py-3.5 font-medium text-zinc-100 md:px-6">{row.neo2}</td>
+                      <td className="px-4 py-3.5 font-medium text-zinc-100 md:px-6">{row.gt50}</td>
+                    </tr>
+                  ))}
+                  {c.features.map((row) => (
+                    <tr key={row.label} className="border-b border-zinc-900 last:border-b-0">
+                      <th scope="row" className="px-4 py-3.5 text-left font-normal text-zinc-400 md:px-6">
+                        {row.label}
+                      </th>
+                      <td className="px-4 py-3.5 md:px-6">
+                        <Mark on={row.neo2} yes={c.yes} no={c.no} />
+                      </td>
+                      <td className="px-4 py-3.5 md:px-6">
+                        <Mark on={row.gt50} yes={c.yes} no={c.no} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-3 max-w-2xl text-xs leading-relaxed text-zinc-500">{c.specsNote}</p>
+
+            <Link
+              href="/rent"
+              className="mt-8 inline-flex h-12 items-center rounded-full bg-white px-7 text-sm font-semibold text-black transition hover:bg-zinc-200"
+            >
+              {t.ctaPrimary}
+            </Link>
+          </div>
         </section>
 
         <section id="how" className="mx-auto max-w-5xl scroll-mt-6 px-6 py-16 md:py-24">
@@ -141,7 +241,7 @@ export default async function Home() {
               </ul>
             </div>
             <div className="flex flex-col justify-between gap-6">
-              <p className="text-sm leading-relaxed text-zinc-400">{fill(t.kitNote)}</p>
+              <p className="text-sm leading-relaxed text-zinc-400">{t.kitNote}</p>
               <Link
                 href="/rent"
                 className="inline-flex h-12 items-center justify-center rounded-full bg-white px-7 text-sm font-semibold text-black transition hover:bg-zinc-200"
