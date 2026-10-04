@@ -1,6 +1,7 @@
 import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { RETURN_BUFFER_MINUTES, type BookingWindow, type DroneCandidate } from "./slots";
+import type { DroneModel } from "./pricingRules";
 
 export type ShopFleetSnapshot = {
   drones: DroneCandidate[];
@@ -16,10 +17,12 @@ export type ShopFleetSnapshot = {
  * lib/booking/lockerSnapshot.ts's own bound — nothing older can still affect
  * an overlap or the buffer check.
  */
-export async function buildShopFleetSnapshot(shopId: string): Promise<ShopFleetSnapshot> {
+export async function buildShopFleetSnapshot(shopId: string, model?: DroneModel): Promise<ShopFleetSnapshot> {
   const supabase = createServiceRoleClient();
 
-  const { data: drones } = await supabase.from("dr_drones").select("id,human_id,status").eq("shop_id", shopId);
+  // With a model, only that model's drones count: a customer who wants a GT50 is never offered a slot that only a Neo 2 is free for.
+  const query = supabase.from("dr_drones").select("id,human_id,status").eq("shop_id", shopId);
+  const { data: drones } = await (model ? query.eq("model_key", model) : query);
   const droneIds = (drones ?? []).map((d) => d.id);
 
   const snapshotCutoff = new Date(Date.now() - RETURN_BUFFER_MINUTES * 60_000).toISOString();

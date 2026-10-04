@@ -5,13 +5,16 @@ import { uuidSchema } from "@/lib/zod-helpers";
 import { buildShopFleetSnapshot } from "@/lib/droneRental/snapshot";
 import { computeUnavailableStarts } from "@/lib/droneRental/slots";
 import { isWithinOperatingHours } from "@/lib/droneRental/hours";
-import { isValidRentalMinutes } from "@/lib/droneRental/pricingRules";
+import { isValidRentalMinutes, DRONE_MODELS, type DroneModel } from "@/lib/droneRental/pricingRules";
 import { findOrCreateCustomer, createPendingDroneBooking, NoDroneAvailableError } from "@/lib/droneRental/createBooking";
 
 const rentalMinutesSchema = z.number().refine(isValidRentalMinutes, "Choose a rental length of 1 to 6 hours.");
 
+const modelSchema = z.enum(DRONE_MODELS).default("NEO2");
+
 const unavailableStartsSchema = z.object({
   shopId: uuidSchema,
+  model: modelSchema,
   durationMinutes: rentalMinutesSchema,
   starts: z.array(z.string().min(1)).max(64),
 });
@@ -19,11 +22,12 @@ const unavailableStartsSchema = z.object({
 /** Which of the candidate 30-minute start times have no drone free for the selected duration — greys out slots in the table before the customer even taps one. */
 export async function getUnavailableDroneStartsAction(input: {
   shopId: string;
+  model?: DroneModel;
   durationMinutes: number;
   starts: string[];
 }): Promise<{ unavailable: boolean[] }> {
   const parsed = unavailableStartsSchema.parse(input);
-  const snapshot = await buildShopFleetSnapshot(parsed.shopId);
+  const snapshot = await buildShopFleetSnapshot(parsed.shopId, parsed.model);
   const dates = parsed.starts.map((s) => new Date(s));
   const noDrone = computeUnavailableStarts(snapshot.drones, snapshot.bookings, parsed.durationMinutes, dates);
   // A start the shop is closed for (before opening, or running past closing) is unavailable too.
@@ -33,6 +37,7 @@ export async function getUnavailableDroneStartsAction(input: {
 
 const createBookingSchema = z.object({
   shopId: uuidSchema,
+  model: modelSchema,
   durationMinutes: rentalMinutesSchema,
   startTime: z.string().min(1),
   batteries: z.union([z.literal(1), z.literal(2)]),
@@ -43,6 +48,7 @@ const createBookingSchema = z.object({
 
 export async function createDroneBookingAction(input: {
   shopId: string;
+  model?: DroneModel;
   durationMinutes: number;
   startTime: string;
   batteries: 1 | 2;
@@ -66,6 +72,7 @@ export async function createDroneBookingAction(input: {
       durationMinutes: data.durationMinutes,
       startTime: start,
       batteries: data.batteries,
+      model: data.model,
     });
     return { secureToken: booking.secure_token, startTime: booking.start_time, endTime: booking.end_time };
   } catch (err) {

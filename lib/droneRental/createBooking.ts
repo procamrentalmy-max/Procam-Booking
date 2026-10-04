@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { buildShopFleetSnapshot } from "./snapshot";
 import { alignToNextInterval, findEligibleDrone, InvalidDroneBookingRequestError } from "./slots";
-import { rentalFeeMyr, DEPOSIT_MYR, type BatteryCount } from "./pricingRules";
+import { rentalFeeMyr, depositMyrFor, DEFAULT_DRONE_MODEL, type BatteryCount, type DroneModel } from "./pricingRules";
 import type { DrBookingRow, DrBookingSource } from "@/lib/db/types";
 
 export { InvalidDroneBookingRequestError };
@@ -48,8 +48,10 @@ export async function createPendingDroneBooking(params: {
   durationMinutes: number;
   startTime: Date;
   batteries: BatteryCount;
+  model?: DroneModel;
 }): Promise<DrBookingRow> {
   const supabase = createServiceRoleClient();
+  const model = params.model ?? DEFAULT_DRONE_MODEL;
 
   const { data: shop } = await supabase.from("dr_shops").select("id,active").eq("id", params.shopId).single();
   if (!shop || !shop.active) throw new Error("This shop is not currently active.");
@@ -59,7 +61,7 @@ export async function createPendingDroneBooking(params: {
   if (startTime.getTime() < Date.now() - 60_000) throw new NoDroneAvailableError();
   const endTime = new Date(startTime.getTime() + params.durationMinutes * 60_000);
 
-  const snapshot = await buildShopFleetSnapshot(params.shopId);
+  const snapshot = await buildShopFleetSnapshot(params.shopId, model);
   const droneId = findEligibleDrone(snapshot.drones, snapshot.bookings, startTime, endTime);
   if (!droneId) throw new NoDroneAvailableError();
 
@@ -71,6 +73,7 @@ export async function createPendingDroneBooking(params: {
     endTime,
     source: "ONLINE",
     batteries: params.batteries,
+    model,
   });
 }
 
@@ -95,6 +98,7 @@ export async function createMerchantInstantBooking(params: {
   droneId: string;
   durationMinutes: number;
   batteries: BatteryCount;
+  model?: DroneModel;
   createdByStaffId: string;
 }): Promise<DrBookingRow> {
   if (params.durationMinutes <= 0) {
@@ -113,6 +117,7 @@ export async function createMerchantInstantBooking(params: {
     source: "MERCHANT_INSTANT",
     createdByStaffId: params.createdByStaffId,
     batteries: params.batteries,
+    model: params.model ?? DEFAULT_DRONE_MODEL,
   });
 }
 
@@ -127,6 +132,7 @@ async function insertBooking(
     source: DrBookingSource;
     createdByStaffId?: string;
     batteries: BatteryCount;
+    model: DroneModel;
   }
 ): Promise<DrBookingRow> {
   const durationMinutes = (params.endTime.getTime() - params.startTime.getTime()) / 60_000;
@@ -137,12 +143,13 @@ async function insertBooking(
     p_drone_id: params.droneId,
     p_start_time: params.startTime.toISOString(),
     p_end_time: params.endTime.toISOString(),
-    p_rental_fee_myr: rentalFeeMyr(durationMinutes, params.batteries),
-    p_deposit_myr: DEPOSIT_MYR,
+    p_rental_fee_myr: rentalFeeMyr(durationMinutes, params.batteries, params.model),
+    p_deposit_myr: depositMyrFor(params.model),
     p_secure_token: generateSecureToken(),
     p_source: params.source,
     p_created_by_staff_id: params.createdByStaffId ?? null,
     p_batteries_count: params.batteries,
+    p_drone_model: params.model,
   });
 
   if (error) {

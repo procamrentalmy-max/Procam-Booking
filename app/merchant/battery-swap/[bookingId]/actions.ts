@@ -6,7 +6,7 @@ import { getAuthContext, hasMerchantAccess } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { chargeBatterySwapFee } from "@/lib/droneRental/payment";
 import { findChargedBatteries } from "@/lib/droneRental/batteries";
-import { BATTERY_PACKAGE_FEE_MYR, isBatteryCount, MAX_BATTERIES_HELD } from "@/lib/droneRental/pricingRules";
+import { isBatteryCount, MAX_BATTERIES_HELD, modelProfile } from "@/lib/droneRental/pricingRules";
 
 const schema = z.object({
   bookingId: uuidSchema,
@@ -34,7 +34,7 @@ export async function submitBatterySwapAction(formData: FormData) {
 
   const supabase = createServiceRoleClient();
 
-  const { data: booking } = await supabase.from("dr_bookings").select("id,status,drone_id").eq("id", bookingId).single();
+  const { data: booking } = await supabase.from("dr_bookings").select("id,status,drone_id,drone_model").eq("id", bookingId).single();
   if (!booking) throw new Error("Booking not found.");
   if (booking.status !== "ACTIVE") throw new Error("This booking isn't currently active.");
 
@@ -61,7 +61,7 @@ export async function submitBatterySwapAction(formData: FormData) {
       released_battery_id: returnedIds[i],
       issued_battery_id: replacements[i].id,
       // The whole swap is charged once; it's recorded against the first battery so the fee isn't counted twice.
-      fee_myr: i === 0 ? BATTERY_PACKAGE_FEE_MYR[count] : 0,
+      fee_myr: i === 0 ? modelProfile(booking.drone_model).batteryFeeMyr[count] : 0,
       performed_by_staff_id: ctx.staffId,
     });
   }

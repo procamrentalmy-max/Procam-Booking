@@ -46,7 +46,7 @@ export default async function MerchantScanPage({ params }: { params: Promise<{ t
 
   const [{ data: customer }, { data: drone }] = await Promise.all([
     supabase.from("customers").select("name,phone").eq("id", booking.customer_id).single(),
-    supabase.from("dr_drones").select("human_id").eq("id", booking.drone_id).single(),
+    supabase.from("dr_drones").select("human_id,model_key").eq("id", booking.drone_id).single(),
   ]);
 
   return (
@@ -62,7 +62,10 @@ export default async function MerchantScanPage({ params }: { params: Promise<{ t
         <dl className="mt-3 space-y-1 border-t border-zinc-100 pt-3 text-sm dark:border-zinc-800">
           <div className="flex justify-between gap-4">
             <dt className="text-zinc-500">Drone</dt>
-            <dd className="font-medium">{drone?.human_id ?? "—"}</dd>
+            <dd className="font-medium">
+              {drone?.human_id ?? "—"}
+              {drone?.model_key === "GT50" ? " · GT50" : ""}
+            </dd>
           </div>
           <div className="flex justify-between gap-4">
             <dt className="text-zinc-500">Start</dt>

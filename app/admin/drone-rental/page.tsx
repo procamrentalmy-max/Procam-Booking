@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
-import { formatMyr } from "@/lib/droneRental/pricingRules";
+import { DRONE_MODELS, DRONE_MODEL_PROFILES, formatMyr, modelProfile } from "@/lib/droneRental/pricingRules";
 import {
   createShopAction,
   setShopActiveAction,
@@ -45,7 +46,7 @@ export default async function DroneRentalAdminPage() {
   const [{ data: shops }, { data: drones }, { data: batteries }, { data: merchants }, { data: assignments }, { data: recent }, { data: monthBookings }] =
     await Promise.all([
       supabase.from("dr_shops").select("id,human_id,name,address,lat,lng,active").order("created_at", { ascending: true }),
-      supabase.from("dr_drones").select("id,human_id,shop_id,status,serial_number,cost_price_myr").order("human_id"),
+      supabase.from("dr_drones").select("id,human_id,shop_id,status,serial_number,cost_price_myr,model_key").order("human_id"),
       supabase.from("dr_batteries").select("drone_id,status"),
       supabase.from("staff_users").select("id,name,active").eq("role", "DRONE_MERCHANT"),
       supabase.from("dr_merchant_shops").select("staff_user_id,shop_id"),
@@ -85,6 +86,17 @@ export default async function DroneRentalAdminPage() {
 
   return (
     <div className="space-y-8 pt-4">
+      <Link
+        href="/admin/drone-rental/sales"
+        className="flex min-h-12 items-center justify-between rounded-xl border border-zinc-200 p-4 hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
+      >
+        <span>
+          <span className="block font-medium text-black dark:text-zinc-50">Sales analysis</span>
+          <span className="block text-sm text-zinc-500">Revenue by month, shop, drone and rental length</span>
+        </span>
+        <span aria-hidden className="text-zinc-400">→</span>
+      </Link>
+
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Paid bookings this month" value={String(paidThisMonth.length)} />
         <Stat label="Rental fees this month" value={formatMyr(feesThisMonth)} />
@@ -173,7 +185,7 @@ export default async function DroneRentalAdminPage() {
             <div key={d.id} className="flex flex-col gap-2 rounded-xl border border-zinc-200 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
               <div>
                 <p className="font-medium">
-                  {d.human_id} — {shopNameById.get(d.shop_id) ?? "—"}
+                  {d.human_id} · {modelProfile(d.model_key).shortName} — {shopNameById.get(d.shop_id) ?? "—"}
                 </p>
                 <p className="text-sm text-zinc-500">
                   RM{d.cost_price_myr} cost · {batteryCount.atShop}/{batteryCount.total} batteries at shop
@@ -200,6 +212,13 @@ export default async function DroneRentalAdminPage() {
         <details className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
           <summary className="cursor-pointer text-sm font-semibold">Add a drone</summary>
           <form action={createDroneAction} className="mt-3 grid gap-2 sm:grid-cols-2">
+            <select name="model" required defaultValue="NEO2" className={inputClass}>
+              {DRONE_MODELS.map((m) => (
+                <option key={m} value={m}>
+                  {DRONE_MODEL_PROFILES[m].shortName}
+                </option>
+              ))}
+            </select>
             <select name="shopId" required className={inputClass}>
               <option value="">Select shop…</option>
               {(shops ?? []).map((s) => (
@@ -209,7 +228,7 @@ export default async function DroneRentalAdminPage() {
               ))}
             </select>
             <input name="serialNumber" placeholder="Serial number (optional)" className={inputClass} />
-            <input name="costPriceMyr" type="number" step="0.01" min="0" defaultValue="1100" required className={inputClass} />
+            <input name="costPriceMyr" type="number" step="0.01" min="0" placeholder="What you paid for it (RM)" required className={inputClass} />
             <button type="submit" className={`${primaryButtonClass} sm:col-span-2`}>
               Create Drone (adds 3 batteries automatically)
             </button>

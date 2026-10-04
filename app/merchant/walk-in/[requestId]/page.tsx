@@ -4,7 +4,7 @@ import { getAuthContext } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { canAccessShop } from "@/lib/droneRental/access";
 import { eligibleDronesForRequest, getWalkInRequestById, viewOf } from "@/lib/droneRental/walkInRequests";
-import { DEPOSIT_MYR, formatMyr, rentalFeeMyr } from "@/lib/droneRental/pricingRules";
+import { depositMyrFor, formatMyr, modelProfile, rentalFeeMyr } from "@/lib/droneRental/pricingRules";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
 import { WalkInButtons } from "./WalkInButtons";
 
@@ -37,7 +37,7 @@ export default async function WalkInPage({ params }: { params: Promise<{ request
   const view = viewOf(request);
   const hours = request.duration_minutes / 60;
   const batteries = request.batteries_count === 1 ? 1 : 2;
-  const summary = `${hours} hour${hours === 1 ? "" : "s"} · ${batteries} ${batteries === 1 ? "battery" : "batteries"} · ${formatMyr(rentalFeeMyr(request.duration_minutes, batteries))} + ${formatMyr(DEPOSIT_MYR)} deposit hold`;
+  const summary = `${modelProfile(request.drone_model).shortName} · ${hours} hour${hours === 1 ? "" : "s"} · ${batteries} ${batteries === 1 ? "battery" : "batteries"} · ${formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model))} + ${formatMyr(depositMyrFor(request.drone_model))} deposit hold`;
 
   const bookingStatus = booking?.status ?? null;
   const droneOptions = view === "SUBMITTED" ? await eligibleDronesForRequest(request) : [];

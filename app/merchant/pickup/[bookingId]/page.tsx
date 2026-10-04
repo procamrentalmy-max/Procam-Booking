@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { DEPOSIT_CONTROLLER_MYR, DEPOSIT_DRONE_MYR, formatMyr } from "@/lib/droneRental/pricingRules";
+import { formatMyr, modelProfile } from "@/lib/droneRental/pricingRules";
 import { PickupForm } from "./PickupForm";
 
 export default async function MerchantPickupPage({ params }: { params: Promise<{ bookingId: string }> }) {
@@ -9,15 +9,16 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
 
   const { data: booking } = await supabase
     .from("dr_bookings")
-    .select("id,status,customer_id,drone_id,start_time,end_time,deposit_myr,batteries_count")
+    .select("id,status,customer_id,drone_id,start_time,end_time,deposit_myr,batteries_count,drone_model")
     .eq("id", bookingId)
     .maybeSingle();
   if (!booking) notFound();
+  const profile = modelProfile(booking.drone_model);
 
   const [{ data: customer }, { data: drone }, { data: items }, { data: hold }] = await Promise.all([
     supabase.from("customers").select("name,phone").eq("id", booking.customer_id).single(),
     supabase.from("dr_drones").select("human_id").eq("id", booking.drone_id).single(),
-    supabase.from("dr_checklist_items").select("item_key,label").eq("active", true).order("sort_order"),
+    supabase.from("dr_checklist_items").select("item_key,label").eq("active", true).contains("applies_to", [profile.key]).order("sort_order"),
     supabase.from("dr_deposit_authorizations").select("status").eq("booking_id", bookingId).maybeSingle(),
   ]);
 
@@ -33,8 +34,10 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
       <div className="rounded-2xl border-2 border-black bg-white p-4 dark:border-white dark:bg-zinc-900">
         <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Hand over</p>
         <ul className="mt-2 space-y-1 text-base font-semibold text-black dark:text-zinc-50">
-          <li>Drone {drone?.human_id ?? "—"}</li>
-          <li>RC-N3 controller</li>
+          <li>
+            Drone {drone?.human_id ?? "—"} <span className="font-normal text-zinc-500">({profile.shortName})</span>
+          </li>
+          <li>{profile.controllerName}</li>
           <li>
             {booking.batteries_count} {booking.batteries_count === 1 ? "battery" : "batteries"}{" "}
             <span className="font-normal text-zinc-500">{booking.batteries_count === 1 ? "(in the drone)" : "(one in the drone, one spare)"}</span>
@@ -45,8 +48,8 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
 
       {holdOnFile ? (
         <p className="rounded-xl border border-green-300 bg-green-50 p-3 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
-          <span className="font-semibold">Deposit held: {formatMyr(booking.deposit_myr)}</span> (drone {formatMyr(DEPOSIT_DRONE_MYR)} + controller{" "}
-          {formatMyr(DEPOSIT_CONTROLLER_MYR)})
+          <span className="font-semibold">Deposit held: {formatMyr(booking.deposit_myr)}</span> (drone {formatMyr(profile.depositDroneMyr)} + controller{" "}
+          {formatMyr(profile.depositControllerMyr)})
         </p>
       ) : (
         <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
@@ -64,6 +67,7 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
         checklistItems={items ?? []}
         disabled={booking.status !== "CONFIRMED"}
         batteriesCount={booking.batteries_count}
+        photosRequired={profile.photosRequired}
         summary={summary}
       />
     </div>

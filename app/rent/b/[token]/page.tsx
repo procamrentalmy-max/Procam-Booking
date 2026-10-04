@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
-import { formatMyr } from "@/lib/droneRental/pricingRules";
+import { formatMyr, modelProfile } from "@/lib/droneRental/pricingRules";
 import { generateQrDataUrl } from "@/lib/qr";
 import { requestOrigin } from "@/lib/requestOrigin";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
@@ -31,7 +31,7 @@ export default async function DroneBookingDashboardPage({ params }: { params: Pr
 
   const { data: booking } = await supabase
     .from("dr_bookings")
-    .select("human_id,status,source,start_time,end_time,shop_id,drone_id,rental_fee_myr,deposit_myr,checked_in_at,batteries_count")
+    .select("human_id,status,source,start_time,end_time,shop_id,drone_id,rental_fee_myr,deposit_myr,checked_in_at,batteries_count,drone_model")
     .eq("secure_token", token)
     .maybeSingle();
   if (!booking) notFound();
@@ -121,8 +121,8 @@ export default async function DroneBookingDashboardPage({ params }: { params: Pr
       <div className="space-y-2 rounded-xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">
         <Row label="Shop" value={shop?.name ?? "—"} />
         <Row label="Address" value={shop?.address ?? "—"} />
-        <Row label="Drone" value={drone?.human_id ?? "—"} />
-        <Row label="Includes" value={`Drone, RC-N3 controller, ${booking.batteries_count} ${booking.batteries_count === 1 ? "battery" : "batteries"}`} />
+        <Row label="Drone" value={`${modelProfile(booking.drone_model).shortName} · ${drone?.human_id ?? "—"}`} />
+        <Row label="Includes" value={`Drone, ${modelProfile(booking.drone_model).controllerName}, ${booking.batteries_count} ${booking.batteries_count === 1 ? "battery" : "batteries"}`} />
         {walkInNotStarted && <Row label="Length" value={lengthLabel} />}
         {booking.status !== "CONFIRMED" && booking.status !== "ACTIVE" && !walkInNotStarted && (
           <>

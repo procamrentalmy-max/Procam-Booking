@@ -6,7 +6,7 @@ import { eligibleWalkInDrones, walkInDurationsForShop } from "./merchantBooking"
 import { findOrCreateCustomer, createMerchantInstantBooking, NoDroneAvailableError } from "./createBooking";
 import { walkInExpiry, walkInView, type WalkInView } from "./walkIn";
 import type { DrWalkInRequestRow } from "@/lib/db/types";
-import type { BatteryCount } from "./pricingRules";
+import { DEFAULT_DRONE_MODEL, DRONE_MODELS, isDroneModel, type BatteryCount, type DroneModel } from "./pricingRules";
 
 export class WalkInError extends Error {
   constructor(message: string) {
@@ -29,10 +29,16 @@ export async function findShopByWalkInCode(code: string): Promise<{ id: string; 
   return { id: data.id, name: data.name, address: data.address };
 }
 
-/** The lengths (in minutes) a customer scanning this shop's QR can choose right now — only what some drone at the shop can actually take. */
-export async function walkInDurationOptions(shopId: string): Promise<number[]> {
-  const snapshot = await buildShopFleetSnapshot(shopId);
+/** The lengths (in minutes) a customer scanning this shop's QR can choose right now for one model — only what some drone of that model at the shop can actually take. */
+export async function walkInDurationOptions(shopId: string, model: DroneModel = DEFAULT_DRONE_MODEL): Promise<number[]> {
+  const snapshot = await buildShopFleetSnapshot(shopId, model);
   return walkInDurationsForShop(snapshot.drones, snapshot.bookings, new Date());
+}
+
+/** The same, for every model: only models with at least one length on offer appear. */
+export async function walkInOptionsByModel(shopId: string): Promise<Partial<Record<DroneModel, number[]>>> {
+  const entries = await Promise.all(DRONE_MODELS.map(async (m) => [m, await walkInDurationOptions(shopId, m)] as const));
+  return Object.fromEntries(entries.filter(([, durations]) => durations.length > 0));
 }
 
 export type SubmitWalkInOrderResult =
@@ -50,10 +56,12 @@ export async function submitWalkInOrder(params: {
   walkinCode: string;
   durationMinutes: number;
   batteries: BatteryCount;
+  model?: DroneModel;
   name: string;
   phone: string;
   email: string;
 }): Promise<SubmitWalkInOrderResult> {
+  const model = params.model ?? DEFAULT_DRONE_MODEL;
   const shop = await findShopByWalkInCode(params.walkinCode);
   if (!shop) return { ok: false, reason: "shop_not_found" };
 
@@ -70,7 +78,7 @@ export async function submitWalkInOrder(params: {
   if (existing) return { ok: true, publicToken: existing.public_token };
   if ((open ?? []).length >= MAX_OPEN_WALKIN_ORDERS_PER_SHOP) return { ok: false, reason: "too_many_open" };
 
-  const allowed = await walkInDurationOptions(shop.id);
+  const allowed = await walkInDurationOptions(shop.id, model);
   if (!allowed.includes(params.durationMinutes)) return { ok: false, reason: "length_unavailable" };
 
   const publicToken = newPublicToken();
@@ -80,6 +88,7 @@ export async function submitWalkInOrder(params: {
     drone_id: null,
     duration_minutes: params.durationMinutes,
     batteries_count: params.batteries,
+    drone_model: model,
     status: "SUBMITTED",
     customer_name: params.name,
     customer_phone: params.phone,
@@ -109,7 +118,7 @@ export function viewOf(request: DrWalkInRequestRow, now: Date = new Date()): Wal
 
 /** The drones that could be handed to this order right now, for the merchant's confirm screen (the first is the default). */
 export async function eligibleDronesForRequest(request: DrWalkInRequestRow): Promise<{ id: string; humanId: string }[]> {
-  const snapshot = await buildShopFleetSnapshot(request.shop_id);
+  const snapshot = await buildShopFleetSnapshot(request.shop_id, isDroneModel(request.drone_model) ? request.drone_model : DEFAULT_DRONE_MODEL);
   return eligibleWalkInDrones(snapshot.drones, snapshot.bookings, request.duration_minutes, new Date()).map((d) => ({ id: d.id, humanId: d.humanId }));
 }
 
@@ -164,6 +173,7 @@ export async function acceptWalkInRequest(
       droneId: drone.id,
       durationMinutes: request.duration_minutes,
       batteries: request.batteries_count === 1 ? 1 : 2,
+      model: isDroneModel(request.drone_model) ? request.drone_model : DEFAULT_DRONE_MODEL,
       createdByStaffId: staffId,
     });
     await supabase.from("dr_walkin_requests").update({ booking_id: booking.id }).eq("id", request.id);

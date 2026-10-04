@@ -6,15 +6,12 @@ import Link from "next/link";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
 import {
-  HOURLY_RATE_MYR,
   BATTERY_OPTIONS,
-  BATTERY_PACKAGE_FEE_MYR,
-  BATTERY_FLIGHT_LABEL,
   DEFAULT_BATTERIES,
+  DRONE_MODEL_PROFILES,
   type BatteryCount,
-  DEPOSIT_MYR,
-  DEPOSIT_DRONE_MYR,
-  DEPOSIT_CONTROLLER_MYR,
+  type DroneModel,
+  depositMyrFor,
   formatMyr,
   rentalFeeMyr,
 } from "@/lib/droneRental/pricingRules";
@@ -47,9 +44,10 @@ function StepHeader({ step, onBack }: { step: Step; onBack?: () => void }) {
   );
 }
 
-export function DroneBookingWizard({ shopId }: { shopId: string }) {
+export function DroneBookingWizard({ shopId, models }: { shopId: string; models: DroneModel[] }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("duration");
+  const [model, setModel] = useState<DroneModel>(models.includes("NEO2") ? "NEO2" : models[0]);
   const [durationHours, setDurationHours] = useState(1);
   const [batteries, setBatteries] = useState<BatteryCount>(DEFAULT_BATTERIES);
   const [now, setNow] = useState(() => new Date());
@@ -64,7 +62,9 @@ export function DroneBookingWizard({ shopId }: { shopId: string }) {
   const [loading, setLoading] = useState(false);
 
   const durationMinutes = durationHours * 60;
-  const rentalFee = rentalFeeMyr(durationMinutes, batteries);
+  const profile = DRONE_MODEL_PROFILES[model];
+  const deposit = depositMyrFor(model);
+  const rentalFee = rentalFeeMyr(durationMinutes, batteries, model);
 
   // (Re)draw the grid for the chosen day and duration, then grey out what's taken. The grid itself is
   // worked out in Malaysia time (lib/droneRental/hours) so it's right whatever timezone the phone is in;
@@ -82,7 +82,7 @@ export function DroneBookingWizard({ shopId }: { shopId: string }) {
     }
     setUnavailable(null);
     let cancelled = false;
-    getUnavailableDroneStartsAction({ shopId, durationMinutes, starts: candidates.map((d) => d.toISOString()) })
+    getUnavailableDroneStartsAction({ shopId, model, durationMinutes, starts: candidates.map((d) => d.toISOString()) })
       .then((result) => {
         if (cancelled) return;
         const bad = new Set<number>();
@@ -97,7 +97,7 @@ export function DroneBookingWizard({ shopId }: { shopId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [step, shopId, durationMinutes, dayOffset]);
+  }, [step, shopId, model, durationMinutes, dayOffset]);
 
   async function submit() {
     if (!selectedStart) return;
@@ -106,6 +106,7 @@ export function DroneBookingWizard({ shopId }: { shopId: string }) {
     try {
       const result = await createDroneBookingAction({
         shopId,
+        model,
         durationMinutes,
         startTime: selectedStart.toISOString(),
         batteries,
@@ -125,14 +126,34 @@ export function DroneBookingWizard({ shopId }: { shopId: string }) {
       <div className="space-y-6">
         <StepHeader step={step} />
 
+        {models.length > 1 && (
+          <div>
+            <p className="mb-2 text-sm font-medium">Which drone?</p>
+            <div className="grid grid-cols-2 gap-2">
+              {models.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setModel(m)}
+                  aria-pressed={model === m}
+                  className={`rounded-xl border px-3 py-3 text-center ${model === m ? selectedClass : idleClass}`}
+                >
+                  <span className="block text-sm font-semibold">{DRONE_MODEL_PROFILES[m].shortName}</span>
+                  <span className={`block text-xs ${model === m ? "opacity-80" : "text-zinc-500"}`}>{formatMyr(DRONE_MODEL_PROFILES[m].hourlyRateMyr)} per hour</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="rounded-2xl border border-zinc-200 p-5 dark:border-zinc-800">
-          <p className="font-semibold text-black dark:text-zinc-50">DJI Neo 2 + RC-N3 controller</p>
-          <p className="mt-0.5 text-sm text-zinc-500">{formatMyr(HOURLY_RATE_MYR)} per hour, plus batteries</p>
+          <p className="font-semibold text-black dark:text-zinc-50">{profile.name}</p>
+          <p className="mt-0.5 text-sm text-zinc-500">{formatMyr(profile.hourlyRateMyr)} per hour, plus batteries</p>
           <ul className="mt-4 space-y-1.5 text-sm text-zinc-600 dark:text-zinc-400">
             <li>Drone and controller, with the batteries you choose, all charged at the shop</li>
             <li>
-              {formatMyr(DEPOSIT_MYR)} deposit: a hold on your card, not a charge (drone {formatMyr(DEPOSIT_DRONE_MYR)}, controller{" "}
-              {formatMyr(DEPOSIT_CONTROLLER_MYR)}). Released when everything comes back in good condition
+              {formatMyr(deposit)} deposit: a hold on your card, not a charge (drone {formatMyr(profile.depositDroneMyr)}, controller{" "}
+              {formatMyr(profile.depositControllerMyr)}). Released when everything comes back in good condition
             </li>
           </ul>
         </div>
@@ -149,7 +170,7 @@ export function DroneBookingWizard({ shopId }: { shopId: string }) {
                 className={`rounded-xl border py-3 text-center ${durationHours === h ? selectedClass : idleClass}`}
               >
                 <span className="block text-sm font-semibold">{h} hour{h === 1 ? "" : "s"}</span>
-                <span className={`block text-xs ${durationHours === h ? "opacity-80" : "text-zinc-500"}`}>{formatMyr(h * HOURLY_RATE_MYR)}</span>
+                <span className={`block text-xs ${durationHours === h ? "opacity-80" : "text-zinc-500"}`}>{formatMyr(h * profile.hourlyRateMyr)}</span>
               </button>
             ))}
           </div>
@@ -167,14 +188,16 @@ export function DroneBookingWizard({ shopId }: { shopId: string }) {
                 className={`rounded-xl border px-3 py-3 text-center ${batteries === n ? selectedClass : idleClass}`}
               >
                 <span className="block text-sm font-semibold">
-                  {n} {n === 1 ? "battery" : "batteries"} · {formatMyr(BATTERY_PACKAGE_FEE_MYR[n])}
+                  {n} {n === 1 ? "battery" : "batteries"} · {formatMyr(profile.batteryFeeMyr[n])}
                 </span>
-                <span className={`block text-xs ${batteries === n ? "opacity-80" : "text-zinc-500"}`}>about {BATTERY_FLIGHT_LABEL[n]} min of flying</span>
+                {profile.flightMinutes && (
+                  <span className={`block text-xs ${batteries === n ? "opacity-80" : "text-zinc-500"}`}>about {profile.flightMinutes[n]} min of flying</span>
+                )}
               </button>
             ))}
           </div>
           <p className="mt-2 text-xs text-zinc-500">
-            Your hours are time with the drone, not flying time. Battery running low? Swap it for a fully charged one at the shop: {formatMyr(BATTERY_PACKAGE_FEE_MYR[1])} for 1, {formatMyr(BATTERY_PACKAGE_FEE_MYR[2])} for 2.
+            Your hours are time with the drone, not flying time. Battery running low? Swap it for a fully charged one at the shop: {formatMyr(profile.batteryFeeMyr[1])} for 1, {formatMyr(profile.batteryFeeMyr[2])} for 2.
           </p>
         </div>
 
@@ -271,6 +294,12 @@ export function DroneBookingWizard({ shopId }: { shopId: string }) {
 
       {selectedStart && (
         <div className="space-y-1 rounded-2xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">
+          {models.length > 1 && (
+            <div className="flex justify-between gap-4">
+              <span className="text-zinc-500">Drone</span>
+              <span className="font-medium">{profile.shortName}</span>
+            </div>
+          )}
           <div className="flex justify-between gap-4">
             <span className="text-zinc-500">Start</span>
             <span className="font-medium">{formatMalaysiaTime(selectedStart, "en")}</span>
@@ -291,7 +320,7 @@ export function DroneBookingWizard({ shopId }: { shopId: string }) {
           </div>
           <div className="flex justify-between gap-4">
             <span className="text-zinc-500">Deposit hold</span>
-            <span className="font-medium">{formatMyr(DEPOSIT_MYR)}</span>
+            <span className="font-medium">{formatMyr(deposit)}</span>
           </div>
         </div>
       )}

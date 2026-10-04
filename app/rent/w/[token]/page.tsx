@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getWalkInRequestByToken, viewOf } from "@/lib/droneRental/walkInRequests";
-import { DEPOSIT_MYR, formatMyr, rentalFeeMyr } from "@/lib/droneRental/pricingRules";
+import { depositMyrFor, formatMyr, modelProfile, rentalFeeMyr } from "@/lib/droneRental/pricingRules";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
 
 // Per-customer and time-sensitive (the merchant confirms, the order expires) — must never be cached.
@@ -50,7 +50,7 @@ export default async function WalkInCustomerPage({ params }: { params: Promise<{
       <div className="space-y-1 rounded-2xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">
         <div className="flex justify-between gap-4">
           <span className="text-zinc-500">Drone</span>
-          <span className="text-right font-medium">DJI Neo 2 + RC-N3 controller</span>
+          <span className="text-right font-medium">{modelProfile(request.drone_model).name}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span className="text-zinc-500">Length</span>
@@ -64,11 +64,11 @@ export default async function WalkInCustomerPage({ params }: { params: Promise<{
         </div>
         <div className="flex justify-between gap-4 border-t border-zinc-100 pt-1 dark:border-zinc-800">
           <span className="text-zinc-500">Rental fee</span>
-          <span className="font-semibold">{formatMyr(rentalFeeMyr(request.duration_minutes, batteries))}</span>
+          <span className="font-semibold">{formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model))}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span className="text-zinc-500">Deposit hold</span>
-          <span className="font-medium">{formatMyr(DEPOSIT_MYR)}</span>
+          <span className="font-medium">{formatMyr(depositMyrFor(request.drone_model))}</span>
         </div>
       </div>
 

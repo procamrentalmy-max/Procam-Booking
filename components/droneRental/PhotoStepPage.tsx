@@ -9,9 +9,11 @@ import type { DronePhotoStep } from "@/lib/droneRental/photoSteps";
 export function StepTitle({ index, total, title }: { index: number; total: number; title: string }) {
   return (
     <div className="text-center">
-      <p className="text-xs uppercase tracking-wide text-zinc-400">
-        Step {index + 1} of {total}
-      </p>
+      {total > 1 && (
+        <p className="text-xs uppercase tracking-wide text-zinc-400">
+          Step {index + 1} of {total}
+        </p>
+      )}
       <h2 className="mt-1 text-xl font-semibold text-black dark:text-zinc-50">{title}</h2>
     </div>
   );

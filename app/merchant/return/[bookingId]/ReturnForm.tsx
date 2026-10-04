@@ -6,12 +6,12 @@ import { dronePhotoSteps } from "@/lib/droneRental/photoSteps";
 import { PhotoStepPage, StepTitle } from "@/components/droneRental/PhotoStepPage";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import {
-  DEPOSIT_MYR,
-  DEPOSIT_DRONE_MYR,
-  DEPOSIT_CONTROLLER_MYR,
+  DRONE_MODEL_PROFILES,
   computeDepositCapture,
+  depositMyrFor,
   DepositCaptureError,
   formatMyr,
+  type DroneModel,
   type ItemOutcome,
 } from "@/lib/droneRental/pricingRules";
 import { submitReturnAction, type ReturnResult } from "./actions";
@@ -80,15 +80,20 @@ export function ReturnForm({
   disabled,
   holdOnFile,
   batteriesCount,
+  model,
 }: {
   batteriesCount: number;
+  model: DroneModel;
   bookingId: string;
   checklistItems: { item_key: string; label: string }[];
   disabled: boolean;
   holdOnFile: boolean;
 }) {
   const router = useRouter();
-  const steps = dronePhotoSteps(batteriesCount, "return");
+  const profile = DRONE_MODEL_PROFILES[model];
+  const deposit = depositMyrFor(model);
+  // A model with no photo pages (the GT50) goes straight to the checklist and the deposit verdict.
+  const steps = profile.photosRequired ? dronePhotoSteps(batteriesCount, "return") : [];
   const [step, setStep] = useState(0); // 0..steps.length-1 are the guided photos; steps.length is the verdict page
   const [photos, setPhotos] = useState<Record<string, File>>({});
   const [acks, setAcks] = useState<Record<string, boolean>>(() => Object.fromEntries(checklistItems.map((i) => [i.item_key, false])));
@@ -108,7 +113,8 @@ export function ReturnForm({
   try {
     capture = computeDepositCapture(
       { outcome: droneOutcome, damageMyr: droneDamage === "" ? undefined : Number(droneDamage) },
-      { outcome: controllerOutcome, damageMyr: controllerDamage === "" ? undefined : Number(controllerDamage) }
+      { outcome: controllerOutcome, damageMyr: controllerDamage === "" ? undefined : Number(controllerDamage) },
+      model
     );
   } catch (err) {
     captureProblem = err instanceof DepositCaptureError ? err.message : "Check the amounts.";
@@ -221,20 +227,20 @@ export function ReturnForm({
         <div>
           <p className="text-sm font-semibold">Deposit — how did each item come back?</p>
           <p className="text-xs text-zinc-500">
-            {formatMyr(DEPOSIT_MYR)} is held on the customer&apos;s card. Anything you don&apos;t keep is released.
+            {formatMyr(deposit)} is held on the customer&apos;s card. Anything you don&apos;t keep is released.
           </p>
         </div>
         <ItemVerdict
           title="Drone"
-          heldMyr={DEPOSIT_DRONE_MYR}
+          heldMyr={profile.depositDroneMyr}
           outcome={droneOutcome}
           damage={droneDamage}
           onOutcome={setDroneOutcome}
           onDamage={setDroneDamage}
         />
         <ItemVerdict
-          title="RC-N3 controller"
-          heldMyr={DEPOSIT_CONTROLLER_MYR}
+          title={profile.controllerName}
+          heldMyr={profile.depositControllerMyr}
           outcome={controllerOutcome}
           damage={controllerDamage}
           onOutcome={setControllerOutcome}
@@ -254,7 +260,7 @@ export function ReturnForm({
               </div>
               <div className="text-right">
                 <p className="text-xs uppercase tracking-wide text-zinc-500">Release to customer</p>
-                <p className="text-lg font-semibold text-zinc-700 dark:text-zinc-300">{formatMyr(DEPOSIT_MYR - capture.totalMyr)}</p>
+                <p className="text-lg font-semibold text-zinc-700 dark:text-zinc-300">{formatMyr(deposit - capture.totalMyr)}</p>
               </div>
             </div>
           ) : (
@@ -288,9 +294,11 @@ export function ReturnForm({
             ? `Complete return · keep ${formatMyr(capture.totalMyr)}`
             : "Complete return · release deposit"}
       </button>
-      <button type="button" onClick={() => setStep(steps.length - 1)} className="w-full text-center text-sm text-zinc-500 underline underline-offset-2">
-        Back to photos
-      </button>
+      {steps.length > 0 && (
+        <button type="button" onClick={() => setStep(steps.length - 1)} className="w-full text-center text-sm text-zinc-500 underline underline-offset-2">
+          Back to photos
+        </button>
+      )}
     </div>
   );
 }

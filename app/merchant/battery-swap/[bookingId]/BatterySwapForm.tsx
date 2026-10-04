@@ -3,17 +3,26 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { primaryButtonClass } from "@/components/formStyles";
-import { BATTERY_PACKAGE_FEE_MYR, formatMyr, isBatteryCount } from "@/lib/droneRental/pricingRules";
+import { formatMyr, isBatteryCount, type BatteryCount } from "@/lib/droneRental/pricingRules";
 import { submitBatterySwapAction } from "./actions";
 
-export function BatterySwapForm({ bookingId, heldBatteries }: { bookingId: string; heldBatteries: { id: string; human_id: string }[] }) {
+export function BatterySwapForm({
+  bookingId,
+  heldBatteries,
+  batteryFees,
+}: {
+  bookingId: string;
+  heldBatteries: { id: string; human_id: string }[];
+  /** What swapping 1 or 2 batteries costs for this booking's drone model. */
+  batteryFees: Record<BatteryCount, number>;
+}) {
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>(heldBatteries[0] ? [heldBatteries[0].id] : []);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const count = selected.length;
-  const fee = isBatteryCount(count) ? BATTERY_PACKAGE_FEE_MYR[count] : 0;
+  const fee = isBatteryCount(count) ? batteryFees[count] : 0;
 
   function toggle(id: string) {
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));

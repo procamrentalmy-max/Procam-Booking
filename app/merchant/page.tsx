@@ -81,7 +81,7 @@ export default async function MerchantHomePage() {
     .select("id,human_id,status,source,start_time,end_time,shop_id,drone_id,customer_id,checked_in_at")
     .in("status", ["CONFIRMED", "ACTIVE"])
     .order("start_time", { ascending: true });
-  const dronesQuery = supabase.from("dr_drones").select("id,human_id,status,shop_id");
+  const dronesQuery = supabase.from("dr_drones").select("id,human_id,status,shop_id,model_key");
   const [{ data: bookingRows }, { data: allDrones }] = await Promise.all([
     scoped ? bookingsQuery.in("shop_id", scoped) : bookingsQuery,
     scoped ? dronesQuery.in("shop_id", scoped) : dronesQuery,
@@ -93,7 +93,7 @@ export default async function MerchantHomePage() {
   // or a confirmed one not yet paid. Recent only — old accepted ones pile up and are all finished business.
   const walkInsQuery = supabase
     .from("dr_walkin_requests")
-    .select("id,status,customer_name,duration_minutes,batteries_count,expires_at,booking_id")
+    .select("id,status,customer_name,duration_minutes,batteries_count,drone_model,expires_at,booking_id")
     .in("status", ["SUBMITTED", "ACCEPTED"])
     .gte("created_at", new Date(now.getTime() - 24 * 60 * 60_000).toISOString())
     .order("created_at", { ascending: false });
@@ -119,7 +119,8 @@ export default async function MerchantHomePage() {
   ]);
 
   const customerById = new Map((customers ?? []).map((c) => [c.id, c]));
-  const droneHumanId = new Map(drones.map((d) => [d.id, d.human_id]));
+  // A GT50 is tagged next to its number so it isn't mistaken for a Neo 2 at a glance.
+  const droneHumanId = new Map(drones.map((d) => [d.id, d.model_key === "GT50" ? `${d.human_id} · GT50` : d.human_id]));
   const shopNameById = new Map((shops ?? []).map((s) => [s.id, s.name]));
   const showShopName = shopIdsShown.length > 1;
 
@@ -161,7 +162,7 @@ export default async function MerchantHomePage() {
                       {ready ? `${w.customer_name} sent an order` : `Waiting for ${w.customer_name} to pay`}
                     </p>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                      {w.duration_minutes / 60}h · {w.batteries_count} {w.batteries_count === 1 ? "battery" : "batteries"}
+                      {w.drone_model === "GT50" ? "GT50 · " : ""}{w.duration_minutes / 60}h · {w.batteries_count} {w.batteries_count === 1 ? "battery" : "batteries"}
                     </p>
                   </div>
                   <Link

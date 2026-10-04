@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuidSchema } from "@/lib/zod-helpers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { DRONE_MODELS, DRONE_MODEL_PROFILES } from "@/lib/droneRental/pricingRules";
 
 const createShopSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -51,6 +52,7 @@ export async function setShopActiveAction(formData: FormData) {
 
 const createDroneSchema = z.object({
   shopId: uuidSchema,
+  model: z.enum(DRONE_MODELS),
   serialNumber: z.string().optional(),
   costPriceMyr: z.coerce.number().min(0),
 });
@@ -59,6 +61,7 @@ const createDroneSchema = z.object({
 export async function createDroneAction(formData: FormData) {
   const parsed = createDroneSchema.safeParse({
     shopId: formData.get("shopId"),
+    model: formData.get("model"),
     serialNumber: formData.get("serialNumber"),
     costPriceMyr: formData.get("costPriceMyr"),
   });
@@ -69,6 +72,8 @@ export async function createDroneAction(formData: FormData) {
     .from("dr_drones")
     .insert({
       shop_id: parsed.data.shopId,
+      model_key: parsed.data.model,
+      model: DRONE_MODEL_PROFILES[parsed.data.model].name,
       serial_number: parsed.data.serialNumber || null,
       cost_price_myr: parsed.data.costPriceMyr,
     })

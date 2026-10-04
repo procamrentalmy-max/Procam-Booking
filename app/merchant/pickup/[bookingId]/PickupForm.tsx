@@ -17,8 +17,11 @@ export function PickupForm({
   checklistItems,
   disabled,
   batteriesCount,
+  photosRequired,
   summary,
 }: {
+  /** False for models whose handover has no photo pages (the GT50): straight to the checklist. */
+  photosRequired: boolean;
   /** Who it's for, what goes out, and the deposit status. Shown on the first and last pages, not on every photo page. */
   summary: React.ReactNode;
   batteriesCount: number;
@@ -27,7 +30,7 @@ export function PickupForm({
   disabled: boolean;
 }) {
   const router = useRouter();
-  const steps = dronePhotoSteps(batteriesCount, "pickup");
+  const steps = photosRequired ? dronePhotoSteps(batteriesCount, "pickup") : [];
   const [step, setStep] = useState(0); // 0..steps.length-1 are photos; steps.length is the confirm page
   const [photos, setPhotos] = useState<Record<string, File>>({});
   const [acks, setAcks] = useState<Record<string, boolean>>(() => Object.fromEntries(checklistItems.map((i) => [i.item_key, false])));
@@ -150,9 +153,11 @@ export function PickupForm({
       <button type="button" disabled={!canSubmit || loading} onClick={submit} className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}>
         {loading ? "Handing over…" : `Confirm handover — hand out ${batteriesCount} ${batteriesCount === 1 ? "battery" : "batteries"}`}
       </button>
-      <button type="button" onClick={() => setStep(steps.length - 1)} className="w-full text-center text-sm text-zinc-500 underline underline-offset-2">
-        Back to photos
-      </button>
+      {steps.length > 0 && (
+        <button type="button" onClick={() => setStep(steps.length - 1)} className="w-full text-center text-sm text-zinc-500 underline underline-offset-2">
+          Back to photos
+        </button>
+      )}
     </div>
   );
 }

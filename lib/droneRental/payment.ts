@@ -1,7 +1,7 @@
 import "server-only";
 import { getStripe, toCents } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { BATTERY_PACKAGE_FEE_MYR, type BatteryCount, type DepositCapture, type ItemOutcome } from "./pricingRules";
+import { modelProfile, type BatteryCount, type DepositCapture, type ItemOutcome } from "./pricingRules";
 
 /**
  * Creates (or reuses) the rental-fee PaymentIntent for a drone booking.
@@ -184,9 +184,11 @@ async function chargeOffSessionFee(params: {
   return { paymentId: payment.id, providerRef: feeIntent.id };
 }
 
-/** Merchant swaps one or two batteries mid-rental — charges RM7 or RM10 off-session. */
+/** Merchant swaps one or two batteries mid-rental — charges that model's battery price (Neo 2: RM7 or RM10) off-session. */
 export async function chargeBatterySwapFee(bookingId: string, count: BatteryCount): Promise<{ paymentId: string; providerRef: string }> {
-  return chargeOffSessionFee({ bookingId, amountMyr: BATTERY_PACKAGE_FEE_MYR[count], dbKind: "BATTERY_SWAP_FEE", stripeMetadataKind: "DRONE_BATTERY_SWAP_FEE" });
+  const { data: booking } = await createServiceRoleClient().from("dr_bookings").select("drone_model").eq("id", bookingId).single();
+  const amountMyr = modelProfile(booking?.drone_model).batteryFeeMyr[count];
+  return chargeOffSessionFee({ bookingId, amountMyr, dbKind: "BATTERY_SWAP_FEE", stripeMetadataKind: "DRONE_BATTERY_SWAP_FEE" });
 }
 
 /** Charged at return when the drone comes back past RETURN_GRACE_MINUTES late — see lib/droneRental/slots.ts::isReturnLate and pricingRules.ts::lateFeeMyr. */

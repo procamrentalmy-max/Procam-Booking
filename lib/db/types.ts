@@ -571,6 +571,8 @@ export type DrDroneRow = {
   human_id: string;
   shop_id: string;
   model: string;
+  /** Which rental model this drone is: "NEO2" or "GT50" (see lib/droneRental/pricingRules.ts). */
+  model_key: string;
   serial_number: string | null;
   cost_price_myr: number;
   status: DrDroneStatus;
@@ -605,6 +607,8 @@ export type DrBookingRow = {
   checked_in_by_staff_id: string | null;
   /** How many batteries the customer chose at booking (1 or 2). */
   batteries_count: number;
+  /** Which model was booked: "NEO2" or "GT50". Decides the prices, the deposit and whether handover needs photos. */
+  drone_model: string;
   rental_fee_myr: number;
   deposit_myr: number;
   deposit_outcome: DrDepositOutcome;
@@ -635,6 +639,8 @@ export type DrChecklistItemRow = {
   label: string;
   sort_order: number;
   active: boolean;
+  /** The drone models this item is on the checklist for. */
+  applies_to: string[];
   created_at: string;
 };
 
@@ -695,6 +701,7 @@ export type DrWalkInRequestRow = {
   drone_id: string | null;
   duration_minutes: number;
   batteries_count: number;
+  drone_model: string;
   created_by_staff_id: string | null;
   status: DrWalkInStatus;
   customer_name: string | null;
@@ -814,6 +821,7 @@ export interface Database {
           p_source: DrBookingSource;
           p_created_by_staff_id?: string | null;
           p_batteries_count?: number;
+          p_drone_model?: string;
         };
         Returns: DrBookingRow;
       };

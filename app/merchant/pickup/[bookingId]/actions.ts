@@ -8,6 +8,7 @@ import { uploadChecklistPhoto, checklistPhotoPath } from "@/lib/droneRental/stor
 import { computeHandoverWindow } from "@/lib/droneRental/handover";
 import { findChargedBatteries } from "@/lib/droneRental/batteries";
 import { dronePhotoSteps } from "@/lib/droneRental/photoSteps";
+import { modelProfile } from "@/lib/droneRental/pricingRules";
 
 export type PickupResult = {
   /** When the customer has to bring everything back (the rental's end), as an ISO string. */
@@ -32,18 +33,20 @@ export async function submitPickupAction(formData: FormData): Promise<PickupResu
 
   const supabase = createServiceRoleClient();
 
-  const { data: booking } = await supabase.from("dr_bookings").select("id,status,drone_id,source,start_time,end_time,batteries_count").eq("id", bookingId).single();
+  const { data: booking } = await supabase.from("dr_bookings").select("id,status,drone_id,source,start_time,end_time,batteries_count,drone_model").eq("id", bookingId).single();
   if (!booking) throw new Error("Booking not found.");
   if (booking.status !== "CONFIRMED") throw new Error("This booking isn't ready for pickup.");
 
   // Every guided photo is required — checked before anything is saved, so a missing one stops the handover cleanly.
-  const photoSteps = dronePhotoSteps(booking.batteries_count, "pickup");
+  // (A model with no photo pages, the GT50, has none to check.)
+  const profile = modelProfile(booking.drone_model);
+  const photoSteps = profile.photosRequired ? dronePhotoSteps(booking.batteries_count, "pickup") : [];
   const stepPhotos = photoSteps.map((step) => ({ step, file: formData.get(`photo_${step.key}`) }));
   for (const { step, file } of stepPhotos) {
     if (!(file instanceof File) || file.size === 0) throw new Error(`Missing photo: ${step.label}`);
   }
 
-  const { data: items } = await supabase.from("dr_checklist_items").select("item_key").eq("active", true);
+  const { data: items } = await supabase.from("dr_checklist_items").select("item_key").eq("active", true).contains("applies_to", [profile.key]);
   for (const item of items ?? []) {
     if (!acknowledgements[item.item_key]) throw new Error(`Please confirm: ${item.item_key}`);
   }

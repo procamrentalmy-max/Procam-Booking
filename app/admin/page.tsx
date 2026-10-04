@@ -5,7 +5,10 @@ type Section = { href: string; label: string; note: string };
 const GROUPS: { title: string; sections: Section[] }[] = [
   {
     title: "Drone rental",
-    sections: [{ href: "/admin/drone-rental", label: "Drone Rental", note: "Shops, drones, batteries, merchant assignments" }],
+    sections: [
+      { href: "/admin/drone-rental", label: "Drone Rental", note: "Shops, drones, batteries, merchant assignments" },
+      { href: "/admin/drone-rental/sales", label: "Drone Sales", note: "Drone revenue only: by month, shop, drone and rental length" },
+    ],
   },
   {
     title: "Hotel locker rentals: day to day",

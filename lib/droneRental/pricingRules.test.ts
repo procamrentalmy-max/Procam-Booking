@@ -12,6 +12,9 @@ import {
   DEPOSIT_MYR,
   DEPOSIT_DRONE_MYR,
   DEPOSIT_CONTROLLER_MYR,
+  DRONE_MODEL_PROFILES,
+  depositMyrFor,
+  modelProfile,
 } from "./pricingRules";
 
 describe("rentalFeeMyr", () => {
@@ -130,5 +133,64 @@ describe("computeDepositCapture", () => {
 
   it("ignores a stray damage amount on an item that isn't damaged", () => {
     expect(computeDepositCapture({ outcome: "NONE", damageMyr: 500 }, { outcome: "NONE" }).totalMyr).toBe(0);
+  });
+});
+
+describe("the GT50", () => {
+  it("is RM3 an hour cheaper than the Neo 2, and cheaper on both battery choices", () => {
+    expect(DRONE_MODEL_PROFILES.GT50.hourlyRateMyr).toBe(HOURLY_RATE_MYR - 3);
+    expect(DRONE_MODEL_PROFILES.GT50.batteryFeeMyr[1]).toBeLessThan(BATTERY_PACKAGE_FEE_MYR[1]);
+    expect(DRONE_MODEL_PROFILES.GT50.batteryFeeMyr[2]).toBeLessThan(BATTERY_PACKAGE_FEE_MYR[2]);
+    for (const hours of [1, 2, 3, 6]) {
+      for (const batteries of [1, 2] as const) {
+        expect(rentalFeeMyr(hours * 60, batteries, "GT50")).toBeLessThan(rentalFeeMyr(hours * 60, batteries, "NEO2"));
+      }
+    }
+  });
+
+  it("prices a booking as RM7 an hour plus RM5 for 1 battery or RM8 for 2", () => {
+    expect(DRONE_MODEL_PROFILES.GT50.batteryFeeMyr).toEqual({ 1: 5, 2: 8 });
+    expect(rentalFeeMyr(60, 1, "GT50")).toBe(12);
+    expect(rentalFeeMyr(60, 2, "GT50")).toBe(15);
+    expect(rentalFeeMyr(180, 2, "GT50")).toBe(29);
+  });
+
+  it("bills a late return at RM7 an hour", () => {
+    expect(lateFeeMyr(10, "GT50")).toBe(7);
+    expect(lateFeeMyr(61, "GT50")).toBe(14);
+    expect(lateFeeMyr(61)).toBe(20);
+  });
+
+  it("holds a RM150 deposit, split between the drone and the controller", () => {
+    expect(depositMyrFor("GT50")).toBe(150);
+    expect(DRONE_MODEL_PROFILES.GT50.depositDroneMyr + DRONE_MODEL_PROFILES.GT50.depositControllerMyr).toBe(150);
+    expect(depositMyrFor("NEO2")).toBe(DEPOSIT_MYR);
+  });
+
+  it("caps a damage charge at the GT50's own item deposit, not the Neo 2's", () => {
+    const { depositDroneMyr } = DRONE_MODEL_PROFILES.GT50;
+    expect(computeDepositCapture({ outcome: "DAMAGED", damageMyr: depositDroneMyr }, { outcome: "NONE" }, "GT50").totalMyr).toBe(depositDroneMyr);
+    expect(() => computeDepositCapture({ outcome: "DAMAGED", damageMyr: depositDroneMyr + 1 }, { outcome: "NONE" }, "GT50")).toThrow(/can't be more than/);
+    // The same amount is fine on a Neo 2.
+    expect(computeDepositCapture({ outcome: "DAMAGED", damageMyr: depositDroneMyr + 1 }, { outcome: "NONE" }, "NEO2").totalMyr).toBe(depositDroneMyr + 1);
+  });
+
+  it("keeps a lost GT50 drone's whole item deposit and nothing more", () => {
+    const capture = computeDepositCapture({ outcome: "LOST" }, { outcome: "NONE" }, "GT50");
+    expect(capture.droneChargeMyr).toBe(DRONE_MODEL_PROFILES.GT50.depositDroneMyr);
+    expect(capture.totalMyr).toBe(DRONE_MODEL_PROFILES.GT50.depositDroneMyr);
+  });
+
+  it("needs no handover photos; the Neo 2 still does", () => {
+    expect(DRONE_MODEL_PROFILES.GT50.photosRequired).toBe(false);
+    expect(DRONE_MODEL_PROFILES.NEO2.photosRequired).toBe(true);
+  });
+
+  it("treats a missing or unknown model as the Neo 2, so older rows keep their prices", () => {
+    expect(modelProfile(undefined).key).toBe("NEO2");
+    expect(modelProfile(null).key).toBe("NEO2");
+    expect(modelProfile("SOMETHING_ELSE").key).toBe("NEO2");
+    expect(rentalFeeMyr(60, 2)).toBe(20);
+    expect(depositMyrFor(undefined)).toBe(DEPOSIT_MYR);
   });
 });
