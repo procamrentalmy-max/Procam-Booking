@@ -116,15 +116,15 @@ export function viewOf(request: DrWalkInRequestRow, now: Date = new Date()): Wal
   return walkInView(request.status, new Date(request.expires_at), now);
 }
 
-/** The drones that could be handed to this order right now, for the merchant's confirm screen (the first is the default). */
+/** The drones that could be handed to this order right now, lowest number first. The merchant never picks one: the first is assigned. */
 export async function eligibleDronesForRequest(request: DrWalkInRequestRow): Promise<{ id: string; humanId: string }[]> {
   const snapshot = await buildShopFleetSnapshot(request.shop_id, isDroneModel(request.drone_model) ? request.drone_model : DEFAULT_DRONE_MODEL);
   return eligibleWalkInDrones(snapshot.drones, snapshot.bookings, request.duration_minutes, new Date()).map((d) => ({ id: d.id, humanId: d.humanId }));
 }
 
 /**
- * The merchant confirms the customer's order: picks the drone (the one they chose, or the first free one),
- * claims the request first (SUBMITTED -> ACCEPTED, only one caller can win), then creates the customer and
+ * The merchant confirms the customer's order: any free drone is assigned (the first one, by drone number; the
+ * merchant doesn't choose), claims the request first (SUBMITTED -> ACCEPTED, only one caller can win), then creates the customer and
  * the booking, which the customer's phone then follows to payment. If booking creation fails — the drone got
  * booked in the meantime, say — the claim is released so the merchant can decline instead of being left with a
  * dead request.
@@ -132,11 +132,7 @@ export async function eligibleDronesForRequest(request: DrWalkInRequestRow): Pro
  * Availability is worked out here, at confirmation, not when the customer ordered: minutes may have passed and
  * another booking may have landed.
  */
-export async function acceptWalkInRequest(
-  requestId: string,
-  staffId: string,
-  chosenDroneId?: string
-): Promise<{ bookingId: string; bookingToken: string }> {
+export async function acceptWalkInRequest(requestId: string, staffId: string): Promise<{ bookingId: string; bookingToken: string }> {
   const supabase = createServiceRoleClient();
   const request = await getWalkInRequestById(requestId);
   if (!request) throw new WalkInError("Order not found.");
@@ -144,14 +140,8 @@ export async function acceptWalkInRequest(
   if (!request.customer_name || !request.customer_phone || !request.customer_email) throw new WalkInError("The customer's details are missing.");
 
   const eligible = await eligibleDronesForRequest(request);
-  const drone = chosenDroneId ? eligible.find((d) => d.id === chosenDroneId) : eligible[0];
-  if (!drone) {
-    throw new WalkInError(
-      chosenDroneId
-        ? "That drone can't take this order right now. Pick another one."
-        : "No drone is free for that long right now. Decline this order, or wait for a drone to come back."
-    );
-  }
+  const drone = eligible[0];
+  if (!drone) throw new WalkInError("No drone is free for that long right now. Decline this order, or wait for a drone to come back.");
 
   const { data: claimed } = await supabase
     .from("dr_walkin_requests")

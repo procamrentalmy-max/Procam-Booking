@@ -15,12 +15,11 @@ async function authorize(requestId: string) {
   return { ctx, request };
 }
 
-/** Confirms the customer's order: assigns the drone and creates the booking; the customer's phone then moves on to payment by itself. */
-export async function confirmWalkInOrderAction(requestId: string, droneId?: string): Promise<void> {
+/** Confirms the customer's order: assigns any free drone and creates the booking; the customer's phone then moves on to payment by itself. */
+export async function confirmWalkInOrderAction(requestId: string): Promise<void> {
   const { ctx, request } = await authorize(requestId);
-  const chosenDroneId = droneId ? uuidSchema.parse(droneId) : undefined;
   try {
-    await acceptWalkInRequest(request.id, ctx.staffId, chosenDroneId);
+    await acceptWalkInRequest(request.id, ctx.staffId);
   } catch (err) {
     if (err instanceof WalkInError) throw new Error(err.message);
     throw err;

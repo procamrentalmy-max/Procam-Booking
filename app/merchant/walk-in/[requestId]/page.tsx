@@ -64,7 +64,7 @@ export default async function WalkInPage({ params }: { params: Promise<{ request
           <p className="px-1 text-center text-xs text-zinc-500">
             Check these match the person in front of you. Confirming sends their phone to payment, then you&apos;ll hand over here.
           </p>
-          <WalkInButtons requestId={request.id} droneOptions={droneOptions} />
+          <WalkInButtons requestId={request.id} droneFree={droneOptions.length > 0} />
         </>
       )}
 

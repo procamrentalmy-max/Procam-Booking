@@ -82,7 +82,10 @@ export function ReturnForm({
   batteriesCount,
   model,
   controllerCode,
+  heldBatteryLabels,
 }: {
+  /** The batteries the customer is holding, shown on the battery photo step so the right ones are photographed. */
+  heldBatteryLabels: string[];
   /** The controller's number (CTR-001) for the controller's verdict card; null if it has none. */
   controllerCode: string | null;
   batteriesCount: number;
@@ -196,6 +199,7 @@ export function ReturnForm({
     const current = steps[step];
     return (
       <PhotoStepPage
+        hint={current.key === "batteries" && heldBatteryLabels.length > 0 ? `Taking back: ${heldBatteryLabels.join(" and ")}` : undefined}
         step={current}
         index={step}
         total={steps.length + 1}

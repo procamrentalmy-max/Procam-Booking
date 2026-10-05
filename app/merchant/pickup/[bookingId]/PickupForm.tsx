@@ -6,6 +6,7 @@ import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
 import { dronePhotoSteps } from "@/lib/droneRental/photoSteps";
 import { PhotoStepPage, StepTitle } from "@/components/droneRental/PhotoStepPage";
+import { BatteryPicker, useBatteryPicks, type BatteryOption } from "@/components/droneRental/BatteryPicker";
 import { submitPickupAction, type PickupResult } from "./actions";
 
 /**
@@ -18,11 +19,11 @@ export function PickupForm({
   disabled,
   batteriesCount,
   photosRequired,
-  batteryIds,
+  batteryOptions,
   summary,
 }: {
-  /** The batteries the merchant was shown to hand out; the server checks they're still free and hands out exactly these. */
-  batteryIds: string[];
+  /** Every charged battery at the shop that fits this drone. The merchant picks which ones go out; the server checks they're still free. */
+  batteryOptions: BatteryOption[];
   /** False for models whose handover has no photo pages (the GT50): straight to the checklist. */
   photosRequired: boolean;
   /** Who it's for, what goes out, and the deposit status. Shown on the first and last pages, not on every photo page. */
@@ -42,9 +43,21 @@ export function PickupForm({
   const [loading, setLoading] = useState(false);
   const [shortened, setShortened] = useState<PickupResult | null>(null);
 
+  const { give, pick, enough, ready } = useBatteryPicks(batteryOptions, batteriesCount);
+  const giveLabels = give.map((id) => batteryOptions.find((o) => o.id === id)?.label ?? id);
+
   const allPhotos = steps.every((s) => photos[s.key]);
   const allChecked = checklistItems.every((i) => acks[i.item_key]);
-  const canSubmit = !disabled && allPhotos && allChecked && customerSignedName.trim().length > 0;
+  const canSubmit = !disabled && ready && allPhotos && allChecked && customerSignedName.trim().length > 0;
+
+  // Chosen once, on the first page (before any photo of them is taken), then shown read-only after that.
+  const picker = enough ? (
+    <BatteryPicker options={batteryOptions} count={batteriesCount} give={give} onPick={pick} verb="hand out" />
+  ) : (
+    <p className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm font-semibold text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+      Only {batteryOptions.length} charged {batteryOptions.length === 1 ? "battery is" : "batteries are"} at the shop; this rental needs {batteriesCount}.
+    </p>
+  );
   const total = steps.length + 1;
 
   async function submit() {
@@ -55,7 +68,7 @@ export function PickupForm({
       formData.set("bookingId", bookingId);
       formData.set("customerSignedName", customerSignedName);
       formData.set("acknowledgements", JSON.stringify(acks));
-      for (const id of batteryIds) formData.append("batteryIds", id);
+      for (const id of give) formData.append("batteryIds", id);
       for (const s of steps) formData.set(`photo_${s.key}`, photos[s.key]);
       const result = await submitPickupAction(formData);
       // Almost always straight back to the dashboard. If a following booking forced the rental to be shorter
@@ -108,8 +121,14 @@ export function PickupForm({
     const current = steps[step];
     return (
       <div className="space-y-4">
-        {step === 0 && summary}
+        {step === 0 && (
+          <>
+            {summary}
+            {picker}
+          </>
+        )}
         <PhotoStepPage
+          hint={current.key === "batteries" ? `Hand out: ${giveLabels.join(" and ")}` : undefined}
           step={current}
           index={step}
           total={total}
@@ -125,6 +144,11 @@ export function PickupForm({
   return (
     <div className="space-y-5">
       {summary}
+      {steps.length === 0 ? (
+        picker
+      ) : (
+        <p className="rounded-2xl border-2 border-black p-3 text-center text-base font-semibold dark:border-white">Batteries to hand out: {giveLabels.join(" and ") || "none picked"}</p>
+      )}
       <StepTitle index={steps.length} total={total} title="Checklist and handover" />
 
       <div className="space-y-2">

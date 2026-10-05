@@ -47,6 +47,8 @@ export type DroneModelProfile = {
   controllerName: string;
   /** The controller's own model, shown next to its number; null when there's nothing useful to add. */
   controllerType: string | null;
+  /** Letter its batteries are named with: B1, B2... for the Neo 2, A1, A2... for the GT50 (numbered per shop, see batteryNames.ts). */
+  batteryPrefix: string;
   /** Per hour booked, and also the late fee per hour. */
   hourlyRateMyr: number;
   /** What each battery choice costs, and also the price of swapping that many mid-rental. */
@@ -66,6 +68,7 @@ export const DRONE_MODEL_PROFILES: Record<DroneModel, DroneModelProfile> = {
     shortName: "DJI Neo 2",
     controllerName: "RC-N3 controller",
     controllerType: "RC-N3",
+    batteryPrefix: "B",
     hourlyRateMyr: HOURLY_RATE_MYR,
     batteryFeeMyr: BATTERY_PACKAGE_FEE_MYR,
     depositDroneMyr: 900,
@@ -79,6 +82,7 @@ export const DRONE_MODEL_PROFILES: Record<DroneModel, DroneModelProfile> = {
     shortName: "GT50",
     controllerName: "Controller",
     controllerType: null,
+    batteryPrefix: "A",
     hourlyRateMyr: 7,
     batteryFeeMyr: { 1: 5, 2: 8 },
     depositDroneMyr: 100,

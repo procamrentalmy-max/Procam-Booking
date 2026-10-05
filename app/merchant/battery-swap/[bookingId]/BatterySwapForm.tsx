@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { primaryButtonClass } from "@/components/formStyles";
+import { BatteryPicker, useBatteryPicks, type BatteryOption } from "@/components/droneRental/BatteryPicker";
 import { formatMyr, isBatteryCount, type BatteryCount } from "@/lib/droneRental/pricingRules";
 import { submitBatterySwapAction } from "./actions";
 
@@ -14,38 +15,24 @@ export function BatterySwapForm({
 }: {
   bookingId: string;
   /** What the customer is holding now, by name. */
-  heldBatteries: { id: string; label: string }[];
+  heldBatteries: BatteryOption[];
   /** Every charged battery at the shop that fits this drone, to pick from. */
-  options: { id: string; label: string }[];
+  options: BatteryOption[];
   /** What swapping 1 or 2 batteries costs for this booking's drone model. */
   batteryFees: Record<BatteryCount, number>;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>(heldBatteries[0] ? [heldBatteries[0].id] : []);
-  // The batteries the merchant has tapped to give, oldest first. Everything below happens on this page, with no reload.
-  const [picked, setPicked] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const count = selected.length;
   const fee = isBatteryCount(count) ? batteryFees[count] : 0;
-
-  // As many batteries go out as come back. The first few charged ones are picked to start with so the merchant
-  // can just confirm; tapping another switches (the oldest pick drops off once the limit is reached).
-  const optionIds = options.map((o) => o.id);
-  const keep = picked.filter((id) => optionIds.includes(id)).slice(-count);
-  const fill = optionIds.filter((id) => !keep.includes(id)).slice(0, Math.max(0, count - keep.length));
-  const give = [...keep, ...fill].slice(0, count);
-  const enough = options.length >= count;
-  const ready = count > 0 && enough && give.length === count;
+  // As many batteries go out as come back.
+  const { give, pick, enough, ready } = useBatteryPicks(options, count);
 
   function toggle(id: string) {
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  }
-
-  function pick(id: string) {
-    if (give.includes(id)) return;
-    setPicked([...give, id].slice(-count));
   }
 
   async function submit() {
@@ -83,34 +70,7 @@ export function BatterySwapForm({
 
       {count > 0 &&
         (enough ? (
-          <div className="space-y-2">
-            <p className="text-sm font-medium">
-              {count === 1 ? "Pick the battery to give" : `Pick the ${count} batteries to give`}
-              <span className="font-normal text-zinc-500">
-                {" "}
-                · {give.length} of {count} picked
-              </span>
-            </p>
-            <div className="grid grid-cols-3 gap-2" role="group" aria-label="Charged batteries at the shop">
-              {options.map((o) => {
-                const on = give.includes(o.id);
-                return (
-                  <button
-                    key={o.id}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => pick(o.id)}
-                    className={`h-14 rounded-xl border text-lg font-bold ${
-                      on ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black" : "border-zinc-300 text-zinc-800 dark:border-zinc-700 dark:text-zinc-200"
-                    }`}
-                  >
-                    {o.label}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-xs text-zinc-500">Charged batteries at the shop. Tap one to give it, or tap another to switch.</p>
-          </div>
+          <BatteryPicker options={options} count={count} give={give} onPick={pick} verb="give" />
         ) : (
           <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
             {options.length === 0

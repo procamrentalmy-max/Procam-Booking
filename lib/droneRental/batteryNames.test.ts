@@ -19,6 +19,12 @@ describe("nextBatteryNames", () => {
     expect(nextBatteryNames(["B2", "Spare", null, "  ", "DRN-001-A"], 1)).toEqual(["B3"]);
   });
 
+  it("numbers each letter on its own: GT50 batteries are A1, A2, ... and don't affect the B series", () => {
+    expect(nextBatteryNames(["B1", "B2", "B3"], 3, "A")).toEqual(["A1", "A2", "A3"]);
+    expect(nextBatteryNames(["B1", "A1", "A2"], 2, "A")).toEqual(["A3", "A4"]);
+    expect(nextBatteryNames(["B1", "A1", "A2"], 1, "B")).toEqual(["B2"]);
+  });
+
   it("reads the number case-insensitively and with stray spaces", () => {
     expect(nextBatteryNames(["b4", " B6 "], 1)).toEqual(["B7"]);
   });

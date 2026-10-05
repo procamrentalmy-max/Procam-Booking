@@ -86,10 +86,10 @@ export async function createDroneAction(formData: FormData) {
   const { error: controllerError } = await supabase.from("dr_controllers").insert({ drone_id: drone.id });
   if (controllerError) throw new Error(controllerError.message);
 
-  // Named B<number>, carrying on from the highest number already used in this shop, so each battery can carry a
-  // matching sticker; rename them from this page.
+  // Named by make (B1, B2... for the Neo 2, A1, A2... for the GT50), carrying on from the highest number already used
+  // for that letter in this shop, so each battery can carry a matching sticker; rename them from this page.
   const { data: shopBatteries } = await supabase.from("dr_batteries").select("name").eq("shop_id", parsed.data.shopId);
-  const names = nextBatteryNames((shopBatteries ?? []).map((b) => b.name), 3);
+  const names = nextBatteryNames((shopBatteries ?? []).map((b) => b.name), 3, DRONE_MODEL_PROFILES[parsed.data.model].batteryPrefix);
   const { error: batteryError } = await supabase.from("dr_batteries").insert(names.map((name) => ({ drone_id: drone.id, name })));
   if (batteryError) throw new Error(batteryError.code === "23505" ? "One of the new batteries' names is already taken in this shop. Rename it, then add the drone's batteries by hand." : batteryError.message);
 

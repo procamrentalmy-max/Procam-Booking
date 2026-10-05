@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { formatMyr, modelProfile } from "@/lib/droneRental/pricingRules";
-import { findChargedBatteries } from "@/lib/droneRental/batteries";
+import { listChargedBatteries } from "@/lib/droneRental/batteries";
 import { batteryLabel } from "@/lib/droneRental/format";
 import { PickupForm } from "./PickupForm";
 
@@ -27,8 +27,8 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
 
   const holdOnFile = hold?.status === "AUTHORIZED";
 
-  // The exact batteries to give this customer, named, so the merchant picks the right ones off the shelf.
-  const handout = booking.status === "CONFIRMED" ? await findChargedBatteries(booking.drone_id, booking.batteries_count) : [];
+  // Every charged battery at the shop that fits this drone: the merchant picks which ones to hand out.
+  const options = booking.status === "CONFIRMED" ? await listChargedBatteries(booking.drone_id) : [];
 
   const summary = (
     <>
@@ -47,17 +47,10 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
             {controller ? `Controller ${controller.human_id}` : profile.controllerName}
             {controller && profile.controllerType && <span className="font-normal text-zinc-500"> ({profile.controllerType})</span>}
           </li>
-          {handout.map((b, i) => (
-            <li key={b.id}>
-              Battery {batteryLabel(b)} <span className="font-normal text-zinc-500">{i === 0 ? "(in the drone)" : "(spare)"}</span>
-            </li>
-          ))}
+          <li>
+            {booking.batteries_count} {booking.batteries_count === 1 ? "battery" : "batteries"} <span className="font-normal text-zinc-500">(you pick them below)</span>
+          </li>
         </ul>
-        {handout.length < booking.batteries_count && booking.status === "CONFIRMED" && (
-          <p className="mt-2 text-sm font-semibold text-red-700 dark:text-red-400">
-            Only {handout.length} charged {handout.length === 1 ? "battery is" : "batteries are"} at the shop; this rental needs {booking.batteries_count}.
-          </p>
-        )}
         <p className="mt-2 text-xs text-zinc-500">Nothing else goes out — no case, no charging cable.</p>
       </div>
 
@@ -83,7 +76,7 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
         disabled={booking.status !== "CONFIRMED"}
         batteriesCount={booking.batteries_count}
         photosRequired={profile.photosRequired}
-        batteryIds={handout.map((b) => b.id)}
+        batteryOptions={options.map((b) => ({ id: b.id, label: batteryLabel(b) }))}
         summary={summary}
       />
     </div>

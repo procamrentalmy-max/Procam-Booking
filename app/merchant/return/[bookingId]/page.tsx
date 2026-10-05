@@ -48,6 +48,7 @@ export default async function MerchantReturnPage({ params }: { params: Promise<{
         batteriesCount={booking.batteries_count}
         model={profile.key}
         controllerCode={controller?.human_id ?? null}
+        heldBatteryLabels={(heldBatteries ?? []).map(batteryLabel)}
       />
     </div>
   );

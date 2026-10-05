@@ -31,7 +31,10 @@ export function PhotoStepPage({
   onPhoto,
   onBack,
   onNext,
+  hint,
 }: {
+  /** Something specific to this step to show under the instruction, e.g. which batteries to photograph. */
+  hint?: string;
   step: DronePhotoStep;
   index: number;
   total: number;
@@ -44,6 +47,7 @@ export function PhotoStepPage({
     <div className="space-y-4">
       <StepTitle index={index} total={total} title={step.label} />
       <p className="rounded-xl bg-zinc-100 p-3 text-center text-sm text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">{step.instruction}</p>
+      {hint && <p className="text-center text-base font-semibold text-black dark:text-zinc-50">{hint}</p>}
 
       <CameraCaptureField dict={en} photos={photo ? [photo] : []} onChange={(files) => files[0] && onPhoto(files[0])} />
 

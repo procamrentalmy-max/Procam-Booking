@@ -88,12 +88,20 @@ export async function submitReturnAction(formData: FormData): Promise<ReturnResu
     .single();
   if (recordError || !record) throw new Error("Could not save the return checklist.");
 
-  for (const { step, file } of stepPhotos) {
-    const path = checklistPhotoPath(parsed.bookingId, "return", step.key);
-    await uploadChecklistPhoto(path, file as File);
-    await supabase
-      .from("dr_checklist_photos")
-      .insert({ booking_id: parsed.bookingId, phase: "RETURN", storage_path: path, item_key: step.key, taken_by_staff_id: ctx.staffId });
+  // All the photos go up together, then are recorded in one go; a retry replaces the earlier records instead of duplicating them.
+  if (stepPhotos.length > 0) {
+    await Promise.all(stepPhotos.map(({ step, file }) => uploadChecklistPhoto(checklistPhotoPath(parsed.bookingId, "return", step.key), file as File)));
+    await supabase.from("dr_checklist_photos").delete().eq("booking_id", parsed.bookingId).eq("phase", "RETURN");
+    const { error: photoRowsError } = await supabase.from("dr_checklist_photos").insert(
+      stepPhotos.map(({ step }) => ({
+        booking_id: parsed.bookingId,
+        phase: "RETURN" as const,
+        storage_path: checklistPhotoPath(parsed.bookingId, "return", step.key),
+        item_key: step.key,
+        taken_by_staff_id: ctx.staffId,
+      }))
+    );
+    if (photoRowsError) throw new Error("Could not save the photos. Please try the return again.");
   }
 
   const { holdFound } = await resolveDroneDeposit({

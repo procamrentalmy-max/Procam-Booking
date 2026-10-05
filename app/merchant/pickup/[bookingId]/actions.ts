@@ -84,12 +84,21 @@ export async function submitPickupAction(formData: FormData): Promise<PickupResu
     .single();
   if (recordError || !record) throw new Error("Could not save the checklist.");
 
-  for (const { step, file } of stepPhotos) {
-    const path = checklistPhotoPath(bookingId, "pickup", step.key);
-    await uploadChecklistPhoto(path, file as File);
-    await supabase
-      .from("dr_checklist_photos")
-      .insert({ booking_id: bookingId, phase: "PICKUP", storage_path: path, item_key: step.key, taken_by_staff_id: ctx.staffId });
+  // All the photos go up together, then are recorded in one go. A retry after a failed attempt replaces the earlier
+  // records (the files are overwritten), so one hiccup never leaves a handover half-saved with duplicated photos.
+  if (stepPhotos.length > 0) {
+    await Promise.all(stepPhotos.map(({ step, file }) => uploadChecklistPhoto(checklistPhotoPath(bookingId, "pickup", step.key), file as File)));
+    await supabase.from("dr_checklist_photos").delete().eq("booking_id", bookingId).eq("phase", "PICKUP");
+    const { error: photoRowsError } = await supabase.from("dr_checklist_photos").insert(
+      stepPhotos.map(({ step }) => ({
+        booking_id: bookingId,
+        phase: "PICKUP" as const,
+        storage_path: checklistPhotoPath(bookingId, "pickup", step.key),
+        item_key: step.key,
+        taken_by_staff_id: ctx.staffId,
+      }))
+    );
+    if (photoRowsError) throw new Error("Could not save the photos. Please try the handover again.");
   }
 
   // Hand out the batteries the customer chose (1 or 2): this drone's own first, then any other charged
