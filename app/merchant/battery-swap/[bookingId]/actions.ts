@@ -5,7 +5,7 @@ import { uuidSchema } from "@/lib/zod-helpers";
 import { getAuthContext, hasMerchantAccess } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { chargeBatterySwapFee } from "@/lib/droneRental/payment";
-import { findChargedBatteries } from "@/lib/droneRental/batteries";
+import { findChargedBatteries, validateHandoutBatteries, type ChargedBattery } from "@/lib/droneRental/batteries";
 import { isBatteryCount, MAX_BATTERIES_HELD, modelProfile } from "@/lib/droneRental/pricingRules";
 
 const schema = z.object({
@@ -42,7 +42,16 @@ export async function submitBatterySwapAction(formData: FormData) {
   const heldIds = new Set((held ?? []).map((b) => b.id));
   if (!returnedIds.every((id) => heldIds.has(id))) throw new Error("One of those batteries isn't currently with this customer.");
 
-  const replacements = await findChargedBatteries(booking.drone_id, count);
+  // Give exactly the batteries the merchant was shown (re-checked, they may have changed), or the next charged ones.
+  const requestedReplacementIds = formData.getAll("replacementIds").map(String);
+  let replacements: ChargedBattery[];
+  if (requestedReplacementIds.length > 0) {
+    const checked = await validateHandoutBatteries(booking.drone_id, requestedReplacementIds, count);
+    if (!checked) throw new Error("The batteries to hand over have changed. Refresh this page to see which ones to give the customer.");
+    replacements = checked;
+  } else {
+    replacements = await findChargedBatteries(booking.drone_id, count);
+  }
   if (replacements.length < count) {
     throw new Error(
       replacements.length === 0

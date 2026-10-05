@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { modelProfile } from "@/lib/droneRental/pricingRules";
+import { findChargedBatteries } from "@/lib/droneRental/batteries";
+import { batteryLabel } from "@/lib/droneRental/format";
 import { BatterySwapForm } from "./BatterySwapForm";
 
 export default async function BatterySwapPage({ params }: { params: Promise<{ bookingId: string }> }) {
@@ -13,10 +15,13 @@ export default async function BatterySwapPage({ params }: { params: Promise<{ bo
 
   const { data: heldBatteries } = await supabase
     .from("dr_batteries")
-    .select("id,human_id")
+    .select("id,human_id,name")
     .eq("current_booking_id", bookingId)
     .eq("status", "WITH_CUSTOMER")
     .order("human_id");
+
+  // The charged batteries to give in exchange, named (up to two; the form shows as many as are being swapped).
+  const replacements = booking.status === "ACTIVE" ? await findChargedBatteries(booking.drone_id, 2) : [];
 
   return (
     <div className="space-y-4 pt-4">
@@ -27,7 +32,12 @@ export default async function BatterySwapPage({ params }: { params: Promise<{ bo
       {booking.status !== "ACTIVE" ? (
         <p className="text-center text-sm text-zinc-400">This booking isn&apos;t currently active.</p>
       ) : (
-        <BatterySwapForm bookingId={booking.id} heldBatteries={heldBatteries ?? []} batteryFees={fees} />
+        <BatterySwapForm
+          bookingId={booking.id}
+          heldBatteries={(heldBatteries ?? []).map((b) => ({ id: b.id, label: batteryLabel(b) }))}
+          replacements={replacements.map((b) => ({ id: b.id, label: batteryLabel(b) }))}
+          batteryFees={fees}
+        />
       )}
     </div>
   );

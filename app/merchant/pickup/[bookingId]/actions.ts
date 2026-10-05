@@ -6,7 +6,7 @@ import { getAuthContext, hasMerchantAccess } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { uploadChecklistPhoto, checklistPhotoPath } from "@/lib/droneRental/storage";
 import { computeHandoverWindow } from "@/lib/droneRental/handover";
-import { findChargedBatteries } from "@/lib/droneRental/batteries";
+import { findChargedBatteries, validateHandoutBatteries, type ChargedBattery } from "@/lib/droneRental/batteries";
 import { dronePhotoSteps } from "@/lib/droneRental/photoSteps";
 import { modelProfile } from "@/lib/droneRental/pricingRules";
 
@@ -51,6 +51,22 @@ export async function submitPickupAction(formData: FormData): Promise<PickupResu
     if (!acknowledgements[item.item_key]) throw new Error(`Please confirm: ${item.item_key}`);
   }
 
+  // Which batteries go out: exactly the ones the merchant was shown (re-checked, since they may have changed while
+  // the photos were being taken), or the next charged ones for a request that names none. Settled before anything
+  // is saved so a problem stops the handover cleanly.
+  const requestedBatteryIds = formData.getAll("batteryIds").map(String);
+  let handout: ChargedBattery[];
+  if (requestedBatteryIds.length > 0) {
+    const checked = await validateHandoutBatteries(booking.drone_id, requestedBatteryIds, booking.batteries_count);
+    if (!checked) throw new Error("The batteries to hand out have changed. Refresh this page to see which ones to give the customer.");
+    handout = checked;
+  } else {
+    handout = await findChargedBatteries(booking.drone_id, booking.batteries_count);
+    if (handout.length < booking.batteries_count) {
+      throw new Error(`Not enough charged batteries at the shop for this drone (need ${booking.batteries_count}).`);
+    }
+  }
+
   const { data: record, error: recordError } = await supabase
     .from("dr_checklist_records")
     .upsert(
@@ -79,12 +95,7 @@ export async function submitPickupAction(formData: FormData): Promise<PickupResu
   // Hand out the batteries the customer chose (1 or 2): this drone's own first, then any other charged
   // battery at the shop — logged as swaps with no released_battery_id (nothing to
   // return, this is the initial handout) and a RM0 fee.
-  const availableBatteries = await findChargedBatteries(booking.drone_id, booking.batteries_count);
-  if (availableBatteries.length < booking.batteries_count) {
-    throw new Error(`Not enough charged batteries at the shop for this drone (need ${booking.batteries_count}).`);
-  }
-
-  for (const battery of availableBatteries) {
+  for (const battery of handout) {
     await supabase.from("dr_batteries").update({ status: "WITH_CUSTOMER", current_booking_id: bookingId }).eq("id", battery.id);
     await supabase.from("dr_battery_swaps").insert({
       booking_id: bookingId,

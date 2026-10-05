@@ -77,12 +77,32 @@ export async function createDroneAction(formData: FormData) {
       serial_number: parsed.data.serialNumber || null,
       cost_price_myr: parsed.data.costPriceMyr,
     })
-    .select("id")
+    .select("id,human_id")
     .single();
   if (error || !drone) throw new Error(error?.message ?? "Could not create the drone.");
 
-  const { error: batteryError } = await supabase.from("dr_batteries").insert([{ drone_id: drone.id }, { drone_id: drone.id }, { drone_id: drone.id }]);
-  if (batteryError) throw new Error(batteryError.message);
+  // Named after the drone (DRN-004-A, -B, -C) so each battery can carry a matching sticker; rename them from this page.
+  const { error: batteryError } = await supabase
+    .from("dr_batteries")
+    .insert(["A", "B", "C"].map((letter) => ({ drone_id: drone.id, name: `${drone.human_id}-${letter}` })));
+  if (batteryError) throw new Error(batteryError.code === "23505" ? `A battery is already named ${drone.human_id}-A, -B or -C. Rename that one, then add the drone's batteries by hand.` : batteryError.message);
+
+  revalidatePath("/admin/drone-rental");
+}
+
+const renameBatterySchema = z.object({
+  id: uuidSchema,
+  name: z.string().trim().min(1, "Enter a name for the battery").max(30, "Keep the name to 30 characters or fewer"),
+});
+
+/** Gives a battery the name on its sticker; shown to the merchant whenever it has to be handed out or taken back. */
+export async function renameBatteryAction(formData: FormData) {
+  const parsed = renameBatterySchema.safeParse({ id: formData.get("id"), name: formData.get("name") });
+  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.from("dr_batteries").update({ name: parsed.data.name }).eq("id", parsed.data.id);
+  if (error) throw new Error(error.code === "23505" ? "Another battery already has that name." : error.message);
 
   revalidatePath("/admin/drone-rental");
 }

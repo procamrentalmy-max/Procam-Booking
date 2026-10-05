@@ -18,8 +18,11 @@ export function PickupForm({
   disabled,
   batteriesCount,
   photosRequired,
+  batteryIds,
   summary,
 }: {
+  /** The batteries the merchant was shown to hand out; the server checks they're still free and hands out exactly these. */
+  batteryIds: string[];
   /** False for models whose handover has no photo pages (the GT50): straight to the checklist. */
   photosRequired: boolean;
   /** Who it's for, what goes out, and the deposit status. Shown on the first and last pages, not on every photo page. */
@@ -52,6 +55,7 @@ export function PickupForm({
       formData.set("bookingId", bookingId);
       formData.set("customerSignedName", customerSignedName);
       formData.set("acknowledgements", JSON.stringify(acks));
+      for (const id of batteryIds) formData.append("batteryIds", id);
       for (const s of steps) formData.set(`photo_${s.key}`, photos[s.key]);
       const result = await submitPickupAction(formData);
       // Almost always straight back to the dashboard. If a following booking forced the rental to be shorter

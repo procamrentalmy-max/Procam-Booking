@@ -1,9 +1,10 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { getAuthContext } from "@/lib/auth/session";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
-import { describeDue, formatClock, formatDayLabel, formatDuration } from "@/lib/droneRental/format";
+import { batteryLabel, describeDue, formatClock, formatDayLabel, formatDuration, pickupDay } from "@/lib/droneRental/format";
 import { walkInView } from "@/lib/droneRental/walkIn";
 
 const NO_SHOPS = "00000000-0000-0000-0000-000000000000";
@@ -111,7 +112,7 @@ export default async function MerchantHomePage() {
   const customerIds = [...new Set(bookings.map((b) => b.customer_id))];
   const shopIdsShown = [...new Set(drones.map((d) => d.shop_id))];
   const [{ data: batteries }, { data: customers }, { data: shops }] = await Promise.all([
-    droneIds.length ? supabase.from("dr_batteries").select("status").in("drone_id", droneIds) : Promise.resolve({ data: [] }),
+    droneIds.length ? supabase.from("dr_batteries").select("status,name,human_id,current_booking_id").in("drone_id", droneIds) : Promise.resolve({ data: [] }),
     // Names/phones for the cards — read with the service role after the
     // layout's merchant/admin gate, same as the pickup and return pages.
     customerIds.length ? createServiceRoleClient().from("customers").select("id,name,phone").in("id", customerIds) : Promise.resolve({ data: [] }),
@@ -124,7 +125,18 @@ export default async function MerchantHomePage() {
   const shopNameById = new Map((shops ?? []).map((s) => [s.id, s.name]));
   const showShopName = shopIdsShown.length > 1;
 
-  const pickups = bookings.filter((b) => b.status === "CONFIRMED");
+  // Only today's and tomorrow's pickups, soonest first. Later bookings aren't due yet; anything older was never collected.
+  const pickups = bookings
+    .filter((b) => b.status === "CONFIRMED" && pickupDay(new Date(b.start_time), now) !== null)
+    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+  const pickupsToday = pickups.filter((b) => pickupDay(new Date(b.start_time), now) === "today").length;
+  const pickupsTomorrow = pickups.length - pickupsToday;
+  // Which named batteries each rental is holding right now.
+  const batteriesByBooking = new Map<string, string[]>();
+  for (const bat of batteries ?? []) {
+    if (bat.status !== "WITH_CUSTOMER" || !bat.current_booking_id) continue;
+    batteriesByBooking.set(bat.current_booking_id, [...(batteriesByBooking.get(bat.current_booking_id) ?? []), batteryLabel(bat)]);
+  }
   const outNow = bookings
     .filter((b) => b.status === "ACTIVE")
     .sort((a, b) => new Date(a.end_time).getTime() - new Date(b.end_time).getTime());
@@ -210,8 +222,16 @@ export default async function MerchantHomePage() {
               const c = customerById.get(b.customer_id);
               const start = new Date(b.start_time);
               const started = start.getTime() <= now.getTime();
+              const day = pickupDay(start, now);
+              const firstOfDay = pickups.findIndex((p) => pickupDay(new Date(p.start_time), now) === day) === pickups.indexOf(b);
               return (
-                <li key={b.id} className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+                <Fragment key={b.id}>
+                  {firstOfDay && (
+                    <li className="px-1 pt-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                      {day === "today" ? `Today · ${pickupsToday}` : `Tomorrow · ${pickupsTomorrow}`}
+                    </li>
+                  )}
+                <li className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                   <div className="flex items-start justify-between gap-3">
                     <CustomerLine name={c?.name ?? "—"} phone={c?.phone ?? "—"} />
                     <DroneChip id={droneHumanId.get(b.drone_id) ?? "—"} />
@@ -246,11 +266,12 @@ export default async function MerchantHomePage() {
                     {showShopName ? ` · ${shopNameById.get(b.shop_id) ?? ""}` : ""}
                   </p>
                 </li>
+                </Fragment>
               );
             })}
           </ul>
         ) : (
-          <Empty>No pickups waiting.</Empty>
+          <Empty>No pickups waiting for today or tomorrow.</Empty>
         )}
       </section>
 
@@ -286,6 +307,11 @@ export default async function MerchantHomePage() {
                       {status.label}
                     </span>
                   </div>
+                  {(batteriesByBooking.get(b.id) ?? []).length > 0 && (
+                    <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+                      Batteries: <span className="font-semibold text-black dark:text-zinc-50">{(batteriesByBooking.get(b.id) ?? []).join(", ")}</span>
+                    </p>
+                  )}
                   <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
                     <Link
                       href={`/merchant/return/${b.id}`}

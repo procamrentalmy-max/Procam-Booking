@@ -8,6 +8,7 @@ import {
   setShopActiveAction,
   createDroneAction,
   setDroneStatusAction,
+  renameBatteryAction,
   assignMerchantShopsAction,
 } from "./actions";
 
@@ -47,7 +48,7 @@ export default async function DroneRentalAdminPage() {
     await Promise.all([
       supabase.from("dr_shops").select("id,human_id,name,address,lat,lng,active").order("created_at", { ascending: true }),
       supabase.from("dr_drones").select("id,human_id,shop_id,status,serial_number,cost_price_myr,model_key").order("human_id"),
-      supabase.from("dr_batteries").select("drone_id,status"),
+      supabase.from("dr_batteries").select("id,human_id,name,drone_id,status").order("human_id"),
       supabase.from("staff_users").select("id,name,active").eq("role", "DRONE_MERCHANT"),
       supabase.from("dr_merchant_shops").select("staff_user_id,shop_id"),
       supabase
@@ -71,6 +72,8 @@ export default async function DroneRentalAdminPage() {
     if (b.status === "AT_SHOP") entry.atShop += 1;
     batteryCountByDrone.set(b.drone_id, entry);
   }
+  const batteriesByDrone = new Map<string, NonNullable<typeof batteries>>();
+  for (const b of batteries ?? []) batteriesByDrone.set(b.drone_id, [...(batteriesByDrone.get(b.drone_id) ?? []), b]);
   const shopNameById = new Map((shops ?? []).map((s) => [s.id, s.name]));
   const droneHumanById = new Map((drones ?? []).map((d) => [d.id, d.human_id]));
   const assignedShopIdsByMerchant = new Map<string, Set<string>>();
@@ -182,7 +185,8 @@ export default async function DroneRentalAdminPage() {
         {(drones ?? []).map((d) => {
           const batteryCount = batteryCountByDrone.get(d.id) ?? { total: 0, atShop: 0 };
           return (
-            <div key={d.id} className="flex flex-col gap-2 rounded-xl border border-zinc-200 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
+            <div key={d.id} className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-medium">
                   {d.human_id} · {modelProfile(d.model_key).shortName} — {shopNameById.get(d.shop_id) ?? "—"}
@@ -204,6 +208,22 @@ export default async function DroneRentalAdminPage() {
                   Save
                 </button>
               </form>
+             </div>
+              <div className="mt-3 border-t border-zinc-100 pt-3 dark:border-zinc-900">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Batteries (the name on each sticker)</p>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {(batteriesByDrone.get(d.id) ?? []).map((b) => (
+                    <form key={b.id} action={renameBatteryAction} className="flex items-center gap-2">
+                      <input type="hidden" name="id" value={b.id} />
+                      <input name="name" defaultValue={b.name ?? b.human_id} maxLength={30} aria-label={`Name for battery ${b.human_id}`} className={`min-w-0 flex-1 ${inputClass}`} />
+                      <button type="submit" className={primaryButtonClass}>
+                        Save
+                      </button>
+                      <span className="sr-only">{b.status}</span>
+                    </form>
+                  ))}
+                </div>
+              </div>
             </div>
           );
         })}
