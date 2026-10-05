@@ -581,6 +581,14 @@ export type DrDroneRow = {
   updated_at: string;
 };
 
+/** A drone's controller, numbered CTR-001, CTR-002, ... across all shops in the order added. One per drone. */
+export type DrControllerRow = {
+  id: string;
+  human_id: string;
+  drone_id: string;
+  created_at: string;
+};
+
 export type DrBatteryRow = {
   id: string;
   human_id: string;
@@ -764,6 +772,7 @@ export interface Database {
       dr_merchant_shops: TableDef<DrMerchantShopRow>;
       dr_drones: TableDef<DrDroneRow>;
       dr_batteries: TableDef<DrBatteryRow>;
+      dr_controllers: TableDef<DrControllerRow>;
       dr_bookings: TableDef<DrBookingRow>;
       dr_battery_swaps: TableDef<DrBatterySwapRow>;
       dr_checklist_items: TableDef<DrChecklistItemRow>;

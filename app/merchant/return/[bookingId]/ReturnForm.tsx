@@ -81,7 +81,10 @@ export function ReturnForm({
   holdOnFile,
   batteriesCount,
   model,
+  controllerCode,
 }: {
+  /** The controller's number (CTR-001) for the controller's verdict card; null if it has none. */
+  controllerCode: string | null;
   batteriesCount: number;
   model: DroneModel;
   bookingId: string;
@@ -239,7 +242,7 @@ export function ReturnForm({
           onDamage={setDroneDamage}
         />
         <ItemVerdict
-          title={profile.controllerName}
+          title={controllerCode ? `Controller ${controllerCode}` : profile.controllerName}
           heldMyr={profile.depositControllerMyr}
           outcome={controllerOutcome}
           damage={controllerDamage}

@@ -12,12 +12,13 @@ export default async function MerchantReturnPage({ params }: { params: Promise<{
   if (!booking) notFound();
   const profile = modelProfile(booking.drone_model);
 
-  const [{ data: customer }, { data: drone }, { data: items }, { data: hold }, { data: heldBatteries }] = await Promise.all([
+  const [{ data: customer }, { data: drone }, { data: items }, { data: hold }, { data: heldBatteries }, { data: controller }] = await Promise.all([
     supabase.from("customers").select("name,phone").eq("id", booking.customer_id).single(),
     supabase.from("dr_drones").select("human_id").eq("id", booking.drone_id).single(),
     supabase.from("dr_checklist_items").select("item_key,label").eq("active", true).contains("applies_to", [profile.key]).order("sort_order"),
     supabase.from("dr_deposit_authorizations").select("status").eq("booking_id", bookingId).maybeSingle(),
     supabase.from("dr_batteries").select("id,human_id,name").eq("current_booking_id", bookingId).eq("status", "WITH_CUSTOMER").order("human_id"),
+    supabase.from("dr_controllers").select("human_id").eq("drone_id", booking.drone_id).maybeSingle(),
   ]);
 
   return (
@@ -28,6 +29,11 @@ export default async function MerchantReturnPage({ params }: { params: Promise<{
         <p className="mt-2 inline-block rounded-md bg-zinc-100 px-2 py-1 text-sm font-semibold dark:bg-zinc-800">
           {drone?.human_id ?? "—"} · {profile.shortName}
         </p>
+        {booking.status === "ACTIVE" && controller && (
+          <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+            Controller: <span className="font-semibold text-black dark:text-zinc-50">{controller.human_id}</span>
+          </p>
+        )}
         {booking.status === "ACTIVE" && (heldBatteries ?? []).length > 0 && (
           <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
             Take back: <span className="font-semibold text-black dark:text-zinc-50">{(heldBatteries ?? []).map(batteryLabel).join(" and ")}</span>
@@ -41,6 +47,7 @@ export default async function MerchantReturnPage({ params }: { params: Promise<{
         holdOnFile={hold?.status === "AUTHORIZED"}
         batteriesCount={booking.batteries_count}
         model={profile.key}
+        controllerCode={controller?.human_id ?? null}
       />
     </div>
   );

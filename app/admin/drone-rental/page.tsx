@@ -44,11 +44,12 @@ export default async function DroneRentalAdminPage() {
   const supabase = await createServerSupabaseClient();
   const monthStart = startOfMalaysiaMonthIso(new Date());
 
-  const [{ data: shops }, { data: drones }, { data: batteries }, { data: merchants }, { data: assignments }, { data: recent }, { data: monthBookings }] =
+  const [{ data: shops }, { data: drones }, { data: batteries }, { data: controllers }, { data: merchants }, { data: assignments }, { data: recent }, { data: monthBookings }] =
     await Promise.all([
       supabase.from("dr_shops").select("id,human_id,name,address,lat,lng,active").order("created_at", { ascending: true }),
       supabase.from("dr_drones").select("id,human_id,shop_id,status,serial_number,cost_price_myr,model_key").order("human_id"),
       supabase.from("dr_batteries").select("id,human_id,name,drone_id,status").order("human_id"),
+      supabase.from("dr_controllers").select("drone_id,human_id"),
       supabase.from("staff_users").select("id,name,active").eq("role", "DRONE_MERCHANT"),
       supabase.from("dr_merchant_shops").select("staff_user_id,shop_id"),
       supabase
@@ -74,6 +75,7 @@ export default async function DroneRentalAdminPage() {
   }
   const batteriesByDrone = new Map<string, NonNullable<typeof batteries>>();
   for (const b of batteries ?? []) batteriesByDrone.set(b.drone_id, [...(batteriesByDrone.get(b.drone_id) ?? []), b]);
+  const controllerByDrone = new Map((controllers ?? []).map((c) => [c.drone_id, c.human_id]));
   const shopNameById = new Map((shops ?? []).map((s) => [s.id, s.name]));
   const droneHumanById = new Map((drones ?? []).map((d) => [d.id, d.human_id]));
   const assignedShopIdsByMerchant = new Map<string, Set<string>>();
@@ -192,7 +194,7 @@ export default async function DroneRentalAdminPage() {
                   {d.human_id} · {modelProfile(d.model_key).shortName} — {shopNameById.get(d.shop_id) ?? "—"}
                 </p>
                 <p className="text-sm text-zinc-500">
-                  RM{d.cost_price_myr} cost · {batteryCount.atShop}/{batteryCount.total} batteries at shop
+                  RM{d.cost_price_myr} cost · Controller {controllerByDrone.get(d.id) ?? "—"} · {batteryCount.atShop}/{batteryCount.total} batteries at shop
                 </p>
               </div>
               <form action={setDroneStatusAction} className="flex items-center gap-2">

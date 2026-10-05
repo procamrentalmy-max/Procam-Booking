@@ -13,6 +13,11 @@ export type ChargedBattery = { id: string; human_id: string; name: string | null
  * Returns fewer than `count` when the shop doesn't have that many charged.
  */
 export async function findChargedBatteries(droneId: string, count: number): Promise<ChargedBattery[]> {
+  return (await listChargedBatteries(droneId)).slice(0, count);
+}
+
+/** Every charged battery at the shop that fits `droneId` (see findChargedBatteries), this drone's own first, so the merchant can pick one. */
+export async function listChargedBatteries(droneId: string): Promise<ChargedBattery[]> {
   const supabase = createServiceRoleClient();
 
   const { data: drone } = await supabase.from("dr_drones").select("shop_id,model_key").eq("id", droneId).single();
@@ -30,7 +35,6 @@ export async function findChargedBatteries(droneId: string, count: number): Prom
 
   return [...(batteries ?? [])]
     .sort((a, b) => (a.drone_id === droneId ? 0 : 1) - (b.drone_id === droneId ? 0 : 1) || a.human_id.localeCompare(b.human_id))
-    .slice(0, count)
     .map(({ id, human_id, name }) => ({ id, human_id, name }));
 }
 

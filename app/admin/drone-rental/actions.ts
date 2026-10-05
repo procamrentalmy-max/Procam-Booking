@@ -82,6 +82,10 @@ export async function createDroneAction(formData: FormData) {
     .single();
   if (error || !drone) throw new Error(error?.message ?? "Could not create the drone.");
 
+  // Every drone comes with a controller, numbered CTR-001, CTR-002, ... across all shops in the order added.
+  const { error: controllerError } = await supabase.from("dr_controllers").insert({ drone_id: drone.id });
+  if (controllerError) throw new Error(controllerError.message);
+
   // Named B<number>, carrying on from the highest number already used in this shop, so each battery can carry a
   // matching sticker; rename them from this page.
   const { data: shopBatteries } = await supabase.from("dr_batteries").select("name").eq("shop_id", parsed.data.shopId);

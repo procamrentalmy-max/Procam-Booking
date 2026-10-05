@@ -17,11 +17,12 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
   if (!booking) notFound();
   const profile = modelProfile(booking.drone_model);
 
-  const [{ data: customer }, { data: drone }, { data: items }, { data: hold }] = await Promise.all([
+  const [{ data: customer }, { data: drone }, { data: items }, { data: hold }, { data: controller }] = await Promise.all([
     supabase.from("customers").select("name,phone").eq("id", booking.customer_id).single(),
     supabase.from("dr_drones").select("human_id").eq("id", booking.drone_id).single(),
     supabase.from("dr_checklist_items").select("item_key,label").eq("active", true).contains("applies_to", [profile.key]).order("sort_order"),
     supabase.from("dr_deposit_authorizations").select("status").eq("booking_id", bookingId).maybeSingle(),
+    supabase.from("dr_controllers").select("human_id").eq("drone_id", booking.drone_id).maybeSingle(),
   ]);
 
   const holdOnFile = hold?.status === "AUTHORIZED";
@@ -42,7 +43,10 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
           <li>
             Drone {drone?.human_id ?? "—"} <span className="font-normal text-zinc-500">({profile.shortName})</span>
           </li>
-          <li>{profile.controllerName}</li>
+          <li>
+            {controller ? `Controller ${controller.human_id}` : profile.controllerName}
+            {controller && profile.controllerType && <span className="font-normal text-zinc-500"> ({profile.controllerType})</span>}
+          </li>
           {handout.map((b, i) => (
             <li key={b.id}>
               Battery {batteryLabel(b)} <span className="font-normal text-zinc-500">{i === 0 ? "(in the drone)" : "(spare)"}</span>
