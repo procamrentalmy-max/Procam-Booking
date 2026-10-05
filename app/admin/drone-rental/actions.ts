@@ -5,6 +5,7 @@ import { z } from "zod";
 import { uuidSchema } from "@/lib/zod-helpers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { DRONE_MODELS, DRONE_MODEL_PROFILES } from "@/lib/droneRental/pricingRules";
+import { nextBatteryNames } from "@/lib/droneRental/batteryNames";
 
 const createShopSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -81,11 +82,12 @@ export async function createDroneAction(formData: FormData) {
     .single();
   if (error || !drone) throw new Error(error?.message ?? "Could not create the drone.");
 
-  // Named after the drone (DRN-004-A, -B, -C) so each battery can carry a matching sticker; rename them from this page.
-  const { error: batteryError } = await supabase
-    .from("dr_batteries")
-    .insert(["A", "B", "C"].map((letter) => ({ drone_id: drone.id, name: `${drone.human_id}-${letter}` })));
-  if (batteryError) throw new Error(batteryError.code === "23505" ? `A battery is already named ${drone.human_id}-A, -B or -C. Rename that one, then add the drone's batteries by hand.` : batteryError.message);
+  // Named B<number>, carrying on from the highest number already used in this shop, so each battery can carry a
+  // matching sticker; rename them from this page.
+  const { data: shopBatteries } = await supabase.from("dr_batteries").select("name").eq("shop_id", parsed.data.shopId);
+  const names = nextBatteryNames((shopBatteries ?? []).map((b) => b.name), 3);
+  const { error: batteryError } = await supabase.from("dr_batteries").insert(names.map((name) => ({ drone_id: drone.id, name })));
+  if (batteryError) throw new Error(batteryError.code === "23505" ? "One of the new batteries' names is already taken in this shop. Rename it, then add the drone's batteries by hand." : batteryError.message);
 
   revalidatePath("/admin/drone-rental");
 }
@@ -102,7 +104,7 @@ export async function renameBatteryAction(formData: FormData) {
 
   const supabase = await createServerSupabaseClient();
   const { error } = await supabase.from("dr_batteries").update({ name: parsed.data.name }).eq("id", parsed.data.id);
-  if (error) throw new Error(error.code === "23505" ? "Another battery already has that name." : error.message);
+  if (error) throw new Error(error.code === "23505" ? "Another battery in this shop already has that name." : error.message);
 
   revalidatePath("/admin/drone-rental");
 }

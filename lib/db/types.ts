@@ -584,8 +584,10 @@ export type DrDroneRow = {
 export type DrBatteryRow = {
   id: string;
   human_id: string;
-  /** The short name on the battery's sticker, e.g. "DRN-001-B"; null falls back to human_id on screen. */
+  /** The short name on the battery's sticker, e.g. "B3" (numbered per shop); null falls back to human_id on screen. */
   name: string | null;
+  /** The shop this battery belongs to (its drone's shop); names are unique within a shop. */
+  shop_id: string;
   drone_id: string;
   status: DrBatteryStatus;
   current_booking_id: string | null;

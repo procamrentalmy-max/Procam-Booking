@@ -1,6 +1,7 @@
 -- Every battery gets a short name the merchant can read off the sticker, so the handover and swap screens can say
 -- exactly which battery to hand out ("DRN-001-B") instead of an internal id. Existing batteries are named after
--- their drone: DRN-001-A, DRN-001-B, DRN-001-C. The admin can rename any of them.
+-- their drone: DRN-001-A, DRN-001-B, DRN-001-C. The admin can rename any of them. (0046 replaces this scheme with
+-- B1, B2, B3, ... numbered per shop.)
 --
 -- Nullable on purpose: a battery with no name falls back to its human_id on screen.
 
