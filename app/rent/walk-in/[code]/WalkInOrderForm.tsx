@@ -10,6 +10,8 @@ import {
   ENABLED_DRONE_MODELS,
   depositMyrFor,
   formatMyr,
+  hourlyRateFor,
+  includesController,
   rentalFeeMyr,
   type BatteryCount,
   type DroneModel,
@@ -30,6 +32,10 @@ export function WalkInOrderForm({ code, optionsByModel }: { code: string; option
   const durationMinutes = durationsMinutes.includes(chosenMinutes) ? chosenMinutes : (durationsMinutes[0] ?? 60);
   const setDurationMinutes = setChosenMinutes;
   const [batteries, setBatteries] = useState<BatteryCount>(DEFAULT_BATTERIES);
+  // Only some drones can be rented without their controller; the others always come with it.
+  const [wantsController, setWantsController] = useState(true);
+  const withController = includesController(model, wantsController);
+  const hourly = hourlyRateFor(model, withController);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -39,7 +45,7 @@ export function WalkInOrderForm({ code, optionsByModel }: { code: string; option
   async function submit() {
     setLoading(true);
     setError(null);
-    const result = await submitWalkInOrderAction({ code, durationMinutes, batteries, model, name, phone, email });
+    const result = await submitWalkInOrderAction({ code, durationMinutes, batteries, model, withController, name, phone, email });
     if (result.ok) {
       router.push(`/rent/w/${result.token}`);
       return;
@@ -76,6 +82,32 @@ export function WalkInOrderForm({ code, optionsByModel }: { code: string; option
         </div>
       )}
 
+      {profile.controllerOptional && (
+        <div>
+          <p className="mb-2 text-sm font-medium">Controller?</p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { with: false, title: "Drone only", note: "Phone only" },
+              { with: true, title: "With controller", note: "Controller + phone" },
+            ].map((o) => (
+              <button
+                key={o.title}
+                type="button"
+                onClick={() => setWantsController(o.with)}
+                aria-pressed={withController === o.with}
+                className={`rounded-xl border px-3 py-3 text-center ${withController === o.with ? selectedClass : idleClass}`}
+              >
+                <span className="block text-sm font-semibold">{o.title}</span>
+                <span className={`block text-xs ${withController === o.with ? "opacity-80" : "text-zinc-500"}`}>
+                  {formatMyr(hourlyRateFor(model, o.with))} per hour · {o.note}
+                </span>
+              </button>
+            ))}
+          </div>
+          {!withController && <p className="mt-2 text-xs text-zinc-500">You fly it from your own phone with the DJI Fly app, so have it installed.</p>}
+        </div>
+      )}
+
       <div>
         <p className="mb-2 text-sm font-medium">How long do you need it?</p>
         <div className={`grid gap-2 ${durationsMinutes.length > 3 ? "grid-cols-4" : "grid-cols-3"}`}>
@@ -88,7 +120,7 @@ export function WalkInOrderForm({ code, optionsByModel }: { code: string; option
               className={`rounded-xl border py-3 text-center ${durationMinutes === m ? selectedClass : idleClass}`}
             >
               <span className="block text-sm font-semibold">{m / 60}h</span>
-              <span className={`block text-xs ${durationMinutes === m ? "opacity-80" : "text-zinc-500"}`}>{formatMyr((m / 60) * profile.hourlyRateMyr)}</span>
+              <span className={`block text-xs ${durationMinutes === m ? "opacity-80" : "text-zinc-500"}`}>{formatMyr((m / 60) * hourly)}</span>
             </button>
           ))}
         </div>
@@ -120,11 +152,11 @@ export function WalkInOrderForm({ code, optionsByModel }: { code: string; option
       <div className="space-y-1 rounded-2xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">
         <div className="flex justify-between gap-4">
           <span className="text-zinc-500">Rental fee</span>
-          <span className="font-semibold">{formatMyr(rentalFeeMyr(durationMinutes, batteries, model))}</span>
+          <span className="font-semibold">{formatMyr(rentalFeeMyr(durationMinutes, batteries, model, withController))}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span className="text-zinc-500">Deposit, held on your card</span>
-          <span className="font-medium">{formatMyr(depositMyrFor(model))}</span>
+          <span className="font-medium">{formatMyr(depositMyrFor(model, withController))}</span>
         </div>
         <p className="pt-1 text-xs text-zinc-400">The deposit is only a hold. It&apos;s released when you return everything in good condition.</p>
       </div>

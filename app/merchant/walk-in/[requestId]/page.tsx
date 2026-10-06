@@ -38,7 +38,7 @@ export default async function WalkInPage({ params }: { params: Promise<{ request
   const view = viewOf(request);
   const hours = request.duration_minutes / 60;
   const batteries = request.batteries_count === 1 ? 1 : 2;
-  const summary = `${modelProfile(request.drone_model).shortName} · ${hours} hour${hours === 1 ? "" : "s"} · ${batteries} ${batteries === 1 ? "battery" : "batteries"} · ${formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model))}${booking?.paid_by === "CASH" ? " in cash" : ""} + ${formatMyr(depositMyrFor(request.drone_model))} deposit hold`;
+  const summary = `${modelProfile(request.drone_model).shortName} · ${hours} hour${hours === 1 ? "" : "s"} · ${batteries} ${batteries === 1 ? "battery" : "batteries"}${modelProfile(request.drone_model).controllerOptional ? (request.with_controller ? " · with controller" : " · drone only") : ""} · ${formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model, request.with_controller))}${booking?.paid_by === "CASH" ? " in cash" : ""} + ${formatMyr(depositMyrFor(request.drone_model, request.with_controller))} deposit hold`;
 
   const bookingStatus = booking?.status ?? null;
   const droneOptions = view === "SUBMITTED" ? await eligibleDronesForRequest(request) : [];
@@ -81,10 +81,10 @@ export default async function WalkInPage({ params }: { params: Promise<{ request
           <Card tone="warn">
             <p className="text-center text-base font-semibold text-amber-900 dark:text-amber-200">{request.customer_name} is paying cash</p>
             <p className="mt-1 text-center text-sm text-amber-800 dark:text-amber-300">
-              Their card is saved and the deposit is held. Take {formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model))} from them, then tap below.
+              Their card is saved and the deposit is held. Take {formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model, request.with_controller))} from them, then tap below.
             </p>
           </Card>
-          <CashButton requestId={request.id} amount={formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model))} />
+          <CashButton requestId={request.id} amount={formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model, request.with_controller))} />
         </>
       )}
 

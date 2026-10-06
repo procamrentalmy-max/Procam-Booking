@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { modelProfile } from "@/lib/droneRental/pricingRules";
+import { includesController, modelProfile } from "@/lib/droneRental/pricingRules";
+import { checklistForRental } from "@/lib/droneRental/checklist";
 import { batteryLabel } from "@/lib/droneRental/format";
 import { ReturnForm } from "./ReturnForm";
 
@@ -8,9 +9,10 @@ export default async function MerchantReturnPage({ params }: { params: Promise<{
   const { bookingId } = await params;
   const supabase = createServiceRoleClient();
 
-  const { data: booking } = await supabase.from("dr_bookings").select("id,status,customer_id,drone_id,batteries_count,drone_model").eq("id", bookingId).maybeSingle();
+  const { data: booking } = await supabase.from("dr_bookings").select("id,status,customer_id,drone_id,batteries_count,drone_model,with_controller").eq("id", bookingId).maybeSingle();
   if (!booking) notFound();
   const profile = modelProfile(booking.drone_model);
+  const withController = includesController(booking.drone_model, booking.with_controller);
 
   const [{ data: customer }, { data: drone }, { data: items }, { data: hold }, { data: heldBatteries }, { data: controller }] = await Promise.all([
     supabase.from("customers").select("name,phone").eq("id", booking.customer_id).single(),
@@ -29,7 +31,7 @@ export default async function MerchantReturnPage({ params }: { params: Promise<{
         <p className="mt-2 inline-block rounded-md bg-zinc-100 px-2 py-1 text-sm font-semibold dark:bg-zinc-800">
           {drone?.human_id ?? "—"} · {profile.shortName}
         </p>
-        {booking.status === "ACTIVE" && controller && (
+        {booking.status === "ACTIVE" && withController && controller && (
           <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
             Controller: <span className="font-semibold text-black dark:text-zinc-50">{controller.human_id}</span>
           </p>
@@ -42,10 +44,11 @@ export default async function MerchantReturnPage({ params }: { params: Promise<{
       </div>
       <ReturnForm
         bookingId={booking.id}
-        checklistItems={items ?? []}
+        checklistItems={checklistForRental(items ?? [], withController)}
         disabled={booking.status !== "ACTIVE"}
         holdOnFile={hold?.status === "AUTHORIZED"}
         model={profile.key}
+        withController={withController}
         controllerCode={controller?.human_id ?? null}
       />
     </div>

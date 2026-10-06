@@ -53,11 +53,15 @@ export type DroneModelProfile = {
   /** Just the drone. */
   shortName: string;
   controllerName: string;
+  /** Whether a customer can rent the drone without its controller (flying it from their own phone). */
+  controllerOptional: boolean;
+  /** What the controller adds per hour (and to the late fee per hour) when it is rented with the drone; 0 for a drone that always comes with its controller. */
+  controllerHourlyMyr: number;
   /** The controller's own model, shown next to its number; null when there's nothing useful to add. */
   controllerType: string | null;
   /** Letter its batteries are named with: B1, B2... for the Neo 2, A1, A2... for the GT50 (numbered per shop, see batteryNames.ts). */
   batteryPrefix: string;
-  /** Per hour booked, and also the late fee per hour. */
+  /** Per hour booked without the controller, and also the late fee per hour without it. */
   hourlyRateMyr: number;
   /** What each battery choice costs, and also the price of swapping that many mid-rental. */
   batteryFeeMyr: Record<BatteryCount, number>;
@@ -75,11 +79,13 @@ export const DRONE_MODEL_PROFILES: Record<DroneModel, DroneModelProfile> = {
     name: "DJI Neo 2 + RC-N3 controller",
     shortName: "DJI Neo 2",
     controllerName: "RC-N3 controller",
+    controllerOptional: true,
+    controllerHourlyMyr: 5,
     controllerType: "RC-N3",
     batteryPrefix: "B",
     hourlyRateMyr: HOURLY_RATE_MYR,
     batteryFeeMyr: BATTERY_PACKAGE_FEE_MYR,
-    depositDroneMyr: 900,
+    depositDroneMyr: 800,
     depositControllerMyr: 400,
     photosRequired: true,
     flightMinutes: { 1: "12–15", 2: "25–30" },
@@ -89,6 +95,8 @@ export const DRONE_MODEL_PROFILES: Record<DroneModel, DroneModelProfile> = {
     name: "GT50 + controller",
     shortName: "GT50",
     controllerName: "Controller",
+    controllerOptional: false,
+    controllerHourlyMyr: 0,
     controllerType: null,
     batteryPrefix: "A",
     hourlyRateMyr: 7,
@@ -105,10 +113,24 @@ export function modelProfile(model: string | null | undefined): DroneModelProfil
   return isDroneModel(model) ? DRONE_MODEL_PROFILES[model] : DRONE_MODEL_PROFILES[DEFAULT_DRONE_MODEL];
 }
 
-/** Total deposit hold for a model: drone + controller. */
-export function depositMyrFor(model: string | null | undefined): number {
+/**
+ * Whether the controller goes out with this rental. A drone whose controller is always included (the GT50) is always "with",
+ * whatever was asked for.
+ */
+export function includesController(model: string | null | undefined, withController: boolean = true): boolean {
+  return modelProfile(model).controllerOptional ? withController : true;
+}
+
+/** The price per hour, and the late fee per hour: the drone's rate, plus the controller's when it is included. */
+export function hourlyRateFor(model: string | null | undefined, withController: boolean = true): number {
   const p = modelProfile(model);
-  return p.depositDroneMyr + p.depositControllerMyr;
+  return p.hourlyRateMyr + (includesController(model, withController) ? p.controllerHourlyMyr : 0);
+}
+
+/** Total deposit hold for a model: the drone, plus the controller when it goes out too. */
+export function depositMyrFor(model: string | null | undefined, withController: boolean = true): number {
+  const p = modelProfile(model);
+  return p.depositDroneMyr + (includesController(model, withController) ? p.depositControllerMyr : 0);
 }
 
 /** A customer can hold at most this many batteries at once — swapping in one more requires returning one first. */
@@ -121,7 +143,7 @@ export const MAX_BATTERIES_HELD = 2;
  * drone and the controller are each held for their own replacement value.
  * (The batteries aren't part of it — they're charged and kept at the shop.)
  */
-export const DEPOSIT_DRONE_MYR = DRONE_MODEL_PROFILES.NEO2.depositDroneMyr;
+export const DEPOSIT_DRONE_MYR = DRONE_MODEL_PROFILES.NEO2.depositDroneMyr; // drone only; the controller's is on top
 export const DEPOSIT_CONTROLLER_MYR = DRONE_MODEL_PROFILES.NEO2.depositControllerMyr;
 export const DEPOSIT_MYR = DEPOSIT_DRONE_MYR + DEPOSIT_CONTROLLER_MYR;
 
@@ -145,11 +167,16 @@ export function isValidRentalMinutes(minutes: number): boolean {
 }
 
 /** Rental fee: the model's hourly rate for every hour (a partial hour counts as a full one) plus the price of the chosen batteries. */
-export function rentalFeeMyr(durationMinutes: number, batteries: BatteryCount = DEFAULT_BATTERIES, model: string | null | undefined = DEFAULT_DRONE_MODEL): number {
+export function rentalFeeMyr(
+  durationMinutes: number,
+  batteries: BatteryCount = DEFAULT_BATTERIES,
+  model: string | null | undefined = DEFAULT_DRONE_MODEL,
+  withController: boolean = true,
+): number {
   const hours = Math.ceil(durationMinutes / 60);
   if (hours <= 0) return 0;
   const profile = modelProfile(model);
-  return hours * profile.hourlyRateMyr + profile.batteryFeeMyr[batteries];
+  return hours * hourlyRateFor(model, withController) + profile.batteryFeeMyr[batteries];
 }
 
 export type ItemOutcome = "NONE" | "DAMAGED" | "LOST";
@@ -194,11 +221,18 @@ export function itemCaptureMyr(itemName: string, itemValueMyr: number, item: Ite
 }
 
 /** Total to capture from the held deposit; whatever isn't captured is released back to the customer. */
-export function computeDepositCapture(drone: ItemReturn, controller: ItemReturn, model: string | null | undefined = DEFAULT_DRONE_MODEL): DepositCapture {
+export function computeDepositCapture(
+  drone: ItemReturn,
+  controller: ItemReturn,
+  model: string | null | undefined = DEFAULT_DRONE_MODEL,
+  withController: boolean = true,
+): DepositCapture {
   const profile = modelProfile(model);
+  // A rental without the controller has nothing held for it, so whatever is said about it counts for nothing.
+  const controllerItem: ItemReturn = includesController(model, withController) ? controller : { outcome: "NONE" };
   const droneChargeMyr = itemCaptureMyr("drone", profile.depositDroneMyr, drone);
-  const controllerChargeMyr = itemCaptureMyr("controller", profile.depositControllerMyr, controller);
-  const outcomes = [drone.outcome, controller.outcome];
+  const controllerChargeMyr = itemCaptureMyr("controller", profile.depositControllerMyr, controllerItem);
+  const outcomes = [drone.outcome, controllerItem.outcome];
   const overallOutcome: ItemOutcome = outcomes.includes("LOST") ? "LOST" : outcomes.includes("DAMAGED") ? "DAMAGED" : "NONE";
   return { droneChargeMyr, controllerChargeMyr, totalMyr: round2(droneChargeMyr + controllerChargeMyr), overallOutcome };
 }
@@ -210,7 +244,7 @@ export function computeDepositCapture(drone: ItemReturn, controller: ItemReturn,
  * up: any part of an hour late is billed as a full hour, same convention
  * ProCam's own lib/booking/lateFee.ts uses.
  */
-export function lateFeeMyr(minutesLate: number, model: string | null | undefined = DEFAULT_DRONE_MODEL): number {
+export function lateFeeMyr(minutesLate: number, model: string | null | undefined = DEFAULT_DRONE_MODEL, withController: boolean = true): number {
   if (minutesLate <= 0) return 0;
-  return Math.ceil(minutesLate / 60) * modelProfile(model).hourlyRateMyr;
+  return Math.ceil(minutesLate / 60) * hourlyRateFor(model, withController);
 }

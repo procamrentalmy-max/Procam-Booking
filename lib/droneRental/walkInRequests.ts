@@ -6,7 +6,7 @@ import { eligibleWalkInDrones, walkInDurationsForShop } from "./merchantBooking"
 import { findOrCreateCustomer, createMerchantInstantBooking, NoDroneAvailableError } from "./createBooking";
 import { walkInExpiry, walkInView, type WalkInView } from "./walkIn";
 import type { DrWalkInRequestRow } from "@/lib/db/types";
-import { DEFAULT_DRONE_MODEL, ENABLED_DRONE_MODELS, isDroneModel, type BatteryCount, type DroneModel } from "./pricingRules";
+import { DEFAULT_DRONE_MODEL, ENABLED_DRONE_MODELS, includesController, isDroneModel, type BatteryCount, type DroneModel } from "./pricingRules";
 
 export class WalkInError extends Error {
   constructor(message: string) {
@@ -57,6 +57,7 @@ export async function submitWalkInOrder(params: {
   durationMinutes: number;
   batteries: BatteryCount;
   model?: DroneModel;
+  withController?: boolean;
   name: string;
   phone: string;
   email: string;
@@ -89,6 +90,7 @@ export async function submitWalkInOrder(params: {
     duration_minutes: params.durationMinutes,
     batteries_count: params.batteries,
     drone_model: model,
+    with_controller: includesController(model, params.withController ?? true),
     status: "SUBMITTED",
     customer_name: params.name,
     customer_phone: params.phone,
@@ -164,6 +166,7 @@ export async function acceptWalkInRequest(requestId: string, staffId: string): P
       durationMinutes: request.duration_minutes,
       batteries: request.batteries_count === 1 ? 1 : 2,
       model: isDroneModel(request.drone_model) ? request.drone_model : DEFAULT_DRONE_MODEL,
+      withController: request.with_controller,
       createdByStaffId: staffId,
     });
     await supabase.from("dr_walkin_requests").update({ booking_id: booking.id }).eq("id", request.id);

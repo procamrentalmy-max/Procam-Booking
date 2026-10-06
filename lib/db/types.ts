@@ -625,6 +625,8 @@ export type DrBookingRow = {
   checked_in_by_staff_id: string | null;
   /** How many batteries the customer chose at booking (1 or 2). */
   batteries_count: number;
+  /** Whether the controller goes out with the drone (a Neo 2 can be rented without it: RM5 an hour less, a smaller deposit). */
+  with_controller: boolean;
   /** Which model was booked: "NEO2" or "GT50". Decides the prices, the deposit and whether handover needs photos. */
   drone_model: string;
   rental_fee_myr: number;
@@ -725,6 +727,8 @@ export type DrWalkInRequestRow = {
   duration_minutes: number;
   batteries_count: number;
   drone_model: string;
+  /** Whether the customer asked for the controller as well as the drone. */
+  with_controller: boolean;
   created_by_staff_id: string | null;
   status: DrWalkInStatus;
   customer_name: string | null;

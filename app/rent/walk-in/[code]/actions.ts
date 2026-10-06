@@ -9,6 +9,7 @@ const schema = z.object({
   durationMinutes: z.number().int().positive(),
   batteries: z.union([z.literal(1), z.literal(2)]),
   model: z.enum(ENABLED_DRONE_MODELS).default("NEO2"),
+  withController: z.boolean().default(true),
   name: z.string().trim().min(1, "Enter your name").max(100),
   phone: z.string().trim().regex(/^[0-9+\-()\s]{6,30}$/, "Enter a valid phone number"),
   email: z.string().trim().email("Enter a valid email").max(200),
@@ -28,6 +29,8 @@ export async function submitWalkInOrderAction(input: {
   durationMinutes: number;
   batteries: 1 | 2;
   model?: DroneModel;
+  /** Whether to rent the controller too (only the Neo 2 offers the choice). */
+  withController?: boolean;
   name: string;
   phone: string;
   email: string;
@@ -41,6 +44,7 @@ export async function submitWalkInOrderAction(input: {
     durationMinutes: d.durationMinutes,
     batteries: d.batteries,
     model: d.model,
+    withController: d.withController,
     name: d.name,
     phone: d.phone,
     email: d.email,

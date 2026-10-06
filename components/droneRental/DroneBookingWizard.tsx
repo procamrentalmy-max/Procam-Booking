@@ -13,6 +13,8 @@ import {
   type DroneModel,
   depositMyrFor,
   formatMyr,
+  hourlyRateFor,
+  includesController,
   rentalFeeMyr,
 } from "@/lib/droneRental/pricingRules";
 import { dayLabel, formatSlotTime, generateDaySlots } from "@/lib/droneRental/hours";
@@ -50,6 +52,8 @@ export function DroneBookingWizard({ shopId, models }: { shopId: string; models:
   const [model, setModel] = useState<DroneModel>(models.includes("NEO2") ? "NEO2" : models[0]);
   const [durationHours, setDurationHours] = useState(1);
   const [batteries, setBatteries] = useState<BatteryCount>(DEFAULT_BATTERIES);
+  // Only some drones can be rented without their controller; the others always come with it.
+  const [wantsController, setWantsController] = useState(true);
   const [now, setNow] = useState(() => new Date());
   const [dayOffset, setDayOffset] = useState(0);
   const [slots, setSlots] = useState<Date[]>([]);
@@ -63,8 +67,10 @@ export function DroneBookingWizard({ shopId, models }: { shopId: string; models:
 
   const durationMinutes = durationHours * 60;
   const profile = DRONE_MODEL_PROFILES[model];
-  const deposit = depositMyrFor(model);
-  const rentalFee = rentalFeeMyr(durationMinutes, batteries, model);
+  const withController = includesController(model, wantsController);
+  const hourly = hourlyRateFor(model, withController);
+  const deposit = depositMyrFor(model, withController);
+  const rentalFee = rentalFeeMyr(durationMinutes, batteries, model, withController);
 
   // (Re)draw the grid for the chosen day and duration, then grey out what's taken. The grid itself is
   // worked out in Malaysia time (lib/droneRental/hours) so it's right whatever timezone the phone is in;
@@ -110,6 +116,7 @@ export function DroneBookingWizard({ shopId, models }: { shopId: string; models:
         durationMinutes,
         startTime: selectedStart.toISOString(),
         batteries,
+        withController,
         name,
         phone,
         email,
@@ -146,14 +153,40 @@ export function DroneBookingWizard({ shopId, models }: { shopId: string; models:
           </div>
         )}
 
+        {profile.controllerOptional && (
+          <div>
+            <p className="mb-2 text-sm font-medium">Controller?</p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { with: false, title: "Drone only", note: "Phone only" },
+                { with: true, title: "With controller", note: "Controller + phone" },
+              ].map((o) => (
+                <button
+                  key={o.title}
+                  type="button"
+                  onClick={() => setWantsController(o.with)}
+                  aria-pressed={withController === o.with}
+                  className={`rounded-xl border px-3 py-3 text-center ${withController === o.with ? selectedClass : idleClass}`}
+                >
+                  <span className="block text-sm font-semibold">{o.title}</span>
+                  <span className={`block text-xs ${withController === o.with ? "opacity-80" : "text-zinc-500"}`}>
+                    {formatMyr(hourlyRateFor(model, o.with))} per hour · {o.note}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {!withController && <p className="mt-2 text-xs text-zinc-500">You fly it from your own phone with the DJI Fly app, so bring a phone with it installed.</p>}
+          </div>
+        )}
+
         <div className="rounded-2xl border border-zinc-200 p-5 dark:border-zinc-800">
-          <p className="font-semibold text-black dark:text-zinc-50">{profile.name}</p>
-          <p className="mt-0.5 text-sm text-zinc-500">{formatMyr(profile.hourlyRateMyr)} per hour, plus batteries</p>
+          <p className="font-semibold text-black dark:text-zinc-50">{withController ? profile.name : profile.shortName}</p>
+          <p className="mt-0.5 text-sm text-zinc-500">{formatMyr(hourly)} per hour, plus batteries</p>
           <ul className="mt-4 space-y-1.5 text-sm text-zinc-600 dark:text-zinc-400">
-            <li>Drone and controller, with the batteries you choose, all charged at the shop</li>
+            <li>{withController ? "Drone and controller" : "The drone"}, with the batteries you choose, all charged at the shop</li>
             <li>
-              {formatMyr(deposit)} deposit: a hold on your card, not a charge (drone {formatMyr(profile.depositDroneMyr)}, controller{" "}
-              {formatMyr(profile.depositControllerMyr)}). Released when everything comes back in good condition
+              {formatMyr(deposit)} deposit: a hold on your card, not a charge (drone {formatMyr(profile.depositDroneMyr)}
+              {withController && <>, controller {formatMyr(profile.depositControllerMyr)}</>}). Released when everything comes back in good condition
             </li>
           </ul>
         </div>
@@ -170,7 +203,7 @@ export function DroneBookingWizard({ shopId, models }: { shopId: string; models:
                 className={`rounded-xl border py-3 text-center ${durationHours === h ? selectedClass : idleClass}`}
               >
                 <span className="block text-sm font-semibold">{h} hour{h === 1 ? "" : "s"}</span>
-                <span className={`block text-xs ${durationHours === h ? "opacity-80" : "text-zinc-500"}`}>{formatMyr(h * profile.hourlyRateMyr)}</span>
+                <span className={`block text-xs ${durationHours === h ? "opacity-80" : "text-zinc-500"}`}>{formatMyr(h * hourly)}</span>
               </button>
             ))}
           </div>
@@ -298,6 +331,12 @@ export function DroneBookingWizard({ shopId, models }: { shopId: string; models:
             <div className="flex justify-between gap-4">
               <span className="text-zinc-500">Drone</span>
               <span className="font-medium">{profile.shortName}</span>
+            </div>
+          )}
+          {profile.controllerOptional && (
+            <div className="flex justify-between gap-4">
+              <span className="text-zinc-500">Controller</span>
+              <span className="font-medium">{withController ? "Included" : "No, phone only"}</span>
             </div>
           )}
           <div className="flex justify-between gap-4">

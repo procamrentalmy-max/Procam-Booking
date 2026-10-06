@@ -20,6 +20,7 @@ type BookingRow = {
   customer_id: string;
   checked_in_at: string | null;
   source: string;
+  with_controller: boolean;
 };
 
 function Stat({ value, label, tone }: { value: string; label: string; tone?: "alert" }) {
@@ -79,7 +80,7 @@ export default async function MerchantHomePage() {
 
   const bookingsQuery = supabase
     .from("dr_bookings")
-    .select("id,human_id,status,source,start_time,end_time,shop_id,drone_id,customer_id,checked_in_at")
+    .select("id,human_id,status,source,start_time,end_time,shop_id,drone_id,customer_id,checked_in_at,with_controller")
     .in("status", ["CONFIRMED", "ACTIVE"])
     .order("start_time", { ascending: true });
   const dronesQuery = supabase.from("dr_drones").select("id,human_id,status,shop_id,model_key");
@@ -309,9 +310,9 @@ export default async function MerchantHomePage() {
                       {status.label}
                     </span>
                   </div>
-                  {((batteriesByBooking.get(b.id) ?? []).length > 0 || controllerByDrone.has(b.drone_id)) && (
+                  {((batteriesByBooking.get(b.id) ?? []).length > 0 || (b.with_controller && controllerByDrone.has(b.drone_id))) && (
                     <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-                      {controllerByDrone.has(b.drone_id) && (
+                      {b.with_controller && controllerByDrone.has(b.drone_id) && (
                         <>
                           Controller <span className="font-semibold text-black dark:text-zinc-50">{controllerByDrone.get(b.drone_id)}</span> ·{" "}
                         </>

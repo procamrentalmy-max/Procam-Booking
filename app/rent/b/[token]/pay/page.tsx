@@ -31,7 +31,7 @@ export default async function DroneBookingPayPage({
 
   const { data: booking } = await supabase
     .from("dr_bookings")
-    .select("id,status,source,paid_by,rental_fee_myr,deposit_myr,start_time,end_time,shop_id,batteries_count")
+    .select("id,status,source,paid_by,rental_fee_myr,deposit_myr,start_time,end_time,shop_id,batteries_count,with_controller")
     .eq("secure_token", token)
     .maybeSingle();
   if (!booking) notFound();
@@ -117,7 +117,7 @@ export default async function DroneBookingPayPage({
         </div>
       </div>
       <p className="-mt-2 text-xs text-zinc-400">
-        The deposit is only a hold, not a charge. It&apos;s released when you return the drone and controller in good condition.
+        The deposit is only a hold, not a charge. It&apos;s released when you return the drone{booking.with_controller ? " and controller" : ""} in good condition.
       </p>
 
       {cashChosen ? (

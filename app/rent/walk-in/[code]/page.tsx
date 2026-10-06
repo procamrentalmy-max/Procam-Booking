@@ -22,7 +22,7 @@ export default async function WalkInOrderPage({ params }: { params: Promise<{ co
       <div>
         <p className="text-xs uppercase tracking-wide text-zinc-400">{shop.name}</p>
         <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">Rent a drone now</h1>
-        <p className="mt-1 text-sm text-zinc-500">A drone with its controller, charged and ready at this shop.</p>
+        <p className="mt-1 text-sm text-zinc-500">A drone, charged and ready at this shop, with or without its controller.</p>
       </div>
 
       {!offered ? (

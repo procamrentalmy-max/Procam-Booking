@@ -20,6 +20,7 @@ export function PickupForm({
   batteriesCount,
   photosRequired,
   controllerType,
+  withController,
   batteryOptions,
   summary,
 }: {
@@ -29,6 +30,8 @@ export function PickupForm({
   photosRequired: boolean;
   /** The controller's model name (RC-N3), or null for a drone whose controller has none, for the photo wording. */
   controllerType: string | null;
+  /** False when the customer rented the drone without its controller: no controller photo, checklist item or hold. */
+  withController: boolean;
   /** Who it's for, what goes out, and the deposit status. Shown on the first and last pages, not on every photo page. */
   summary: React.ReactNode;
   batteriesCount: number;
@@ -37,7 +40,7 @@ export function PickupForm({
   disabled: boolean;
 }) {
   const router = useRouter();
-  const steps = photosRequired ? dronePhotoSteps({ controllerType }) : [];
+  const steps = photosRequired ? dronePhotoSteps({ controllerType }, withController) : [];
   const [step, setStep] = useState(0); // 0..steps.length-1 are photos; steps.length is the confirm page
   const [photos, setPhotos] = useState<Record<string, File>>({});
   const [acks, setAcks] = useState<Record<string, boolean>>(() => Object.fromEntries(checklistItems.map((i) => [i.item_key, false])));

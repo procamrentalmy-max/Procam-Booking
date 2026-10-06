@@ -32,4 +32,11 @@ describe("dronePhotoSteps", () => {
     expect(dronePhotoSteps(GT)[0].instruction).not.toContain("RC-N3");
     expect(dronePhotoSteps(GT).map((x) => x.key)).toEqual(dronePhotoSteps(NEO).map((x) => x.key));
   });
+
+  it("photographs just the drone, switched on, when the controller isn't rented, with the same two photos and keys", () => {
+    const steps = dronePhotoSteps(NEO, false);
+    expect(steps.map((x) => x.key)).toEqual(["drone_and_controller", "front"]);
+    expect(steps[0].label).toBe("Drone, on");
+    expect(steps[0].instruction).not.toContain("controller");
+  });
 });

@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { buildShopFleetSnapshot } from "./snapshot";
 import { alignToNextInterval, findEligibleDrone, InvalidDroneBookingRequestError } from "./slots";
-import { rentalFeeMyr, depositMyrFor, DEFAULT_DRONE_MODEL, type BatteryCount, type DroneModel } from "./pricingRules";
+import { rentalFeeMyr, depositMyrFor, includesController, DEFAULT_DRONE_MODEL, type BatteryCount, type DroneModel } from "./pricingRules";
 import type { DrBookingRow, DrBookingSource } from "@/lib/db/types";
 
 export { InvalidDroneBookingRequestError };
@@ -49,6 +49,8 @@ export async function createPendingDroneBooking(params: {
   startTime: Date;
   batteries: BatteryCount;
   model?: DroneModel;
+  /** Whether the controller is rented too (default yes). */
+  withController?: boolean;
 }): Promise<DrBookingRow> {
   const supabase = createServiceRoleClient();
   const model = params.model ?? DEFAULT_DRONE_MODEL;
@@ -74,6 +76,7 @@ export async function createPendingDroneBooking(params: {
     source: "ONLINE",
     batteries: params.batteries,
     model,
+    withController: params.withController ?? true,
   });
 }
 
@@ -99,6 +102,7 @@ export async function createMerchantInstantBooking(params: {
   durationMinutes: number;
   batteries: BatteryCount;
   model?: DroneModel;
+  withController?: boolean;
   createdByStaffId: string;
 }): Promise<DrBookingRow> {
   if (params.durationMinutes <= 0) {
@@ -118,6 +122,7 @@ export async function createMerchantInstantBooking(params: {
     createdByStaffId: params.createdByStaffId,
     batteries: params.batteries,
     model: params.model ?? DEFAULT_DRONE_MODEL,
+    withController: params.withController ?? true,
   });
 }
 
@@ -133,6 +138,7 @@ async function insertBooking(
     createdByStaffId?: string;
     batteries: BatteryCount;
     model: DroneModel;
+    withController: boolean;
   }
 ): Promise<DrBookingRow> {
   const durationMinutes = (params.endTime.getTime() - params.startTime.getTime()) / 60_000;
@@ -143,13 +149,14 @@ async function insertBooking(
     p_drone_id: params.droneId,
     p_start_time: params.startTime.toISOString(),
     p_end_time: params.endTime.toISOString(),
-    p_rental_fee_myr: rentalFeeMyr(durationMinutes, params.batteries, params.model),
-    p_deposit_myr: depositMyrFor(params.model),
+    p_rental_fee_myr: rentalFeeMyr(durationMinutes, params.batteries, params.model, params.withController),
+    p_deposit_myr: depositMyrFor(params.model, params.withController),
     p_secure_token: generateSecureToken(),
     p_source: params.source,
     p_created_by_staff_id: params.createdByStaffId ?? null,
     p_batteries_count: params.batteries,
     p_drone_model: params.model,
+    p_with_controller: includesController(params.model, params.withController),
   });
 
   if (error) {

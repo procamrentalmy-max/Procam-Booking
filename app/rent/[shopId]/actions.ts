@@ -41,6 +41,7 @@ const createBookingSchema = z.object({
   durationMinutes: rentalMinutesSchema,
   startTime: z.string().min(1),
   batteries: z.union([z.literal(1), z.literal(2)]),
+  withController: z.boolean().default(true),
   name: z.string().trim().min(1, "Enter your name"),
   phone: z.string().trim().regex(/^[0-9+\-()\s]{6,30}$/, "Enter a valid phone number"),
   email: z.string().trim().email("Enter a valid email"),
@@ -52,6 +53,8 @@ export async function createDroneBookingAction(input: {
   durationMinutes: number;
   startTime: string;
   batteries: 1 | 2;
+  /** Whether to rent the controller too; only the Neo 2 offers a choice, any other drone always comes with its own. */
+  withController?: boolean;
   name: string;
   phone: string;
   email: string;
@@ -73,6 +76,7 @@ export async function createDroneBookingAction(input: {
       startTime: start,
       batteries: data.batteries,
       model: data.model,
+      withController: data.withController,
     });
     return { secureToken: booking.secure_token, startTime: booking.start_time, endTime: booking.end_time };
   } catch (err) {

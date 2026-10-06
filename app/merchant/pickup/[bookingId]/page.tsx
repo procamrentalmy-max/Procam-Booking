@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { formatMyr, modelProfile } from "@/lib/droneRental/pricingRules";
+import { formatMyr, includesController, modelProfile } from "@/lib/droneRental/pricingRules";
 import { listChargedBatteries } from "@/lib/droneRental/batteries";
 import { batteryLabel } from "@/lib/droneRental/format";
+import { checklistForRental } from "@/lib/droneRental/checklist";
 import { PickupForm } from "./PickupForm";
 
 export default async function MerchantPickupPage({ params }: { params: Promise<{ bookingId: string }> }) {
@@ -11,11 +12,13 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
 
   const { data: booking } = await supabase
     .from("dr_bookings")
-    .select("id,status,customer_id,drone_id,start_time,end_time,deposit_myr,batteries_count,drone_model")
+    .select("id,status,customer_id,drone_id,start_time,end_time,deposit_myr,batteries_count,drone_model,with_controller")
     .eq("id", bookingId)
     .maybeSingle();
   if (!booking) notFound();
   const profile = modelProfile(booking.drone_model);
+  // A Neo 2 rented without its controller goes out as the drone and batteries only.
+  const withController = includesController(booking.drone_model, booking.with_controller);
 
   const [{ data: customer }, { data: drone }, { data: items }, { data: hold }, { data: controller }] = await Promise.all([
     supabase.from("customers").select("name,phone").eq("id", booking.customer_id).single(),
@@ -43,10 +46,16 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
           <li>
             Drone {drone?.human_id ?? "—"} <span className="font-normal text-zinc-500">({profile.shortName})</span>
           </li>
-          <li>
-            {controller ? `Controller ${controller.human_id}` : profile.controllerName}
-            {controller && profile.controllerType && <span className="font-normal text-zinc-500"> ({profile.controllerType})</span>}
-          </li>
+          {withController ? (
+            <li>
+              {controller ? `Controller ${controller.human_id}` : profile.controllerName}
+              {controller && profile.controllerType && <span className="font-normal text-zinc-500"> ({profile.controllerType})</span>}
+            </li>
+          ) : (
+            <li>
+              No controller <span className="font-normal text-zinc-500">(the customer flies it from their own phone)</span>
+            </li>
+          )}
           <li>
             {booking.batteries_count} {booking.batteries_count === 1 ? "battery" : "batteries"} <span className="font-normal text-zinc-500">(you pick them below)</span>
           </li>
@@ -56,8 +65,7 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
 
       {holdOnFile ? (
         <p className="rounded-xl border border-green-300 bg-green-50 p-3 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
-          <span className="font-semibold">Deposit held: {formatMyr(booking.deposit_myr)}</span> (drone {formatMyr(profile.depositDroneMyr)} + controller{" "}
-          {formatMyr(profile.depositControllerMyr)})
+          <span className="font-semibold">Deposit held: {formatMyr(booking.deposit_myr)}</span> ({withController ? <>drone {formatMyr(profile.depositDroneMyr)} + controller {formatMyr(profile.depositControllerMyr)}</> : <>drone only</>})
         </p>
       ) : (
         <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
@@ -72,11 +80,12 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
     <div className="space-y-4 pt-4">
       <PickupForm
         bookingId={booking.id}
-        checklistItems={items ?? []}
+        checklistItems={checklistForRental(items ?? [], withController)}
         disabled={booking.status !== "CONFIRMED"}
         batteriesCount={booking.batteries_count}
         photosRequired={profile.photosRequired}
         controllerType={profile.controllerType}
+        withController={withController}
         batteryOptions={options.map((b) => ({ id: b.id, label: batteryLabel(b) }))}
         summary={summary}
       />

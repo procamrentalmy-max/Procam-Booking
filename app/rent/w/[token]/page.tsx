@@ -50,7 +50,7 @@ export default async function WalkInCustomerPage({ params }: { params: Promise<{
       <div className="space-y-1 rounded-2xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">
         <div className="flex justify-between gap-4">
           <span className="text-zinc-500">Drone</span>
-          <span className="text-right font-medium">{modelProfile(request.drone_model).name}</span>
+          <span className="text-right font-medium">{request.with_controller ? modelProfile(request.drone_model).name : modelProfile(request.drone_model).shortName}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span className="text-zinc-500">Length</span>
@@ -64,11 +64,11 @@ export default async function WalkInCustomerPage({ params }: { params: Promise<{
         </div>
         <div className="flex justify-between gap-4 border-t border-zinc-100 pt-1 dark:border-zinc-800">
           <span className="text-zinc-500">Rental fee</span>
-          <span className="font-semibold">{formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model))}</span>
+          <span className="font-semibold">{formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model, request.with_controller))}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span className="text-zinc-500">Deposit hold</span>
-          <span className="font-medium">{formatMyr(depositMyrFor(request.drone_model))}</span>
+          <span className="font-medium">{formatMyr(depositMyrFor(request.drone_model, request.with_controller))}</span>
         </div>
       </div>
 

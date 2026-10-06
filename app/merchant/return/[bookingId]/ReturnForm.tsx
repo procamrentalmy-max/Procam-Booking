@@ -83,9 +83,12 @@ export function ReturnForm({
   holdOnFile,
   model,
   controllerCode,
+  withController,
 }: {
   /** The controller's number (CTR-001) for the controller's verdict card; null if it has none. */
   controllerCode: string | null;
+  /** False when the drone was rented without its controller: nothing was held for one, so there is no controller verdict. */
+  withController: boolean;
   model: DroneModel;
   bookingId: string;
   checklistItems: { item_key: string; label: string }[];
@@ -94,9 +97,9 @@ export function ReturnForm({
 }) {
   const router = useRouter();
   const profile = DRONE_MODEL_PROFILES[model];
-  const deposit = depositMyrFor(model);
+  const deposit = depositMyrFor(model, withController);
   // A model with no photo pages (the GT50) goes straight to the checklist and the deposit verdict.
-  const steps = profile.photosRequired ? dronePhotoSteps(profile) : [];
+  const steps = profile.photosRequired ? dronePhotoSteps(profile, withController) : [];
   const [step, setStep] = useState(0); // 0..steps.length-1 are the guided photos; steps.length is the verdict page
   const [photos, setPhotos] = useState<Record<string, File>>({});
   const [acks, setAcks] = useState<Record<string, boolean>>(() => Object.fromEntries(checklistItems.map((i) => [i.item_key, false])));
@@ -118,8 +121,7 @@ export function ReturnForm({
     capture = computeDepositCapture(
       { outcome: droneOutcome, damageMyr: droneDamage === "" ? undefined : Number(droneDamage) },
       { outcome: controllerOutcome, damageMyr: controllerDamage === "" ? undefined : Number(controllerDamage) },
-      model
-    );
+      model, withController);
   } catch (err) {
     captureProblem = err instanceof DepositCaptureError ? err.message : "Check the amounts.";
   }
@@ -245,14 +247,16 @@ export function ReturnForm({
           onOutcome={setDroneOutcome}
           onDamage={setDroneDamage}
         />
-        <ItemVerdict
-          title={controllerCode ? `Controller ${controllerCode}` : profile.controllerName}
-          heldMyr={profile.depositControllerMyr}
-          outcome={controllerOutcome}
-          damage={controllerDamage}
-          onOutcome={setControllerOutcome}
-          onDamage={setControllerDamage}
-        />
+        {withController && (
+          <ItemVerdict
+            title={controllerCode ? `Controller ${controllerCode}` : profile.controllerName}
+            heldMyr={profile.depositControllerMyr}
+            outcome={controllerOutcome}
+            damage={controllerDamage}
+            onOutcome={setControllerOutcome}
+            onDamage={setControllerDamage}
+          />
+        )}
 
         <div
           className={`rounded-2xl border-2 p-4 ${

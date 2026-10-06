@@ -31,7 +31,7 @@ export default async function DroneBookingDashboardPage({ params }: { params: Pr
 
   const { data: booking } = await supabase
     .from("dr_bookings")
-    .select("human_id,status,source,start_time,end_time,shop_id,drone_id,rental_fee_myr,deposit_myr,checked_in_at,batteries_count,drone_model")
+    .select("human_id,status,source,start_time,end_time,shop_id,drone_id,rental_fee_myr,deposit_myr,checked_in_at,batteries_count,drone_model,with_controller")
     .eq("secure_token", token)
     .maybeSingle();
   if (!booking) notFound();
@@ -105,7 +105,7 @@ export default async function DroneBookingDashboardPage({ params }: { params: Pr
 
       {STATUS_MESSAGES[booking.status] && (
         <p className="rounded-xl border border-zinc-200 p-4 text-center text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
-          {STATUS_MESSAGES[booking.status]}
+          {booking.status === "ACTIVE" && !booking.with_controller ? "Please return the drone and all batteries to the shop by your return time." : STATUS_MESSAGES[booking.status]}
         </p>
       )}
 
@@ -122,7 +122,7 @@ export default async function DroneBookingDashboardPage({ params }: { params: Pr
         <Row label="Shop" value={shop?.name ?? "—"} />
         <Row label="Address" value={shop?.address ?? "—"} />
         <Row label="Drone" value={`${modelProfile(booking.drone_model).shortName} · ${drone?.human_id ?? "—"}`} />
-        <Row label="Includes" value={`Drone, ${modelProfile(booking.drone_model).controllerName}, ${booking.batteries_count} ${booking.batteries_count === 1 ? "battery" : "batteries"}`} />
+        <Row label="Includes" value={`${booking.with_controller ? `Drone, ${modelProfile(booking.drone_model).controllerName}` : "Drone only (fly it from your phone)"}, ${booking.batteries_count} ${booking.batteries_count === 1 ? "battery" : "batteries"}`} />
         {walkInNotStarted && <Row label="Length" value={lengthLabel} />}
         {booking.status !== "CONFIRMED" && booking.status !== "ACTIVE" && !walkInNotStarted && (
           <>
