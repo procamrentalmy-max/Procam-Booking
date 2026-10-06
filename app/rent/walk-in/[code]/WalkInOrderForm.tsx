@@ -4,11 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import { ControllerChoice } from "@/components/droneRental/ControllerChoice";
+import { ComboCard, TotalSummary } from "@/components/droneRental/ComboCard";
 import {
   BATTERY_OPTIONS,
   DEFAULT_BATTERIES,
   DRONE_MODEL_PROFILES,
   ENABLED_DRONE_MODELS,
+  comboKey,
+  controllerLabel,
   depositMyrFor,
   formatMyr,
   hourlyRateFor,
@@ -23,7 +26,7 @@ import { submitWalkInOrderAction } from "./actions";
 const selectedClass = "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black";
 const idleClass = "border-zinc-300 dark:border-zinc-700";
 
-export function WalkInOrderForm({ code, options }: { code: string; options: WalkInOptions }) {
+export function WalkInOrderForm({ code, options, pictures }: { code: string; options: WalkInOptions; pictures: Record<string, string> }) {
   const router = useRouter();
   const models = ENABLED_DRONE_MODELS.filter((m) => Object.keys(options[m] ?? {}).length > 0);
   const [model, setModel] = useState<DroneModel>(models.includes("NEO2") ? "NEO2" : models[0]);
@@ -125,20 +128,14 @@ export function WalkInOrderForm({ code, options }: { code: string; options: Walk
             </button>
           ))}
         </div>
-        <p className="mt-2 text-xs text-zinc-500">Your hours are time with the drone, not flying time.</p>
       </div>
 
-      <div className="space-y-1 rounded-2xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">
-        <div className="flex justify-between gap-4">
-          <span className="text-zinc-500">Rental fee</span>
-          <span className="font-semibold">{formatMyr(rentalFeeMyr(durationMinutes, batteries, model, controller))}</span>
-        </div>
-        <div className="flex justify-between gap-4">
-          <span className="text-zinc-500">Deposit, held on your card</span>
-          <span className="font-medium">{formatMyr(depositMyrFor(model, controller))}</span>
-        </div>
-        <p className="pt-1 text-xs text-zinc-400">The deposit is only a hold. It&apos;s released when you return everything in good condition.</p>
-      </div>
+      <ComboCard
+        pictureUrl={pictures[comboKey(model, controller, batteries)]}
+        depositMyr={depositMyrFor(model, controller)}
+        alt={`${profile.shortName}, ${controllerLabel(model, controller)}, ${batteries} ${batteries === 1 ? "battery" : "batteries"}`}
+      />
+      <TotalSummary totalMyr={rentalFeeMyr(durationMinutes, batteries, model, controller)} depositMyr={depositMyrFor(model, controller)} />
 
       <div className="space-y-3">
         <p className="text-sm font-medium">Your details</p>

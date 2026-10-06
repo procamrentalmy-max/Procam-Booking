@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getLogoUrl } from "@/lib/branding";
+import { getComboPictureUrls, getLogoUrl } from "@/lib/branding";
 import { Brand } from "@/components/Brand";
 import { findShopByWalkInCode, walkInOptionsByModel } from "@/lib/droneRental/walkInRequests";
 import { WalkInOrderForm } from "./WalkInOrderForm";
@@ -13,7 +13,7 @@ export default async function WalkInOrderPage({ params }: { params: Promise<{ co
   const shop = await findShopByWalkInCode(code);
   if (!shop) notFound();
 
-  const [options, logoUrl] = await Promise.all([walkInOptionsByModel(shop.id), getLogoUrl()]);
+  const [options, logoUrl, pictures] = await Promise.all([walkInOptionsByModel(shop.id), getLogoUrl(), getComboPictureUrls()]);
   const offered = Object.keys(options).length > 0;
 
   return (
@@ -31,7 +31,7 @@ export default async function WalkInOrderPage({ params }: { params: Promise<{ co
           <p className="mt-1 text-sm text-zinc-500">Please ask the staff when one will be back.</p>
         </div>
       ) : (
-        <WalkInOrderForm code={code} options={options} />
+        <WalkInOrderForm code={code} options={options} pictures={pictures} />
       )}
     </div>
   );

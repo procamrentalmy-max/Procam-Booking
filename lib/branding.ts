@@ -1,5 +1,6 @@
 import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { comboKey } from "@/lib/droneRental/pricingRules";
 
 export const BRANDING_BUCKET = "branding";
 
@@ -24,4 +25,13 @@ export async function getLandingImageUrls(): Promise<Record<LandingImageSlot, st
   const { data } = await supabase.from("site_settings").select("hero_image_path,kit_image_path").eq("id", 1).maybeSingle();
   const url = (path: string | null | undefined) => (path ? supabase.storage.from(BRANDING_BUCKET).getPublicUrl(path).data.publicUrl : null);
   return { hero: url(data?.hero_image_path), kit: url(data?.kit_image_path) };
+}
+
+/** The uploaded booking-page pictures' public URLs, by comboKey; a combination with no picture is missing from the result. */
+export async function getComboPictureUrls(): Promise<Record<string, string>> {
+  const supabase = createServiceRoleClient();
+  const { data } = await supabase.from("dr_combo_pictures").select("drone_model,controller_kind,batteries,image_path");
+  return Object.fromEntries(
+    (data ?? []).map((r) => [comboKey(r.drone_model, r.controller_kind, r.batteries), supabase.storage.from(BRANDING_BUCKET).getPublicUrl(r.image_path).data.publicUrl])
+  );
 }

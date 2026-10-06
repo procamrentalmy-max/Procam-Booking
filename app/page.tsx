@@ -222,21 +222,28 @@ export default async function Home() {
         </section>
 
         <section className="mx-auto max-w-5xl px-6 pb-16 md:pb-24">
-          <div className={`grid gap-8 rounded-3xl border border-zinc-800 bg-zinc-950 p-8 md:p-10 ${pictures.kit ? "md:grid-cols-2 md:items-center" : ""}`}>
-            <div className="flex flex-col gap-5">
-              <h2 className="text-2xl font-semibold tracking-tight text-white">{t.kitTitle}</h2>
-              <p className="max-w-xl text-base leading-relaxed text-zinc-300">{t.kitNote}</p>
-              <Link
-                href="/rent"
-                className="inline-flex h-12 w-fit items-center justify-center rounded-full bg-white px-7 text-sm font-semibold text-black transition hover:bg-zinc-200"
-              >
-                {t.ctaPrimary}
-              </Link>
-            </div>
-            {pictures.kit && (
-              // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local optimizable asset
-              <img src={pictures.kit} alt="" className="w-full rounded-2xl border border-zinc-800 object-cover" />
-            )}
+          <div className="flex flex-col gap-6 rounded-3xl border border-zinc-800 bg-zinc-950 p-8 md:p-10">
+            <ul className="max-w-xl list-disc space-y-3 pl-5 text-base leading-relaxed text-zinc-300 marker:text-zinc-500">
+              {t.kitPoints.map((point) => (
+                <li key={point}>
+                  {point.split("**").map((part, i) =>
+                    i % 2 === 1 ? (
+                      <strong key={i} className="font-semibold text-white underline underline-offset-4">
+                        {part}
+                      </strong>
+                    ) : (
+                      part
+                    )
+                  )}
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/rent"
+              className="inline-flex h-12 w-fit items-center justify-center rounded-full bg-white px-7 text-sm font-semibold text-black transition hover:bg-zinc-200"
+            >
+              {t.ctaPrimary}
+            </Link>
           </div>
         </section>
 

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
 import { ControllerChoice } from "@/components/droneRental/ControllerChoice";
+import { ComboCard, TotalSummary } from "@/components/droneRental/ComboCard";
 import {
   BATTERY_OPTIONS,
   DEFAULT_BATTERIES,
@@ -13,7 +14,7 @@ import {
   type BatteryCount,
   type ControllerKind,
   type DroneModel,
-  controllerDepositFor,
+  comboKey,
   controllerLabel,
   depositMyrFor,
   effectiveController,
@@ -52,7 +53,18 @@ function StepHeader({ step, onBack }: { step: Step; onBack?: () => void }) {
 }
 
 /** `controllers` is what this shop actually has to rent out (the RC-N3, the goggles set); phone only is always possible. */
-export function DroneBookingWizard({ shopId, models, controllers }: { shopId: string; models: DroneModel[]; controllers: ControllerKind[] }) {
+/** `pictures` are the admin's pictures for each combination, by comboKey (drone, how it is flown, batteries). */
+export function DroneBookingWizard({
+  shopId,
+  models,
+  controllers,
+  pictures,
+}: {
+  shopId: string;
+  models: DroneModel[];
+  controllers: ControllerKind[];
+  pictures: Record<string, string>;
+}) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("duration");
   const [model, setModel] = useState<DroneModel>(models.includes("NEO2") ? "NEO2" : models[0]);
@@ -163,17 +175,11 @@ export function DroneBookingWizard({ shopId, models, controllers }: { shopId: st
 
         <ControllerChoice model={model} options={controllerOptions} value={controller} onChange={setPickedController} />
 
-        <div className="rounded-2xl border border-zinc-200 p-5 dark:border-zinc-800">
-          <p className="font-semibold text-black dark:text-zinc-50">{withController ? `${profile.shortName} + ${controllerLabel(model, controller)}` : profile.shortName}</p>
-          <p className="mt-0.5 text-sm text-zinc-500">{formatMyr(hourly)} per hour, plus batteries</p>
-          <ul className="mt-4 space-y-1.5 text-sm text-zinc-600 dark:text-zinc-400">
-            <li>{withController ? `The drone and the ${controllerLabel(model, controller)}` : "The drone"}, with the batteries you choose, all charged at the shop</li>
-            <li>
-              {formatMyr(deposit)} deposit: a hold on your card, not a charge
-              {withController && <> (drone {formatMyr(profile.depositDroneMyr)}, {controllerLabel(model, controller)} {formatMyr(controllerDepositFor(model, controller))})</>}. Released when everything comes back in good condition
-            </li>
-          </ul>
-        </div>
+        <ComboCard
+          pictureUrl={pictures[comboKey(model, controller, batteries)]}
+          depositMyr={deposit}
+          alt={`${profile.shortName}, ${controllerLabel(model, controller)}, ${batteries} ${batteries === 1 ? "battery" : "batteries"}`}
+        />
 
         <div>
           <p className="mb-2 text-sm font-medium">How long do you need it?</p>
@@ -213,14 +219,9 @@ export function DroneBookingWizard({ shopId, models, controllers }: { shopId: st
               </button>
             ))}
           </div>
-          <p className="mt-2 text-xs text-zinc-500">
-            Your hours are time with the drone, not flying time. Battery running low? Swap it for a fully charged one at the shop: {formatMyr(profile.batteryFeeMyr[1])} for 1, {formatMyr(profile.batteryFeeMyr[2])} for 2.
-          </p>
         </div>
 
-        <p className="text-center text-sm text-zinc-500">
-          Rental fee: <span className="font-semibold text-black dark:text-zinc-50">{formatMyr(rentalFee)}</span>
-        </p>
+        <TotalSummary totalMyr={rentalFee} depositMyr={deposit} />
 
         <button
           type="button"

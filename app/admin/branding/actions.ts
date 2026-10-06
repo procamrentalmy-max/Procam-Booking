@@ -3,7 +3,9 @@
 import sharp from "sharp";
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { getAuthContext, isAdmin } from "@/lib/auth/session";
 import { BRANDING_BUCKET, LANDING_IMAGE_COLUMN, LANDING_IMAGE_SLOTS, type LandingImageSlot } from "@/lib/branding";
+import { ENABLED_DRONE_MODELS, comboKey, isControllerKind } from "@/lib/droneRental/pricingRules";
 
 const ALLOWED_TYPES: Record<string, string> = {
   "image/png": "png",
@@ -145,4 +147,57 @@ export async function removeLandingImageAction(formData: FormData) {
   const previousPath = current?.[column];
   if (previousPath) await supabase.storage.from(BRANDING_BUCKET).remove([previousPath]).catch(() => {});
   revalidatePath("/", "layout");
+}
+
+function comboOf(formData: FormData) {
+  const model = String(formData.get("model"));
+  const controller = formData.get("controller");
+  const batteries = Number(formData.get("batteries"));
+  if (!(ENABLED_DRONE_MODELS as readonly string[]).includes(model)) throw new Error("Unknown drone.");
+  if (!isControllerKind(controller)) throw new Error("Unknown controller.");
+  if (batteries !== 1 && batteries !== 2) throw new Error("Unknown battery choice.");
+  return { model, controller, batteries };
+}
+
+/** The picture shown on the booking page for one drone / controller / batteries combination. */
+export async function uploadComboPictureAction(formData: FormData) {
+  if (!isAdmin(await getAuthContext())) throw new Error("Not authorized");
+  const { model, controller, batteries } = comboOf(formData);
+  const file = formData.get("picture");
+  if (!(file instanceof File) || file.size === 0) throw new Error("Choose a picture.");
+  const ext = PICTURE_TYPES[file.type];
+  if (!ext) throw new Error("The picture must be a PNG, JPEG or WebP image.");
+  if (file.size > MAX_PICTURE_BYTES) throw new Error("The picture must be under 8MB.");
+
+  const buffer = await sharp(Buffer.from(await file.arrayBuffer()))
+    .rotate()
+    .resize({ width: PICTURE_MAX_WIDTH, withoutEnlargement: true })
+    .toBuffer();
+
+  const supabase = createServiceRoleClient();
+  const path = `combo-${comboKey(model, controller, batteries).replaceAll(":", "-")}-${Date.now()}.${ext}`;
+  const { error: uploadError } = await supabase.storage.from(BRANDING_BUCKET).upload(path, buffer, { contentType: file.type, upsert: true });
+  if (uploadError) throw new Error(`Failed to upload the picture: ${uploadError.message}`);
+
+  const { data: current } = await supabase.from("dr_combo_pictures").select("image_path").eq("drone_model", model).eq("controller_kind", controller).eq("batteries", batteries).maybeSingle();
+  const { error } = await supabase
+    .from("dr_combo_pictures")
+    .upsert({ drone_model: model, controller_kind: controller, batteries, image_path: path, updated_at: new Date().toISOString() }, { onConflict: "drone_model,controller_kind,batteries" });
+  if (error) throw new Error(`Failed to save the picture: ${error.message}`);
+
+  if (current?.image_path && current.image_path !== path) await supabase.storage.from(BRANDING_BUCKET).remove([current.image_path]).catch(() => {});
+  revalidatePath("/rent", "layout");
+  revalidatePath("/admin/branding");
+}
+
+export async function removeComboPictureAction(formData: FormData) {
+  if (!isAdmin(await getAuthContext())) throw new Error("Not authorized");
+  const { model, controller, batteries } = comboOf(formData);
+  const supabase = createServiceRoleClient();
+  const { data: current } = await supabase.from("dr_combo_pictures").select("image_path").eq("drone_model", model).eq("controller_kind", controller).eq("batteries", batteries).maybeSingle();
+  const { error } = await supabase.from("dr_combo_pictures").delete().eq("drone_model", model).eq("controller_kind", controller).eq("batteries", batteries);
+  if (error) throw new Error(`Failed to remove the picture: ${error.message}`);
+  if (current?.image_path) await supabase.storage.from(BRANDING_BUCKET).remove([current.image_path]).catch(() => {});
+  revalidatePath("/rent", "layout");
+  revalidatePath("/admin/branding");
 }

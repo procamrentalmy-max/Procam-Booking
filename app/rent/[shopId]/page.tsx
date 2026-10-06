@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { DroneBookingWizard } from "@/components/droneRental/DroneBookingWizard";
-import { getLogoUrl } from "@/lib/branding";
+import { getComboPictureUrls, getLogoUrl } from "@/lib/branding";
 import { Brand } from "@/components/Brand";
 import { ENABLED_DRONE_MODELS, isDroneModel, type ControllerKind, type DroneModel } from "@/lib/droneRental/pricingRules";
 
@@ -15,7 +15,7 @@ export default async function ShopBookingPage({ params }: { params: Promise<{ sh
     .eq("id", shopId)
     .maybeSingle();
   if (!shop || !shop.active) notFound();
-  const logoUrl = await getLogoUrl();
+  const [logoUrl, pictures] = await Promise.all([getLogoUrl(), getComboPictureUrls()]);
 
   // Offer only the models this shop actually has a working drone of.
   const { data: shopDrones } = await supabase.from("dr_drones").select("model_key,status").eq("shop_id", shop.id);
@@ -34,7 +34,7 @@ export default async function ShopBookingPage({ params }: { params: Promise<{ sh
         <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">{shop.name}</h1>
         <p className="mt-0.5 text-sm text-zinc-500">{shop.address}</p>
       </div>
-      <DroneBookingWizard shopId={shop.id} models={models.length ? models : ["NEO2"]} controllers={controllers} />
+      <DroneBookingWizard shopId={shop.id} models={models.length ? models : ["NEO2"]} controllers={controllers} pictures={pictures} />
     </div>
   );
 }

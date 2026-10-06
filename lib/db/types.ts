@@ -753,6 +753,15 @@ export type DrWalkInRequestRow = {
   updated_at: string;
 };
 
+/** The picture for one booking combination (drone x how it is flown x batteries), uploaded in Admin > Branding. */
+export type DrComboPictureRow = {
+  drone_model: string;
+  controller_kind: "NONE" | "RC_N3" | "GOGGLES_N3";
+  batteries: number;
+  image_path: string;
+  updated_at: string;
+};
+
 type TableDef<Row> = { Row: Row; Insert: Partial<Row>; Update: Partial<Row>; Relationships: [] };
 
 export interface Database {
@@ -792,6 +801,7 @@ export interface Database {
       audit_logs: TableDef<AuditLogRow>;
       notifications: TableDef<NotificationRow>;
       site_settings: TableDef<SiteSettingsRow>;
+      dr_combo_pictures: TableDef<DrComboPictureRow>;
       photo_orders: TableDef<PhotoOrderRow>;
       photo_order_files: TableDef<PhotoOrderFileRow>;
       demand_signals: TableDef<DemandSignalRow>;

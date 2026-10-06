@@ -155,6 +155,11 @@ export function effectiveController(model: string | null | undefined, controller
   return options.includes(controller) ? controller : options[0];
 }
 
+/** The key a booking combination's picture is looked up by: drone, how it is flown, batteries. */
+export function comboKey(model: string, controller: string, batteries: number): string {
+  return `${model}:${controller}:${batteries}`;
+}
+
 /** The controller choice stored on a booking or order row for this model; a missing or unrecognised value counts as the default (every older row had the RC-N3). */
 export function storedController(model: string | null | undefined, kind: string | null | undefined): ControllerKind {
   return effectiveController(model, isControllerKind(kind) ? kind : DEFAULT_CONTROLLER);

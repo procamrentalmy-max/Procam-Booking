@@ -79,8 +79,11 @@ export const ms: Dictionary = {
       { title: "Pilih masa", text: "Pilih mana-mana slot yang kosong dan bayar yuran sewa." },
       { title: "Ambil dan terbang", text: "Tunjukkan kod QR tempahan anda kepada kedai. Pulangkan semuanya di sana apabila masa tamat." },
     ],
-    kitTitle: "Apa yang ada dalam set",
-    kitNote: "Tukar bateri yang telah digunakan dengan yang dicas penuh di kedai. Pemulangan lewat dikenakan kadar sejam bagi setiap jam. Deposit dilepaskan apabila semuanya dipulangkan dalam keadaan baik.",
+    kitPoints: [
+      "**Tukar** bateri yang telah digunakan dengan yang **dicas penuh** di kedai.",
+      "Pemulangan lewat dikenakan **kadar sejam** bagi **setiap jam**.",
+      "**Deposit dilepaskan** apabila semuanya dipulangkan dalam **keadaan baik**.",
+    ],
     camerasTitle: "Kamera aksi dan sarung telefon",
     camerasText: "Menginap di hotel rakan kongsi? Imbas kod QR di kaunter penerimaan dan kami hantar kepada anda.",
     terms: "Terma",

@@ -1,6 +1,7 @@
-import { getLandingImageUrls, getLogoUrl, type LandingImageSlot } from "@/lib/branding";
+import { getComboPictureUrls, getLandingImageUrls, getLogoUrl, type LandingImageSlot } from "@/lib/branding";
+import { BATTERY_OPTIONS, DRONE_MODEL_PROFILES, ENABLED_DRONE_MODELS, comboKey, controllerLabel } from "@/lib/droneRental/pricingRules";
 import { inputClass, primaryButtonClass, dangerButtonClass } from "@/components/formStyles";
-import { uploadLogoAction, removeLogoAction, uploadLandingImageAction, removeLandingImageAction } from "./actions";
+import { uploadLogoAction, removeLogoAction, uploadLandingImageAction, removeLandingImageAction, uploadComboPictureAction, removeComboPictureAction } from "./actions";
 
 const PICTURES: { slot: LandingImageSlot; title: string; note: string }[] = [
   { slot: "hero", title: "Picture at the top of the landing page", note: "Shown big in the top part of the home page, beside the headline. A landscape or square picture works best. Until you upload one, the drawn drone is shown." },
@@ -8,7 +9,18 @@ const PICTURES: { slot: LandingImageSlot; title: string; note: string }[] = [
 ];
 
 export default async function BrandingPage() {
-  const [logoUrl, pictureUrls] = await Promise.all([getLogoUrl(), getLandingImageUrls()]);
+  const [logoUrl, pictureUrls, comboUrls] = await Promise.all([getLogoUrl(), getLandingImageUrls(), getComboPictureUrls()]);
+  // Every combination a customer can book: drone x how it is flown x batteries.
+  const combos = ENABLED_DRONE_MODELS.flatMap((model) =>
+    DRONE_MODEL_PROFILES[model].controllerOptions.flatMap((controller) =>
+      BATTERY_OPTIONS.map((batteries) => ({
+        model,
+        controller,
+        batteries,
+        title: `${DRONE_MODEL_PROFILES[model].shortName} · ${controllerLabel(model, controller)} · ${batteries} ${batteries === 1 ? "battery" : "batteries"}`,
+      }))
+    )
+  );
 
   return (
     <div className="max-w-lg space-y-6 pt-4 pb-10">
@@ -86,6 +98,47 @@ export default async function BrandingPage() {
           )}
         </div>
       ))}
+
+      <div className="border-t border-zinc-200 pt-6 dark:border-zinc-800">
+        <h2 className="text-lg font-semibold">Booking page pictures</h2>
+        <p className="text-sm text-zinc-500">
+          One picture for each combination a customer can book. It shows on the booking page when they pick that drone, controller and battery count, with the deposit under it. A combination with no picture shows just the deposit.
+        </p>
+      </div>
+
+      {combos.map(({ model, controller, batteries, title }) => {
+        const url = comboUrls[comboKey(model, controller, batteries)];
+        return (
+          <div key={title} className="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+            <p className="text-sm font-medium">{title}</p>
+            {url ? (
+              // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local optimizable asset
+              <img src={url} alt={title} className="max-h-40 w-auto rounded-lg border border-zinc-200 dark:border-zinc-800" />
+            ) : (
+              <p className="text-sm text-zinc-500">No picture uploaded yet.</p>
+            )}
+            <form action={uploadComboPictureAction} className="space-y-3">
+              <input type="hidden" name="model" value={model} />
+              <input type="hidden" name="controller" value={controller} />
+              <input type="hidden" name="batteries" value={batteries} />
+              <input type="file" name="picture" accept="image/png,image/jpeg,image/webp" required className={`w-full ${inputClass}`} />
+              <button type="submit" className={primaryButtonClass}>
+                {url ? "Replace picture" : "Upload picture"}
+              </button>
+            </form>
+            {url && (
+              <form action={removeComboPictureAction}>
+                <input type="hidden" name="model" value={model} />
+                <input type="hidden" name="controller" value={controller} />
+                <input type="hidden" name="batteries" value={batteries} />
+                <button type="submit" className={dangerButtonClass}>
+                  Remove picture
+                </button>
+              </form>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -77,8 +77,11 @@ export const en = {
       { title: "Choose a time", text: "Pick any free slot and pay the rental fee." },
       { title: "Collect and fly", text: "Show your booking QR to the shop. Return everything there when your time is up." },
     ],
-    kitTitle: "What is in the kit",
-    kitNote: "Swap used batteries for fully charged ones at the shop. Returning late costs the hourly rate for each hour. The deposit is released when everything comes back in good condition.",
+    kitPoints: [
+      "**Swap** used batteries for **fully charged** ones at the shop.",
+      "Returning late costs the **hourly rate** for **each hour**.",
+      "The **deposit is released** when everything comes back in **good condition**.",
+    ],
     camerasTitle: "Action cameras and phone housings",
     camerasText: "Staying at a partner hotel? Scan the QR code at reception and we deliver to you.",
     terms: "Terms",
