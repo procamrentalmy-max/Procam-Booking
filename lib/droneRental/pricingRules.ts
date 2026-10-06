@@ -31,6 +31,14 @@ export const BATTERY_PACKAGE_FEE_MYR: Record<BatteryCount, number> = { 1: 7, 2: 
  * and a RM150 deposit. Handover and return are the same as the Neo 2's: the same two photos, then the checklist.
  */
 export const DRONE_MODELS = ["NEO2", "GT50"] as const;
+
+/**
+ * The models actually offered right now. The GT50 is parked: its profile, numbering, photos and tests all still exist, but
+ * nothing offers it (no booking choice, no walk-in choice, no landing comparison, no Add-a-drone option) until it is added
+ * here again. To bring it back, put "GT50" in this list, add its drones in the admin, and see the project memory note
+ * "GT50 parked" for everything else that was true of it.
+ */
+export const ENABLED_DRONE_MODELS = ["NEO2"] as const;
 export type DroneModel = (typeof DRONE_MODELS)[number];
 export const DEFAULT_DRONE_MODEL: DroneModel = "NEO2";
 

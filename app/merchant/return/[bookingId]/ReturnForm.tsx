@@ -84,7 +84,7 @@ export function ReturnForm({
   model,
   controllerCode,
 }: {
-  /** The controller's number (CTD-001 or CTG-001) for the controller's verdict card; null if it has none. */
+  /** The controller's number (CTR-001) for the controller's verdict card; null if it has none. */
   controllerCode: string | null;
   model: DroneModel;
   bookingId: string;

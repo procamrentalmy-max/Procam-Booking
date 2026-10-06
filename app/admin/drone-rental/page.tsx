@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
-import { DRONE_MODELS, DRONE_MODEL_PROFILES, formatMyr, modelProfile } from "@/lib/droneRental/pricingRules";
+import { ENABLED_DRONE_MODELS, DRONE_MODEL_PROFILES, formatMyr, modelProfile } from "@/lib/droneRental/pricingRules";
 import {
   createShopAction,
   setShopActiveAction,
@@ -235,7 +235,7 @@ export default async function DroneRentalAdminPage() {
           <summary className="cursor-pointer text-sm font-semibold">Add a drone</summary>
           <form action={createDroneAction} className="mt-3 grid gap-2 sm:grid-cols-2">
             <select name="model" required defaultValue="NEO2" className={inputClass}>
-              {DRONE_MODELS.map((m) => (
+              {ENABLED_DRONE_MODELS.map((m) => (
                 <option key={m} value={m}>
                   {DRONE_MODEL_PROFILES[m].shortName}
                 </option>

@@ -3,7 +3,7 @@
 import sharp from "sharp";
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { BRANDING_BUCKET } from "@/lib/branding";
+import { BRANDING_BUCKET, LANDING_IMAGE_COLUMN, LANDING_IMAGE_SLOTS, type LandingImageSlot } from "@/lib/branding";
 
 const ALLOWED_TYPES: Record<string, string> = {
   "image/png": "png",
@@ -80,5 +80,69 @@ export async function removeLogoAction() {
     await supabase.storage.from(BRANDING_BUCKET).remove([current.logo_path]).catch(() => {});
   }
 
+  revalidatePath("/", "layout");
+}
+
+const MAX_PICTURE_BYTES = 8 * 1024 * 1024;
+const PICTURE_TYPES: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
+/** Pictures are shown at most about this wide, so bigger uploads are shrunk (phone photos are several thousand pixels across). */
+const PICTURE_MAX_WIDTH = 1600;
+
+function slotOf(formData: FormData): LandingImageSlot {
+  const slot = formData.get("slot");
+  if (!LANDING_IMAGE_SLOTS.includes(slot as LandingImageSlot)) throw new Error("Unknown picture.");
+  return slot as LandingImageSlot;
+}
+
+/** A picture for the landing page (the top of the page, or beside "What is in the kit"), stored like the logo. */
+export async function uploadLandingImageAction(formData: FormData) {
+  const slot = slotOf(formData);
+  const file = formData.get("picture");
+  if (!(file instanceof File) || file.size === 0) throw new Error("Choose a picture.");
+  const ext = PICTURE_TYPES[file.type];
+  if (!ext) throw new Error("The picture must be a PNG, JPEG or WebP image.");
+  if (file.size > MAX_PICTURE_BYTES) throw new Error("The picture must be under 8MB.");
+
+  // rotate() applies the phone's orientation tag before it is dropped, so a portrait photo doesn't end up on its side.
+  const buffer = await sharp(Buffer.from(await file.arrayBuffer()))
+    .rotate()
+    .resize({ width: PICTURE_MAX_WIDTH, withoutEnlargement: true })
+    .toBuffer();
+
+  const supabase = createServiceRoleClient();
+  const column = LANDING_IMAGE_COLUMN[slot];
+  const path = `${slot}-${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage.from(BRANDING_BUCKET).upload(path, buffer, { contentType: file.type, upsert: true });
+  if (uploadError) throw new Error(`Failed to upload the picture: ${uploadError.message}`);
+
+  const { data: current } = await supabase.from("site_settings").select("hero_image_path,kit_image_path").eq("id", 1).maybeSingle();
+  const previousPath = current?.[column];
+
+  const { error: updateError } = await supabase
+    .from("site_settings")
+    .update({ ...(slot === "hero" ? { hero_image_path: path } : { kit_image_path: path }), updated_at: new Date().toISOString() })
+    .eq("id", 1);
+  if (updateError) throw new Error(`Failed to save the picture: ${updateError.message}`);
+
+  if (previousPath && previousPath !== path) await supabase.storage.from(BRANDING_BUCKET).remove([previousPath]).catch(() => {});
+  revalidatePath("/", "layout");
+}
+
+/** Takes a landing picture away: the top of the page goes back to the drawn drone, the kit section to text only. */
+export async function removeLandingImageAction(formData: FormData) {
+  const slot = slotOf(formData);
+  const column = LANDING_IMAGE_COLUMN[slot];
+  const supabase = createServiceRoleClient();
+  const { data: current } = await supabase.from("site_settings").select("hero_image_path,kit_image_path").eq("id", 1).maybeSingle();
+
+  const { error } = await supabase
+    .from("site_settings")
+    .update({ ...(slot === "hero" ? { hero_image_path: null } : { kit_image_path: null }), updated_at: new Date().toISOString() })
+    .eq("id", 1);
+  if (error) throw new Error(`Failed to remove the picture: ${error.message}`);
+
+  const previousPath = current?.[column];
+  if (previousPath) await supabase.storage.from(BRANDING_BUCKET).remove([previousPath]).catch(() => {});
   revalidatePath("/", "layout");
 }

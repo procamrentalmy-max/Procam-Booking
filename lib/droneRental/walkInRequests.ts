@@ -6,7 +6,7 @@ import { eligibleWalkInDrones, walkInDurationsForShop } from "./merchantBooking"
 import { findOrCreateCustomer, createMerchantInstantBooking, NoDroneAvailableError } from "./createBooking";
 import { walkInExpiry, walkInView, type WalkInView } from "./walkIn";
 import type { DrWalkInRequestRow } from "@/lib/db/types";
-import { DEFAULT_DRONE_MODEL, DRONE_MODELS, isDroneModel, type BatteryCount, type DroneModel } from "./pricingRules";
+import { DEFAULT_DRONE_MODEL, ENABLED_DRONE_MODELS, isDroneModel, type BatteryCount, type DroneModel } from "./pricingRules";
 
 export class WalkInError extends Error {
   constructor(message: string) {
@@ -37,7 +37,7 @@ export async function walkInDurationOptions(shopId: string, model: DroneModel = 
 
 /** The same, for every model: only models with at least one length on offer appear. */
 export async function walkInOptionsByModel(shopId: string): Promise<Partial<Record<DroneModel, number[]>>> {
-  const entries = await Promise.all(DRONE_MODELS.map(async (m) => [m, await walkInDurationOptions(shopId, m)] as const));
+  const entries = await Promise.all(ENABLED_DRONE_MODELS.map(async (m) => [m, await walkInDurationOptions(shopId, m)] as const));
   return Object.fromEntries(entries.filter(([, durations]) => durations.length > 0));
 }
 

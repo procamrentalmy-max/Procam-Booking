@@ -7,7 +7,7 @@ import {
   BATTERY_OPTIONS,
   DEFAULT_BATTERIES,
   DRONE_MODEL_PROFILES,
-  DRONE_MODELS,
+  ENABLED_DRONE_MODELS,
   depositMyrFor,
   formatMyr,
   rentalFeeMyr,
@@ -21,7 +21,7 @@ const idleClass = "border-zinc-300 dark:border-zinc-700";
 
 export function WalkInOrderForm({ code, optionsByModel }: { code: string; optionsByModel: Partial<Record<DroneModel, number[]>> }) {
   const router = useRouter();
-  const models = DRONE_MODELS.filter((m) => (optionsByModel[m] ?? []).length > 0);
+  const models = ENABLED_DRONE_MODELS.filter((m) => (optionsByModel[m] ?? []).length > 0);
   const [model, setModel] = useState<DroneModel>(models.includes("NEO2") ? "NEO2" : models[0]);
   const durationsMinutes = optionsByModel[model] ?? [];
   const profile = DRONE_MODEL_PROFILES[model];

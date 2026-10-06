@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuidSchema } from "@/lib/zod-helpers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { DRONE_MODELS, DRONE_MODEL_PROFILES } from "@/lib/droneRental/pricingRules";
+import { ENABLED_DRONE_MODELS, DRONE_MODEL_PROFILES } from "@/lib/droneRental/pricingRules";
 import { nextBatteryNames } from "@/lib/droneRental/batteryNames";
 
 const createShopSchema = z.object({
@@ -53,7 +53,7 @@ export async function setShopActiveAction(formData: FormData) {
 
 const createDroneSchema = z.object({
   shopId: uuidSchema,
-  model: z.enum(DRONE_MODELS),
+  model: z.enum(ENABLED_DRONE_MODELS),
   serialNumber: z.string().optional(),
   costPriceMyr: z.coerce.number().min(0),
 });
@@ -82,11 +82,11 @@ export async function createDroneAction(formData: FormData) {
     .single();
   if (error || !drone) throw new Error(error?.message ?? "Could not create the drone.");
 
-  // Every drone comes with a controller, numbered by make across all shops in the order added: CTD-001, CTD-002, ... for DJI controllers, CTG-001, ... for GT50.
+  // Every drone comes with a controller, numbered CTR-001, CTR-002, ... across all shops in the order added (a parked GT50's would be CTG-001, ...).
   const { error: controllerError } = await supabase.from("dr_controllers").insert({ drone_id: drone.id });
   if (controllerError) throw new Error(controllerError.message);
 
-  // Named by make (B1, B2... for the Neo 2, A1, A2... for the GT50), carrying on from the highest number already used
+  // Named by make (B1, B2... for the Neo 2; a parked GT50's would be A1, A2...), carrying on from the highest number already used
   // for that letter in this shop, so each battery can carry a matching sticker; rename them from this page.
   const { data: shopBatteries } = await supabase.from("dr_batteries").select("name").eq("shop_id", parsed.data.shopId);
   const names = nextBatteryNames((shopBatteries ?? []).map((b) => b.name), 3, DRONE_MODEL_PROFILES[parsed.data.model].batteryPrefix);

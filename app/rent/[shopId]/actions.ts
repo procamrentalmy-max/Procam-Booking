@@ -5,12 +5,12 @@ import { uuidSchema } from "@/lib/zod-helpers";
 import { buildShopFleetSnapshot } from "@/lib/droneRental/snapshot";
 import { computeUnavailableStarts } from "@/lib/droneRental/slots";
 import { isWithinOperatingHours } from "@/lib/droneRental/hours";
-import { isValidRentalMinutes, DRONE_MODELS, type DroneModel } from "@/lib/droneRental/pricingRules";
+import { isValidRentalMinutes, ENABLED_DRONE_MODELS, type DroneModel } from "@/lib/droneRental/pricingRules";
 import { findOrCreateCustomer, createPendingDroneBooking, NoDroneAvailableError } from "@/lib/droneRental/createBooking";
 
 const rentalMinutesSchema = z.number().refine(isValidRentalMinutes, "Choose a rental length of 1 to 6 hours.");
 
-const modelSchema = z.enum(DRONE_MODELS).default("NEO2");
+const modelSchema = z.enum(ENABLED_DRONE_MODELS).default("NEO2");
 
 const unavailableStartsSchema = z.object({
   shopId: uuidSchema,

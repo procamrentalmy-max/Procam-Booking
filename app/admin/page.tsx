@@ -35,7 +35,7 @@ const GROUPS: { title: string; sections: Section[] }[] = [
     title: "Settings",
     sections: [
       { href: "/admin/staff", label: "Staff", note: "Add and manage staff, merchant and admin accounts" },
-      { href: "/admin/branding", label: "Branding", note: "Upload the logo used across the site" },
+      { href: "/admin/branding", label: "Branding", note: "The logo, and the pictures on the landing page" },
     ],
   },
 ];

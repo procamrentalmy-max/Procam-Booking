@@ -529,6 +529,10 @@ export type NotificationRow = {
 export type SiteSettingsRow = {
   id: 1;
   logo_path: string | null;
+  /** The picture at the top of the landing page (instead of the drawn drone). */
+  hero_image_path: string | null;
+  /** The picture beside "What is in the kit" on the landing page. */
+  kit_image_path: string | null;
   updated_at: string;
 };
 
@@ -583,7 +587,7 @@ export type DrDroneRow = {
   updated_at: string;
 };
 
-/** A drone's controller, numbered by make: CTD-001, ... for DJI controllers, CTG-001, ... for GT50 (across all shops, in the order added). One per drone. */
+/** A drone's controller, numbered CTR-001, CTR-002, ... across all shops in the order added (a parked GT50 model would get CTG-001, ...). One per drone. */
 export type DrControllerRow = {
   id: string;
   human_id: string;

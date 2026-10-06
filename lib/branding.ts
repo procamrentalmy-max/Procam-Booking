@@ -11,3 +11,17 @@ export async function getLogoUrl(): Promise<string | null> {
   const { data: pub } = supabase.storage.from(BRANDING_BUCKET).getPublicUrl(data.logo_path);
   return pub.publicUrl;
 }
+
+export const LANDING_IMAGE_SLOTS = ["hero", "kit"] as const;
+export type LandingImageSlot = (typeof LANDING_IMAGE_SLOTS)[number];
+
+/** The settings column each landing picture is kept in. */
+export const LANDING_IMAGE_COLUMN = { hero: "hero_image_path", kit: "kit_image_path" } as const;
+
+/** The uploaded landing page pictures' public URLs; a slot is null until the admin uploads one. */
+export async function getLandingImageUrls(): Promise<Record<LandingImageSlot, string | null>> {
+  const supabase = createServiceRoleClient();
+  const { data } = await supabase.from("site_settings").select("hero_image_path,kit_image_path").eq("id", 1).maybeSingle();
+  const url = (path: string | null | undefined) => (path ? supabase.storage.from(BRANDING_BUCKET).getPublicUrl(path).data.publicUrl : null);
+  return { hero: url(data?.hero_image_path), kit: url(data?.kit_image_path) };
+}
