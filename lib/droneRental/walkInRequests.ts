@@ -3,10 +3,21 @@ import { randomBytes } from "node:crypto";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { buildShopFleetSnapshot } from "./snapshot";
 import { eligibleWalkInDrones, walkInDurationsForShop } from "./merchantBooking";
-import { findOrCreateCustomer, createMerchantInstantBooking, NoDroneAvailableError } from "./createBooking";
+import { findOrCreateCustomer, createMerchantInstantBooking, NoControllerAvailableError, NoDroneAvailableError } from "./createBooking";
 import { walkInExpiry, walkInView, type WalkInView } from "./walkIn";
 import type { DrWalkInRequestRow } from "@/lib/db/types";
-import { DEFAULT_DRONE_MODEL, ENABLED_DRONE_MODELS, includesController, isDroneModel, type BatteryCount, type DroneModel } from "./pricingRules";
+import {
+  DEFAULT_CONTROLLER,
+  DEFAULT_DRONE_MODEL,
+  ENABLED_DRONE_MODELS,
+  effectiveController,
+  isDroneModel,
+  modelProfile,
+  storedController,
+  type BatteryCount,
+  type ControllerKind,
+  type DroneModel,
+} from "./pricingRules";
 
 export class WalkInError extends Error {
   constructor(message: string) {
@@ -29,16 +40,28 @@ export async function findShopByWalkInCode(code: string): Promise<{ id: string; 
   return { id: data.id, name: data.name, address: data.address };
 }
 
-/** The lengths (in minutes) a customer scanning this shop's QR can choose right now for one model — only what some drone of that model at the shop can actually take. */
-export async function walkInDurationOptions(shopId: string, model: DroneModel = DEFAULT_DRONE_MODEL): Promise<number[]> {
-  const snapshot = await buildShopFleetSnapshot(shopId, model);
-  return walkInDurationsForShop(snapshot.drones, snapshot.bookings, new Date());
+/**
+ * The lengths (in minutes) a customer scanning this shop's QR can choose right now for one model and one way of flying it — only what
+ * some drone of that model at the shop can actually take (and, with a controller, only while the shop has one of that kind free).
+ */
+export async function walkInDurationOptions(shopId: string, model: DroneModel = DEFAULT_DRONE_MODEL, controller: ControllerKind = "NONE"): Promise<number[]> {
+  const snapshot = await buildShopFleetSnapshot(shopId, model, effectiveController(model, controller));
+  return walkInDurationsForShop(snapshot.drones, snapshot.bookings, new Date(), snapshot.controllers);
 }
 
-/** The same, for every model: only models with at least one length on offer appear. */
-export async function walkInOptionsByModel(shopId: string): Promise<Partial<Record<DroneModel, number[]>>> {
-  const entries = await Promise.all(ENABLED_DRONE_MODELS.map(async (m) => [m, await walkInDurationOptions(shopId, m)] as const));
-  return Object.fromEntries(entries.filter(([, durations]) => durations.length > 0));
+/** What a walk-in customer can choose: for each model, for each way of flying it, the lengths on offer. Anything with no length left is left out. */
+export type WalkInOptions = Partial<Record<DroneModel, Partial<Record<ControllerKind, number[]>>>>;
+
+export async function walkInOptionsByModel(shopId: string): Promise<WalkInOptions> {
+  const entries = await Promise.all(
+    ENABLED_DRONE_MODELS.map(async (m) => {
+      const perController = await Promise.all(
+        modelProfile(m).controllerOptions.map(async (c) => [c, await walkInDurationOptions(shopId, m, c)] as const)
+      );
+      return [m, Object.fromEntries(perController.filter(([, durations]) => durations.length > 0))] as const;
+    })
+  );
+  return Object.fromEntries(entries.filter(([, byController]) => Object.keys(byController).length > 0));
 }
 
 export type SubmitWalkInOrderResult =
@@ -57,7 +80,7 @@ export async function submitWalkInOrder(params: {
   durationMinutes: number;
   batteries: BatteryCount;
   model?: DroneModel;
-  withController?: boolean;
+  controller?: ControllerKind;
   name: string;
   phone: string;
   email: string;
@@ -79,7 +102,8 @@ export async function submitWalkInOrder(params: {
   if (existing) return { ok: true, publicToken: existing.public_token };
   if ((open ?? []).length >= MAX_OPEN_WALKIN_ORDERS_PER_SHOP) return { ok: false, reason: "too_many_open" };
 
-  const allowed = await walkInDurationOptions(shop.id, model);
+  const controller = effectiveController(model, params.controller ?? DEFAULT_CONTROLLER);
+  const allowed = await walkInDurationOptions(shop.id, model, controller);
   if (!allowed.includes(params.durationMinutes)) return { ok: false, reason: "length_unavailable" };
 
   const publicToken = newPublicToken();
@@ -90,7 +114,7 @@ export async function submitWalkInOrder(params: {
     duration_minutes: params.durationMinutes,
     batteries_count: params.batteries,
     drone_model: model,
-    with_controller: includesController(model, params.withController ?? true),
+    controller_kind: controller,
     status: "SUBMITTED",
     customer_name: params.name,
     customer_phone: params.phone,
@@ -116,6 +140,11 @@ export async function getWalkInRequestById(id: string): Promise<DrWalkInRequestR
 
 export function viewOf(request: DrWalkInRequestRow, now: Date = new Date()): WalkInView {
   return walkInView(request.status, new Date(request.expires_at), now);
+}
+
+/** The controller choice an order was made with (an older or odd value counts as the RC-N3, like the database default). */
+export function requestController(request: DrWalkInRequestRow): ControllerKind {
+  return storedController(request.drone_model, request.controller_kind);
 }
 
 /** The drones that could be handed to this order right now, lowest number first. The merchant never picks one: the first is assigned. */
@@ -166,13 +195,14 @@ export async function acceptWalkInRequest(requestId: string, staffId: string): P
       durationMinutes: request.duration_minutes,
       batteries: request.batteries_count === 1 ? 1 : 2,
       model: isDroneModel(request.drone_model) ? request.drone_model : DEFAULT_DRONE_MODEL,
-      withController: request.with_controller,
+      controller: requestController(request),
       createdByStaffId: staffId,
     });
     await supabase.from("dr_walkin_requests").update({ booking_id: booking.id }).eq("id", request.id);
     return { bookingId: booking.id, bookingToken: booking.secure_token };
   } catch (err) {
     await supabase.from("dr_walkin_requests").update({ status: "SUBMITTED", drone_id: null }).eq("id", request.id).eq("status", "ACCEPTED").is("booking_id", null);
+    if (err instanceof NoControllerAvailableError) throw new WalkInError(`${err.message} Decline this order, or wait for it to come back.`);
     if (err instanceof NoDroneAvailableError) throw new WalkInError("That drone was just booked by someone else. Try confirming again.");
     throw err;
   }

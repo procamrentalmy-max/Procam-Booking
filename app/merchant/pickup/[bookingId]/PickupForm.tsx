@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
 import { dronePhotoSteps } from "@/lib/droneRental/photoSteps";
+import type { ControllerKind } from "@/lib/droneRental/pricingRules";
 import { PhotoStepPage, StepTitle } from "@/components/droneRental/PhotoStepPage";
 import { BatteryPicker, useBatteryPicks, type BatteryOption } from "@/components/droneRental/BatteryPicker";
 import { submitPickupAction, type PickupResult } from "./actions";
@@ -19,8 +20,8 @@ export function PickupForm({
   disabled,
   batteriesCount,
   photosRequired,
-  controllerType,
-  withController,
+  model,
+  controller,
   batteryOptions,
   summary,
 }: {
@@ -28,10 +29,9 @@ export function PickupForm({
   batteryOptions: BatteryOption[];
   /** False for models whose handover has no photo pages (the GT50): straight to the checklist. */
   photosRequired: boolean;
-  /** The controller's model name (RC-N3), or null for a drone whose controller has none, for the photo wording. */
-  controllerType: string | null;
-  /** False when the customer rented the drone without its controller: no controller photo, checklist item or hold. */
-  withController: boolean;
+  /** The drone's model, and which controller goes out with it (none, the RC-N3 or the goggles set), for the photo wording. With none there is no controller photo, checklist item or hold. */
+  model: string;
+  controller: ControllerKind;
   /** Who it's for, what goes out, and the deposit status. Shown on the first and last pages, not on every photo page. */
   summary: React.ReactNode;
   batteriesCount: number;
@@ -40,7 +40,7 @@ export function PickupForm({
   disabled: boolean;
 }) {
   const router = useRouter();
-  const steps = photosRequired ? dronePhotoSteps({ controllerType }, withController) : [];
+  const steps = photosRequired ? dronePhotoSteps(model, controller) : [];
   const [step, setStep] = useState(0); // 0..steps.length-1 are photos; steps.length is the confirm page
   const [photos, setPhotos] = useState<Record<string, File>>({});
   const [acks, setAcks] = useState<Record<string, boolean>>(() => Object.fromEntries(checklistItems.map((i) => [i.item_key, false])));

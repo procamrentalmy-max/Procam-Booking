@@ -2,8 +2,18 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { buildShopFleetSnapshot } from "./snapshot";
-import { alignToNextInterval, findEligibleDrone, InvalidDroneBookingRequestError } from "./slots";
-import { rentalFeeMyr, depositMyrFor, includesController, DEFAULT_DRONE_MODEL, type BatteryCount, type DroneModel } from "./pricingRules";
+import { alignToNextInterval, findEligibleDrone, findEligibleResources, InvalidDroneBookingRequestError } from "./slots";
+import {
+  rentalFeeMyr,
+  depositMyrFor,
+  effectiveController,
+  controllerLabel,
+  DEFAULT_CONTROLLER,
+  DEFAULT_DRONE_MODEL,
+  type BatteryCount,
+  type ControllerKind,
+  type DroneModel,
+} from "./pricingRules";
 import type { DrBookingRow, DrBookingSource } from "@/lib/db/types";
 
 export { InvalidDroneBookingRequestError };
@@ -12,6 +22,14 @@ export class NoDroneAvailableError extends Error {
   constructor() {
     super("No drone is available for that time.");
     this.name = "NoDroneAvailableError";
+  }
+}
+
+/** A drone is free but the controller asked for isn't (the shop has none of that kind, or the one it has is out). */
+export class NoControllerAvailableError extends Error {
+  constructor(readonly controller: string) {
+    super(`The ${controller} isn't free for that time.`);
+    this.name = "NoControllerAvailableError";
   }
 }
 
@@ -49,11 +67,12 @@ export async function createPendingDroneBooking(params: {
   startTime: Date;
   batteries: BatteryCount;
   model?: DroneModel;
-  /** Whether the controller is rented too (default yes). */
-  withController?: boolean;
+  /** How the customer flies it: their own phone, the RC-N3 or the goggles set (default the RC-N3). */
+  controller?: ControllerKind;
 }): Promise<DrBookingRow> {
   const supabase = createServiceRoleClient();
   const model = params.model ?? DEFAULT_DRONE_MODEL;
+  const controller = effectiveController(model, params.controller ?? DEFAULT_CONTROLLER);
 
   const { data: shop } = await supabase.from("dr_shops").select("id,active").eq("id", params.shopId).single();
   if (!shop || !shop.active) throw new Error("This shop is not currently active.");
@@ -63,20 +82,21 @@ export async function createPendingDroneBooking(params: {
   if (startTime.getTime() < Date.now() - 60_000) throw new NoDroneAvailableError();
   const endTime = new Date(startTime.getTime() + params.durationMinutes * 60_000);
 
-  const snapshot = await buildShopFleetSnapshot(params.shopId, model);
-  const droneId = findEligibleDrone(snapshot.drones, snapshot.bookings, startTime, endTime);
-  if (!droneId) throw new NoDroneAvailableError();
+  const snapshot = await buildShopFleetSnapshot(params.shopId, model, controller);
+  const free = findEligibleResources(snapshot.drones, snapshot.bookings, snapshot.controllers, startTime, endTime);
+  if (!free) throw new NoDroneAvailableError();
 
   return insertBooking(supabase, {
     customerId: params.customerId,
     shopId: params.shopId,
-    droneId,
+    droneId: free.droneId,
+    controllerId: free.controllerId,
     startTime,
     endTime,
     source: "ONLINE",
     batteries: params.batteries,
     model,
-    withController: params.withController ?? true,
+    controller,
   });
 }
 
@@ -102,7 +122,7 @@ export async function createMerchantInstantBooking(params: {
   durationMinutes: number;
   batteries: BatteryCount;
   model?: DroneModel;
-  withController?: boolean;
+  controller?: ControllerKind;
   createdByStaffId: string;
 }): Promise<DrBookingRow> {
   if (params.durationMinutes <= 0) {
@@ -111,18 +131,29 @@ export async function createMerchantInstantBooking(params: {
   const supabase = createServiceRoleClient();
   const startTime = new Date();
   const endTime = new Date(startTime.getTime() + params.durationMinutes * 60_000);
+  const model = params.model ?? DEFAULT_DRONE_MODEL;
+  const controller = effectiveController(model, params.controller ?? DEFAULT_CONTROLLER);
+
+  // The drone is the merchant's to pick; the controller is whichever one of that kind the shop has free for the whole rental.
+  let controllerId: string | null = null;
+  if (controller !== "NONE") {
+    const snapshot = await buildShopFleetSnapshot(params.shopId, model, controller);
+    controllerId = snapshot.controllers ? findEligibleDrone(snapshot.controllers.candidates, snapshot.controllers.bookings, startTime, endTime) : null;
+    if (!controllerId) throw new NoControllerAvailableError(controllerLabel(model, controller));
+  }
 
   return insertBooking(supabase, {
     customerId: params.customerId,
     shopId: params.shopId,
     droneId: params.droneId,
+    controllerId,
     startTime,
     endTime,
     source: "MERCHANT_INSTANT",
     createdByStaffId: params.createdByStaffId,
     batteries: params.batteries,
-    model: params.model ?? DEFAULT_DRONE_MODEL,
-    withController: params.withController ?? true,
+    model,
+    controller,
   });
 }
 
@@ -132,13 +163,14 @@ async function insertBooking(
     customerId: string;
     shopId: string;
     droneId: string;
+    controllerId: string | null;
     startTime: Date;
     endTime: Date;
     source: DrBookingSource;
     createdByStaffId?: string;
     batteries: BatteryCount;
     model: DroneModel;
-    withController: boolean;
+    controller: ControllerKind;
   }
 ): Promise<DrBookingRow> {
   const durationMinutes = (params.endTime.getTime() - params.startTime.getTime()) / 60_000;
@@ -149,19 +181,20 @@ async function insertBooking(
     p_drone_id: params.droneId,
     p_start_time: params.startTime.toISOString(),
     p_end_time: params.endTime.toISOString(),
-    p_rental_fee_myr: rentalFeeMyr(durationMinutes, params.batteries, params.model, params.withController),
-    p_deposit_myr: depositMyrFor(params.model, params.withController),
+    p_rental_fee_myr: rentalFeeMyr(durationMinutes, params.batteries, params.model, params.controller),
+    p_deposit_myr: depositMyrFor(params.model, params.controller),
     p_secure_token: generateSecureToken(),
     p_source: params.source,
     p_created_by_staff_id: params.createdByStaffId ?? null,
     p_batteries_count: params.batteries,
     p_drone_model: params.model,
-    p_with_controller: includesController(params.model, params.withController),
+    p_controller_kind: params.controller,
+    p_controller_id: params.controllerId,
   });
 
   if (error) {
     // 23P01 = exclusion_violation — a concurrent booking won the race for
-    // this exact drone/window between our feasibility check and this insert.
+    // this exact drone (or controller) / window between our feasibility check and this insert.
     if (error.code === "23P01") throw new NoDroneAvailableError();
     throw new Error(error.message);
   }

@@ -5,13 +5,18 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
+import { ControllerChoice } from "@/components/droneRental/ControllerChoice";
 import {
   BATTERY_OPTIONS,
   DEFAULT_BATTERIES,
   DRONE_MODEL_PROFILES,
   type BatteryCount,
+  type ControllerKind,
   type DroneModel,
+  controllerDepositFor,
+  controllerLabel,
   depositMyrFor,
+  effectiveController,
   formatMyr,
   hourlyRateFor,
   includesController,
@@ -46,14 +51,15 @@ function StepHeader({ step, onBack }: { step: Step; onBack?: () => void }) {
   );
 }
 
-export function DroneBookingWizard({ shopId, models }: { shopId: string; models: DroneModel[] }) {
+/** `controllers` is what this shop actually has to rent out (the RC-N3, the goggles set); phone only is always possible. */
+export function DroneBookingWizard({ shopId, models, controllers }: { shopId: string; models: DroneModel[]; controllers: ControllerKind[] }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("duration");
   const [model, setModel] = useState<DroneModel>(models.includes("NEO2") ? "NEO2" : models[0]);
   const [durationHours, setDurationHours] = useState(1);
   const [batteries, setBatteries] = useState<BatteryCount>(DEFAULT_BATTERIES);
-  // Only some drones can be rented without their controller; the others always come with it.
-  const [wantsController, setWantsController] = useState(true);
+  // How they will fly it: their own phone, or a controller the shop has. Only choices this shop can actually offer are shown.
+  const [pickedController, setPickedController] = useState<ControllerKind>("NONE");
   const [now, setNow] = useState(() => new Date());
   const [dayOffset, setDayOffset] = useState(0);
   const [slots, setSlots] = useState<Date[]>([]);
@@ -67,10 +73,12 @@ export function DroneBookingWizard({ shopId, models }: { shopId: string; models:
 
   const durationMinutes = durationHours * 60;
   const profile = DRONE_MODEL_PROFILES[model];
-  const withController = includesController(model, wantsController);
-  const hourly = hourlyRateFor(model, withController);
-  const deposit = depositMyrFor(model, withController);
-  const rentalFee = rentalFeeMyr(durationMinutes, batteries, model, withController);
+  const controllerOptions = profile.controllerOptions.filter((o) => o === "NONE" || controllers.includes(o));
+  const controller = controllerOptions.includes(effectiveController(model, pickedController)) ? effectiveController(model, pickedController) : controllerOptions[0];
+  const withController = includesController(model, controller);
+  const hourly = hourlyRateFor(model, controller);
+  const deposit = depositMyrFor(model, controller);
+  const rentalFee = rentalFeeMyr(durationMinutes, batteries, model, controller);
 
   // (Re)draw the grid for the chosen day and duration, then grey out what's taken. The grid itself is
   // worked out in Malaysia time (lib/droneRental/hours) so it's right whatever timezone the phone is in;
@@ -88,7 +96,7 @@ export function DroneBookingWizard({ shopId, models }: { shopId: string; models:
     }
     setUnavailable(null);
     let cancelled = false;
-    getUnavailableDroneStartsAction({ shopId, model, durationMinutes, starts: candidates.map((d) => d.toISOString()) })
+    getUnavailableDroneStartsAction({ shopId, model, controller, durationMinutes, starts: candidates.map((d) => d.toISOString()) })
       .then((result) => {
         if (cancelled) return;
         const bad = new Set<number>();
@@ -103,7 +111,7 @@ export function DroneBookingWizard({ shopId, models }: { shopId: string; models:
     return () => {
       cancelled = true;
     };
-  }, [step, shopId, model, durationMinutes, dayOffset]);
+  }, [step, shopId, model, controller, durationMinutes, dayOffset]);
 
   async function submit() {
     if (!selectedStart) return;
@@ -116,7 +124,7 @@ export function DroneBookingWizard({ shopId, models }: { shopId: string; models:
         durationMinutes,
         startTime: selectedStart.toISOString(),
         batteries,
-        withController,
+        controller,
         name,
         phone,
         email,
@@ -153,40 +161,16 @@ export function DroneBookingWizard({ shopId, models }: { shopId: string; models:
           </div>
         )}
 
-        {profile.controllerOptional && (
-          <div>
-            <p className="mb-2 text-sm font-medium">Controller?</p>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { with: false, title: "Drone only", note: "Phone only" },
-                { with: true, title: "With controller", note: "Controller + phone" },
-              ].map((o) => (
-                <button
-                  key={o.title}
-                  type="button"
-                  onClick={() => setWantsController(o.with)}
-                  aria-pressed={withController === o.with}
-                  className={`rounded-xl border px-3 py-3 text-center ${withController === o.with ? selectedClass : idleClass}`}
-                >
-                  <span className="block text-sm font-semibold">{o.title}</span>
-                  <span className={`block text-xs ${withController === o.with ? "opacity-80" : "text-zinc-500"}`}>
-                    {formatMyr(hourlyRateFor(model, o.with))} per hour · {o.note}
-                  </span>
-                </button>
-              ))}
-            </div>
-            {!withController && <p className="mt-2 text-xs text-zinc-500">You fly it from your own phone with the DJI Fly app, so bring a phone with it installed.</p>}
-          </div>
-        )}
+        <ControllerChoice model={model} options={controllerOptions} value={controller} onChange={setPickedController} />
 
         <div className="rounded-2xl border border-zinc-200 p-5 dark:border-zinc-800">
-          <p className="font-semibold text-black dark:text-zinc-50">{withController ? profile.name : profile.shortName}</p>
+          <p className="font-semibold text-black dark:text-zinc-50">{withController ? `${profile.shortName} + ${controllerLabel(model, controller)}` : profile.shortName}</p>
           <p className="mt-0.5 text-sm text-zinc-500">{formatMyr(hourly)} per hour, plus batteries</p>
           <ul className="mt-4 space-y-1.5 text-sm text-zinc-600 dark:text-zinc-400">
-            <li>{withController ? "Drone and controller" : "The drone"}, with the batteries you choose, all charged at the shop</li>
+            <li>{withController ? `The drone and the ${controllerLabel(model, controller)}` : "The drone"}, with the batteries you choose, all charged at the shop</li>
             <li>
-              {formatMyr(deposit)} deposit: a hold on your card, not a charge (drone {formatMyr(profile.depositDroneMyr)}
-              {withController && <>, controller {formatMyr(profile.depositControllerMyr)}</>}). Released when everything comes back in good condition
+              {formatMyr(deposit)} deposit: a hold on your card, not a charge
+              {withController && <> (drone {formatMyr(profile.depositDroneMyr)}, {controllerLabel(model, controller)} {formatMyr(controllerDepositFor(model, controller))})</>}. Released when everything comes back in good condition
             </li>
           </ul>
         </div>
@@ -333,10 +317,10 @@ export function DroneBookingWizard({ shopId, models }: { shopId: string; models:
               <span className="font-medium">{profile.shortName}</span>
             </div>
           )}
-          {profile.controllerOptional && (
+          {controllerOptions.length > 1 && (
             <div className="flex justify-between gap-4">
-              <span className="text-zinc-500">Controller</span>
-              <span className="font-medium">{withController ? "Included" : "No, phone only"}</span>
+              <span className="text-zinc-500">Flying with</span>
+              <span className="font-medium">{controllerLabel(model, controller)}</span>
             </div>
           )}
           <div className="flex justify-between gap-4">

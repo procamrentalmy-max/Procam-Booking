@@ -5,31 +5,34 @@ import { uuidSchema } from "@/lib/zod-helpers";
 import { buildShopFleetSnapshot } from "@/lib/droneRental/snapshot";
 import { computeUnavailableStarts } from "@/lib/droneRental/slots";
 import { isWithinOperatingHours } from "@/lib/droneRental/hours";
-import { isValidRentalMinutes, ENABLED_DRONE_MODELS, type DroneModel } from "@/lib/droneRental/pricingRules";
-import { findOrCreateCustomer, createPendingDroneBooking, NoDroneAvailableError } from "@/lib/droneRental/createBooking";
+import { isValidRentalMinutes, CONTROLLER_KINDS, ENABLED_DRONE_MODELS, effectiveController, type ControllerKind, type DroneModel } from "@/lib/droneRental/pricingRules";
+import { findOrCreateCustomer, createPendingDroneBooking, NoControllerAvailableError, NoDroneAvailableError } from "@/lib/droneRental/createBooking";
 
 const rentalMinutesSchema = z.number().refine(isValidRentalMinutes, "Choose a rental length of 1 to 6 hours.");
 
 const modelSchema = z.enum(ENABLED_DRONE_MODELS).default("NEO2");
+const controllerSchema = z.enum(CONTROLLER_KINDS).default("NONE");
 
 const unavailableStartsSchema = z.object({
   shopId: uuidSchema,
   model: modelSchema,
+  controller: controllerSchema,
   durationMinutes: rentalMinutesSchema,
   starts: z.array(z.string().min(1)).max(64),
 });
 
-/** Which of the candidate 30-minute start times have no drone free for the selected duration — greys out slots in the table before the customer even taps one. */
+/** Which of the candidate 30-minute start times have no drone (and, with a controller, no controller of that kind) free for the selected duration — greys out slots in the table before the customer even taps one. */
 export async function getUnavailableDroneStartsAction(input: {
   shopId: string;
   model?: DroneModel;
+  controller?: ControllerKind;
   durationMinutes: number;
   starts: string[];
 }): Promise<{ unavailable: boolean[] }> {
   const parsed = unavailableStartsSchema.parse(input);
-  const snapshot = await buildShopFleetSnapshot(parsed.shopId, parsed.model);
+  const snapshot = await buildShopFleetSnapshot(parsed.shopId, parsed.model, effectiveController(parsed.model, parsed.controller));
   const dates = parsed.starts.map((s) => new Date(s));
-  const noDrone = computeUnavailableStarts(snapshot.drones, snapshot.bookings, parsed.durationMinutes, dates);
+  const noDrone = computeUnavailableStarts(snapshot.drones, snapshot.bookings, parsed.durationMinutes, dates, snapshot.controllers);
   // A start the shop is closed for (before opening, or running past closing) is unavailable too.
   const unavailable = dates.map((d, i) => noDrone[i] || !isWithinOperatingHours(d, parsed.durationMinutes));
   return { unavailable };
@@ -41,7 +44,7 @@ const createBookingSchema = z.object({
   durationMinutes: rentalMinutesSchema,
   startTime: z.string().min(1),
   batteries: z.union([z.literal(1), z.literal(2)]),
-  withController: z.boolean().default(true),
+  controller: controllerSchema,
   name: z.string().trim().min(1, "Enter your name"),
   phone: z.string().trim().regex(/^[0-9+\-()\s]{6,30}$/, "Enter a valid phone number"),
   email: z.string().trim().email("Enter a valid email"),
@@ -53,8 +56,8 @@ export async function createDroneBookingAction(input: {
   durationMinutes: number;
   startTime: string;
   batteries: 1 | 2;
-  /** Whether to rent the controller too; only the Neo 2 offers a choice, any other drone always comes with its own. */
-  withController?: boolean;
+  /** How they will fly it: "NONE" (their own phone), "RC_N3" or "GOGGLES_N3". */
+  controller?: ControllerKind;
   name: string;
   phone: string;
   email: string;
@@ -76,11 +79,12 @@ export async function createDroneBookingAction(input: {
       startTime: start,
       batteries: data.batteries,
       model: data.model,
-      withController: data.withController,
+      controller: data.controller,
     });
     return { secureToken: booking.secure_token, startTime: booking.start_time, endTime: booking.end_time };
   } catch (err) {
     if (err instanceof NoDroneAvailableError) throw new Error("Sorry, that time was just taken — pick another slot.");
+    if (err instanceof NoControllerAvailableError) throw new Error(`Sorry, the ${err.controller} was just taken for that time — pick another slot or another way to fly.`);
     throw err;
   }
 }

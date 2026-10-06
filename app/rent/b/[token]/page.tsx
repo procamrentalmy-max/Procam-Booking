@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
-import { formatMyr, modelProfile } from "@/lib/droneRental/pricingRules";
+import { controllerProfileFor, formatMyr, includesController, modelProfile, storedController } from "@/lib/droneRental/pricingRules";
 import { generateQrDataUrl } from "@/lib/qr";
 import { requestOrigin } from "@/lib/requestOrigin";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
@@ -31,10 +31,11 @@ export default async function DroneBookingDashboardPage({ params }: { params: Pr
 
   const { data: booking } = await supabase
     .from("dr_bookings")
-    .select("human_id,status,source,start_time,end_time,shop_id,drone_id,rental_fee_myr,deposit_myr,checked_in_at,batteries_count,drone_model,with_controller")
+    .select("human_id,status,source,start_time,end_time,shop_id,drone_id,rental_fee_myr,deposit_myr,checked_in_at,batteries_count,drone_model,controller_kind")
     .eq("secure_token", token)
     .maybeSingle();
   if (!booking) notFound();
+  const controller = storedController(booking.drone_model, booking.controller_kind);
 
   const [{ data: shop }, { data: drone }] = await Promise.all([
     supabase.from("dr_shops").select("name,address,google_maps_url").eq("id", booking.shop_id).single(),
@@ -105,7 +106,7 @@ export default async function DroneBookingDashboardPage({ params }: { params: Pr
 
       {STATUS_MESSAGES[booking.status] && (
         <p className="rounded-xl border border-zinc-200 p-4 text-center text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
-          {booking.status === "ACTIVE" && !booking.with_controller ? "Please return the drone and all batteries to the shop by your return time." : STATUS_MESSAGES[booking.status]}
+          {booking.status === "ACTIVE" && !includesController(booking.drone_model, controller) ? "Please return the drone and all batteries to the shop by your return time." : STATUS_MESSAGES[booking.status]}
         </p>
       )}
 
@@ -122,7 +123,7 @@ export default async function DroneBookingDashboardPage({ params }: { params: Pr
         <Row label="Shop" value={shop?.name ?? "—"} />
         <Row label="Address" value={shop?.address ?? "—"} />
         <Row label="Drone" value={`${modelProfile(booking.drone_model).shortName} · ${drone?.human_id ?? "—"}`} />
-        <Row label="Includes" value={`${booking.with_controller ? `Drone, ${modelProfile(booking.drone_model).controllerName}` : "Drone only (fly it from your phone)"}, ${booking.batteries_count} ${booking.batteries_count === 1 ? "battery" : "batteries"}`} />
+        <Row label="Includes" value={`${includesController(booking.drone_model, controller) ? `Drone, ${controllerProfileFor(booking.drone_model, controller)?.name}` : "Drone only (fly it from your phone)"}, ${booking.batteries_count} ${booking.batteries_count === 1 ? "battery" : "batteries"}`} />
         {walkInNotStarted && <Row label="Length" value={lengthLabel} />}
         {booking.status !== "CONFIRMED" && booking.status !== "ACTIVE" && !walkInNotStarted && (
           <>

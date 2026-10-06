@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { MAX_RENTAL_HOURS, MIN_RENTAL_HOURS, hourlyRateFor, includesController, modelProfile } from "@/lib/droneRental/pricingRules";
+import { MAX_RENTAL_HOURS, MIN_RENTAL_HOURS, controllerLabel, hourlyRateFor, modelProfile, storedController } from "@/lib/droneRental/pricingRules";
 import { BarChart, DonutChart, Heatmap } from "../../sales/charts";
 
 // Drone rental only: reads the dr_* tables and nothing else, so the old locker/camera sales page (/admin/sales) and its
@@ -63,7 +63,7 @@ export default async function DroneSalesPage({ searchParams }: { searchParams: P
     supabase
       .from("dr_bookings")
       .select(
-        "id,status,source,customer_id,shop_id,drone_id,start_time,end_time,batteries_count,drone_model,with_controller,rental_fee_myr,drone_charge_myr,controller_charge_myr,drone_outcome,controller_outcome",
+        "id,status,source,customer_id,shop_id,drone_id,start_time,end_time,batteries_count,drone_model,controller_kind,rental_fee_myr,drone_charge_myr,controller_charge_myr,drone_outcome,controller_outcome",
       ),
     supabase.from("dr_shops").select("id,name"),
     supabase.from("dr_drones").select("id,human_id,shop_id,status,cost_price_myr,model_key"),
@@ -135,12 +135,13 @@ export default async function DroneSalesPage({ searchParams }: { searchParams: P
     // Paid length, worked back from the rental fee (walk-ins end on a rounded time, so end minus start isn't what was paid for).
     const profile = modelProfile(b.drone_model);
     const batteryFee = profile.batteryFeeMyr[b.batteries_count as 1 | 2] ?? 0;
-    const paidHours = (p.rental - batteryFee) / hourlyRateFor(b.drone_model, b.with_controller);
+    const controller = storedController(b.drone_model, b.controller_kind);
+    const paidHours = (p.rental - batteryFee) / hourlyRateFor(b.drone_model, controller);
     const validLength = Number.isInteger(paidHours) && paidHours >= MIN_RENTAL_HOURS && paidHours <= MAX_RENTAL_HOURS;
     bump(byLength, validLength ? `${paidHours} hour${paidHours === 1 ? "" : "s"}` : "Other", p.total);
 
     bump(byModel, profile.shortName, p.total);
-    if (profile.controllerOptional) bump(byController, includesController(b.drone_model, b.with_controller) ? "With controller" : "Drone only", p.total);
+    bump(byController, controllerLabel(b.drone_model, controller), p.total);
     bump(byBatteries, `${b.batteries_count} ${b.batteries_count === 1 ? "battery" : "batteries"}`, p.total);
     bump(bySource, b.source === "MERCHANT_INSTANT" ? "Walk-in at the shop" : "Booked online", p.total);
 
@@ -252,7 +253,7 @@ export default async function DroneSalesPage({ searchParams }: { searchParams: P
         />
       </Section>
 
-      <Section title="Drone only or with controller" note="Neo 2 rentals: with the RC-N3 controller (RM5 an hour more) or flown from the customer's own phone.">
+      <Section title="How they flew it" note="Their own phone, the RC-N3 controller (RM5 an hour more) or the Goggles N3 + Motion 3 set (RM10 an hour more).">
         <DonutChart data={controllerRows.map((r) => ({ label: r.name, value: r.revenue }))} formatValue={myr} />
       </Section>
 

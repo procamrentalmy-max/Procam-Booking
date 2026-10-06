@@ -91,6 +91,27 @@ export function findEligibleDrone(
   return candidates[0]?.id ?? null;
 }
 
+/**
+ * The controllers of one kind at a shop, set up like drones (an id, a number, a status, and the bookings that hold them) so the
+ * same "free for this time?" check works on both. A rental that comes with a controller needs a drone AND a controller free.
+ */
+export type ControllerPool = { candidates: DroneCandidate[]; bookings: BookingWindow[] };
+
+/** A drone free for [start, end), and (when the rental has a controller) one of that kind free too; or null if either is missing. */
+export function findEligibleResources(
+  drones: readonly DroneCandidate[],
+  bookings: readonly BookingWindow[],
+  controllers: ControllerPool | null,
+  start: Date,
+  end: Date
+): { droneId: string; controllerId: string | null } | null {
+  const droneId = findEligibleDrone(drones, bookings, start, end);
+  if (!droneId) return null;
+  if (!controllers) return { droneId, controllerId: null };
+  const controllerId = findEligibleDrone(controllers.candidates, controllers.bookings, start, end);
+  return controllerId ? { droneId, controllerId } : null;
+}
+
 export type SlotResult =
   | { outcome: "CONFIRM"; droneId: string; startTime: Date; endTime: Date }
   | { outcome: "NEXT_FEASIBLE_SLOT"; droneId: string; startTime: Date; endTime: Date }
@@ -108,7 +129,8 @@ export function findNextAvailableSlot(
   bookings: readonly BookingWindow[],
   durationMinutes: number,
   earliestStartTime: Date,
-  maxLookaheadSlots: number = 96 // 48 hours at 30-minute steps
+  maxLookaheadSlots: number = 96, // 48 hours at 30-minute steps
+  controllers: ControllerPool | null = null
 ): SlotResult {
   if (durationMinutes <= 0) {
     throw new InvalidDroneBookingRequestError(`durationMinutes must be positive, got ${durationMinutes}`);
@@ -120,7 +142,7 @@ export function findNextAvailableSlot(
   for (let i = 0; i <= maxLookaheadSlots; i++) {
     const startTime = new Date(requestedStart.getTime() + i * SLOT_INTERVAL_MINUTES * 60_000);
     const endTime = new Date(startTime.getTime() + durationMs);
-    const droneId = findEligibleDrone(drones, bookings, startTime, endTime);
+    const droneId = findEligibleResources(drones, bookings, controllers, startTime, endTime)?.droneId;
     if (droneId) {
       return i === 0
         ? { outcome: "CONFIRM", droneId, startTime, endTime }
@@ -141,12 +163,13 @@ export function computeUnavailableStarts(
   drones: readonly DroneCandidate[],
   bookings: readonly BookingWindow[],
   durationMinutes: number,
-  candidateStarts: readonly Date[]
+  candidateStarts: readonly Date[],
+  controllers: ControllerPool | null = null
 ): boolean[] {
   const durationMs = durationMinutes * 60_000;
   return candidateStarts.map((start) => {
     const end = new Date(start.getTime() + durationMs);
-    return !findEligibleDrone(drones, bookings, start, end);
+    return !findEligibleResources(drones, bookings, controllers, start, end);
   });
 }
 

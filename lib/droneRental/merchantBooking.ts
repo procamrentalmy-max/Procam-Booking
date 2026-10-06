@@ -1,4 +1,4 @@
-import { TERMINAL_BOOKING_STATUSES, alignToNextInterval, type BookingWindow, type DroneCandidate } from "./slots";
+import { TERMINAL_BOOKING_STATUSES, alignToNextInterval, findEligibleDrone, type BookingWindow, type ControllerPool, type DroneCandidate } from "./slots";
 
 /**
  * Merchant "instant" bookings are for walk-ins at the shop — they start
@@ -95,7 +95,19 @@ export function eligibleWalkInDrones(
     .sort((a, b) => a.humanId.localeCompare(b.humanId));
 }
 
-/** Every walk-in length (in minutes) at least one drone at the shop could take right now: what a customer scanning the shop's QR can choose from. */
-export function walkInDurationsForShop(drones: readonly DroneCandidate[], bookings: readonly BookingWindow[], now: Date): number[] {
-  return MERCHANT_OFFERED_DURATIONS_HOURS.map((h) => h * 60).filter((minutes) => eligibleWalkInDrones(drones, bookings, minutes, now).length > 0);
+/**
+ * Every walk-in length (in minutes) at least one drone at the shop could take right now: what a customer scanning the shop's QR can choose from.
+ * With a controller pool, a controller of that kind also has to be free for the whole length.
+ */
+export function walkInDurationsForShop(
+  drones: readonly DroneCandidate[],
+  bookings: readonly BookingWindow[],
+  now: Date,
+  controllers: ControllerPool | null = null
+): number[] {
+  return MERCHANT_OFFERED_DURATIONS_HOURS.map((h) => h * 60).filter(
+    (minutes) =>
+      eligibleWalkInDrones(drones, bookings, minutes, now).length > 0 &&
+      (!controllers || findEligibleDrone(controllers.candidates, controllers.bookings, now, new Date(now.getTime() + minutes * 60_000)) !== null)
+  );
 }

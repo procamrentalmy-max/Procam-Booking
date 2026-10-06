@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
+import { ControllerChoice } from "@/components/droneRental/ControllerChoice";
 import {
   BATTERY_OPTIONS,
   DEFAULT_BATTERIES,
@@ -11,31 +12,33 @@ import {
   depositMyrFor,
   formatMyr,
   hourlyRateFor,
-  includesController,
   rentalFeeMyr,
   type BatteryCount,
+  type ControllerKind,
   type DroneModel,
 } from "@/lib/droneRental/pricingRules";
+import type { WalkInOptions } from "@/lib/droneRental/walkInRequests";
 import { submitWalkInOrderAction } from "./actions";
 
 const selectedClass = "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black";
 const idleClass = "border-zinc-300 dark:border-zinc-700";
 
-export function WalkInOrderForm({ code, optionsByModel }: { code: string; optionsByModel: Partial<Record<DroneModel, number[]>> }) {
+export function WalkInOrderForm({ code, options }: { code: string; options: WalkInOptions }) {
   const router = useRouter();
-  const models = ENABLED_DRONE_MODELS.filter((m) => (optionsByModel[m] ?? []).length > 0);
+  const models = ENABLED_DRONE_MODELS.filter((m) => Object.keys(options[m] ?? {}).length > 0);
   const [model, setModel] = useState<DroneModel>(models.includes("NEO2") ? "NEO2" : models[0]);
-  const durationsMinutes = optionsByModel[model] ?? [];
   const profile = DRONE_MODEL_PROFILES[model];
+  // How they can fly this drone right now: only the ways that still have a length on offer (a controller out with someone else drops off).
+  const controllerOptions = profile.controllerOptions.filter((o) => (options[model]?.[o] ?? []).length > 0);
+  const [pickedController, setPickedController] = useState<ControllerKind>("NONE");
+  const controller = controllerOptions.includes(pickedController) ? pickedController : controllerOptions[0];
+  const durationsMinutes = options[model]?.[controller] ?? [];
   const [chosenMinutes, setChosenMinutes] = useState(durationsMinutes[0] ?? 60);
   // Another model may offer different lengths; fall back to its first if the current pick isn't on offer.
   const durationMinutes = durationsMinutes.includes(chosenMinutes) ? chosenMinutes : (durationsMinutes[0] ?? 60);
   const setDurationMinutes = setChosenMinutes;
   const [batteries, setBatteries] = useState<BatteryCount>(DEFAULT_BATTERIES);
-  // Only some drones can be rented without their controller; the others always come with it.
-  const [wantsController, setWantsController] = useState(true);
-  const withController = includesController(model, wantsController);
-  const hourly = hourlyRateFor(model, withController);
+  const hourly = hourlyRateFor(model, controller);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -45,7 +48,7 @@ export function WalkInOrderForm({ code, optionsByModel }: { code: string; option
   async function submit() {
     setLoading(true);
     setError(null);
-    const result = await submitWalkInOrderAction({ code, durationMinutes, batteries, model, withController, name, phone, email });
+    const result = await submitWalkInOrderAction({ code, durationMinutes, batteries, model, controller, name, phone, email });
     if (result.ok) {
       router.push(`/rent/w/${result.token}`);
       return;
@@ -82,31 +85,7 @@ export function WalkInOrderForm({ code, optionsByModel }: { code: string; option
         </div>
       )}
 
-      {profile.controllerOptional && (
-        <div>
-          <p className="mb-2 text-sm font-medium">Controller?</p>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { with: false, title: "Drone only", note: "Phone only" },
-              { with: true, title: "With controller", note: "Controller + phone" },
-            ].map((o) => (
-              <button
-                key={o.title}
-                type="button"
-                onClick={() => setWantsController(o.with)}
-                aria-pressed={withController === o.with}
-                className={`rounded-xl border px-3 py-3 text-center ${withController === o.with ? selectedClass : idleClass}`}
-              >
-                <span className="block text-sm font-semibold">{o.title}</span>
-                <span className={`block text-xs ${withController === o.with ? "opacity-80" : "text-zinc-500"}`}>
-                  {formatMyr(hourlyRateFor(model, o.with))} per hour · {o.note}
-                </span>
-              </button>
-            ))}
-          </div>
-          {!withController && <p className="mt-2 text-xs text-zinc-500">You fly it from your own phone with the DJI Fly app, so have it installed.</p>}
-        </div>
-      )}
+      <ControllerChoice model={model} options={controllerOptions} value={controller} onChange={setPickedController} />
 
       <div>
         <p className="mb-2 text-sm font-medium">How long do you need it?</p>
@@ -152,11 +131,11 @@ export function WalkInOrderForm({ code, optionsByModel }: { code: string; option
       <div className="space-y-1 rounded-2xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">
         <div className="flex justify-between gap-4">
           <span className="text-zinc-500">Rental fee</span>
-          <span className="font-semibold">{formatMyr(rentalFeeMyr(durationMinutes, batteries, model, withController))}</span>
+          <span className="font-semibold">{formatMyr(rentalFeeMyr(durationMinutes, batteries, model, controller))}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span className="text-zinc-500">Deposit, held on your card</span>
-          <span className="font-medium">{formatMyr(depositMyrFor(model, withController))}</span>
+          <span className="font-medium">{formatMyr(depositMyrFor(model, controller))}</span>
         </div>
         <p className="pt-1 text-xs text-zinc-400">The deposit is only a hold. It&apos;s released when you return everything in good condition.</p>
       </div>

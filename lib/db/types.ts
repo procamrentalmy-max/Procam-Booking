@@ -577,7 +577,7 @@ export type DrDroneRow = {
   human_id: string;
   shop_id: string;
   model: string;
-  /** Which rental model this drone is: "NEO2" or "GT50" (see lib/droneRental/pricingRules.ts). */
+  /** Which rental model this drone is: "NEO2", "NEO" or "GT50" (see lib/droneRental/pricingRules.ts). */
   model_key: string;
   serial_number: string | null;
   cost_price_myr: number;
@@ -587,11 +587,17 @@ export type DrDroneRow = {
   updated_at: string;
 };
 
-/** A drone's controller, numbered CTR-001, CTR-002, ... across all shops in the order added (a parked GT50 model would get CTG-001, ...). One per drone. */
+/**
+ * A controller the shop rents out with a drone: an RC-N3 (CTR-001, CTR-002, ...) or a Goggles N3 + Motion 3 set (GOG-001, ...),
+ * numbered across all shops in the order added. Each belongs to a shop and goes out with whichever drone the booking has.
+ */
 export type DrControllerRow = {
   id: string;
   human_id: string;
-  drone_id: string;
+  shop_id: string;
+  kind: "RC_N3" | "GOGGLES_N3";
+  /** Not used any more: controllers used to belong one-to-one to a drone. */
+  drone_id: string | null;
   created_at: string;
 };
 
@@ -625,9 +631,13 @@ export type DrBookingRow = {
   checked_in_by_staff_id: string | null;
   /** How many batteries the customer chose at booking (1 or 2). */
   batteries_count: number;
-  /** Whether the controller goes out with the drone (a Neo 2 can be rented without it: RM5 an hour less, a smaller deposit). */
+  /** Kept equal to controller_kind <> 'NONE' by a trigger, for the previous release; read controller_kind instead. */
   with_controller: boolean;
-  /** Which model was booked: "NEO2" or "GT50". Decides the prices, the deposit and whether handover needs photos. */
+  /** How the customer flies it: "NONE" (their own phone), "RC_N3" or "GOGGLES_N3". Decides the price, the late fee and the deposit. */
+  controller_kind: "NONE" | "RC_N3" | "GOGGLES_N3";
+  /** The shop's controller set aside for this booking; null for a phone-only booking (and for bookings made before controllers were tracked per booking). */
+  controller_id: string | null;
+  /** Which model was booked: "NEO2", "NEO" or "GT50". Decides the prices, the deposit and whether handover needs photos. */
   drone_model: string;
   rental_fee_myr: number;
   deposit_myr: number;
@@ -727,8 +737,10 @@ export type DrWalkInRequestRow = {
   duration_minutes: number;
   batteries_count: number;
   drone_model: string;
-  /** Whether the customer asked for the controller as well as the drone. */
+  /** Kept equal to controller_kind <> 'NONE' by a trigger, for the previous release; read controller_kind instead. */
   with_controller: boolean;
+  /** What the customer asked to fly it with: "NONE" (their own phone), "RC_N3" or "GOGGLES_N3". */
+  controller_kind: "NONE" | "RC_N3" | "GOGGLES_N3";
   created_by_staff_id: string | null;
   status: DrWalkInStatus;
   customer_name: string | null;
@@ -850,6 +862,8 @@ export interface Database {
           p_created_by_staff_id?: string | null;
           p_batteries_count?: number;
           p_drone_model?: string;
+          p_controller_kind?: string;
+          p_controller_id?: string | null;
         };
         Returns: DrBookingRow;
       };

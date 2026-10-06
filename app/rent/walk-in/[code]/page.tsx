@@ -13,8 +13,8 @@ export default async function WalkInOrderPage({ params }: { params: Promise<{ co
   const shop = await findShopByWalkInCode(code);
   if (!shop) notFound();
 
-  const [optionsByModel, logoUrl] = await Promise.all([walkInOptionsByModel(shop.id), getLogoUrl()]);
-  const offered = Object.keys(optionsByModel).length > 0;
+  const [options, logoUrl] = await Promise.all([walkInOptionsByModel(shop.id), getLogoUrl()]);
+  const offered = Object.keys(options).length > 0;
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-5 px-6 py-6">
@@ -22,7 +22,7 @@ export default async function WalkInOrderPage({ params }: { params: Promise<{ co
       <div>
         <p className="text-xs uppercase tracking-wide text-zinc-400">{shop.name}</p>
         <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">Rent a drone now</h1>
-        <p className="mt-1 text-sm text-zinc-500">A drone, charged and ready at this shop, with or without its controller.</p>
+        <p className="mt-1 text-sm text-zinc-500">A drone, charged and ready at this shop. Fly it from your phone, or add a controller.</p>
       </div>
 
       {!offered ? (
@@ -31,7 +31,7 @@ export default async function WalkInOrderPage({ params }: { params: Promise<{ co
           <p className="mt-1 text-sm text-zinc-500">Please ask the staff when one will be back.</p>
         </div>
       ) : (
-        <WalkInOrderForm code={code} optionsByModel={optionsByModel} />
+        <WalkInOrderForm code={code} options={options} />
       )}
     </div>
   );

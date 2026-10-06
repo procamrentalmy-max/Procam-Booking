@@ -82,16 +82,43 @@ export async function createDroneAction(formData: FormData) {
     .single();
   if (error || !drone) throw new Error(error?.message ?? "Could not create the drone.");
 
-  // Every drone comes with a controller, numbered CTR-001, CTR-002, ... across all shops in the order added (a parked GT50's would be CTG-001, ...).
-  const { error: controllerError } = await supabase.from("dr_controllers").insert({ drone_id: drone.id });
-  if (controllerError) throw new Error(controllerError.message);
+  // Controllers are separate from drones (see createControllerAction): a customer picks the RC-N3, the goggles set or neither per rental.
 
-  // Named by make (B1, B2... for the Neo 2; a parked GT50's would be A1, A2...), carrying on from the highest number already used
+  // Named by make (B1, B2... for the Neo 2, N1, N2... for the Neo; a parked GT50's would be A1, A2...), carrying on from the highest number already used
   // for that letter in this shop, so each battery can carry a matching sticker; rename them from this page.
   const { data: shopBatteries } = await supabase.from("dr_batteries").select("name").eq("shop_id", parsed.data.shopId);
   const names = nextBatteryNames((shopBatteries ?? []).map((b) => b.name), 3, DRONE_MODEL_PROFILES[parsed.data.model].batteryPrefix);
   const { error: batteryError } = await supabase.from("dr_batteries").insert(names.map((name) => ({ drone_id: drone.id, name })));
   if (batteryError) throw new Error(batteryError.code === "23505" ? "One of the new batteries' names is already taken in this shop. Rename it, then add the drone's batteries by hand." : batteryError.message);
+
+  revalidatePath("/admin/drone-rental");
+}
+
+const createControllerSchema = z.object({
+  shopId: uuidSchema,
+  kind: z.enum(["RC_N3", "GOGGLES_N3"]),
+});
+
+/** Adds a controller to a shop's pool: an RC-N3 (CTR-001, ...) or a Goggles N3 + Motion 3 set (GOG-001, ...). Customers can only pick what the shop has. */
+export async function createControllerAction(formData: FormData) {
+  const parsed = createControllerSchema.safeParse({ shopId: formData.get("shopId"), kind: formData.get("kind") });
+  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.from("dr_controllers").insert({ shop_id: parsed.data.shopId, kind: parsed.data.kind });
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/admin/drone-rental");
+}
+
+/** Removes a controller that has never been on a booking (one that has is kept for the records; mark a lost one in the notes instead). */
+export async function deleteControllerAction(formData: FormData) {
+  const parsed = z.object({ id: uuidSchema }).safeParse({ id: formData.get("id") });
+  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.from("dr_controllers").delete().eq("id", parsed.data.id);
+  if (error) throw new Error(error.code === "23503" ? "This controller has been on a booking, so it can't be removed." : error.message);
 
   revalidatePath("/admin/drone-rental");
 }

@@ -8,9 +8,13 @@ import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import {
   DRONE_MODEL_PROFILES,
   computeDepositCapture,
+  controllerDepositFor,
+  controllerProfileFor,
   depositMyrFor,
   DepositCaptureError,
   formatMyr,
+  includesController,
+  type ControllerKind,
   type DroneModel,
   type ItemOutcome,
 } from "@/lib/droneRental/pricingRules";
@@ -83,12 +87,12 @@ export function ReturnForm({
   holdOnFile,
   model,
   controllerCode,
-  withController,
+  controller,
 }: {
   /** The controller's number (CTR-001) for the controller's verdict card; null if it has none. */
   controllerCode: string | null;
-  /** False when the drone was rented without its controller: nothing was held for one, so there is no controller verdict. */
-  withController: boolean;
+  /** What went out with the drone (none, the RC-N3 or the goggles set). With none nothing was held for a controller, so there is no controller verdict. */
+  controller: ControllerKind;
   model: DroneModel;
   bookingId: string;
   checklistItems: { item_key: string; label: string }[];
@@ -97,9 +101,11 @@ export function ReturnForm({
 }) {
   const router = useRouter();
   const profile = DRONE_MODEL_PROFILES[model];
-  const deposit = depositMyrFor(model, withController);
+  const withController = includesController(model, controller);
+  const controllerProfile = controllerProfileFor(model, controller);
+  const deposit = depositMyrFor(model, controller);
   // A model with no photo pages (the GT50) goes straight to the checklist and the deposit verdict.
-  const steps = profile.photosRequired ? dronePhotoSteps(profile, withController) : [];
+  const steps = profile.photosRequired ? dronePhotoSteps(model, controller) : [];
   const [step, setStep] = useState(0); // 0..steps.length-1 are the guided photos; steps.length is the verdict page
   const [photos, setPhotos] = useState<Record<string, File>>({});
   const [acks, setAcks] = useState<Record<string, boolean>>(() => Object.fromEntries(checklistItems.map((i) => [i.item_key, false])));
@@ -121,7 +127,7 @@ export function ReturnForm({
     capture = computeDepositCapture(
       { outcome: droneOutcome, damageMyr: droneDamage === "" ? undefined : Number(droneDamage) },
       { outcome: controllerOutcome, damageMyr: controllerDamage === "" ? undefined : Number(controllerDamage) },
-      model, withController);
+      model, controller);
   } catch (err) {
     captureProblem = err instanceof DepositCaptureError ? err.message : "Check the amounts.";
   }
@@ -249,8 +255,8 @@ export function ReturnForm({
         />
         {withController && (
           <ItemVerdict
-            title={controllerCode ? `Controller ${controllerCode}` : profile.controllerName}
-            heldMyr={profile.depositControllerMyr}
+            title={controllerCode ? `${controllerProfile?.shortName} ${controllerCode}` : (controllerProfile?.name ?? "Controller")}
+            heldMyr={controllerDepositFor(model, controller)}
             outcome={controllerOutcome}
             damage={controllerDamage}
             onOutcome={setControllerOutcome}

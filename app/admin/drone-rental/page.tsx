@@ -2,11 +2,13 @@ import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
-import { ENABLED_DRONE_MODELS, DRONE_MODEL_PROFILES, formatMyr, modelProfile } from "@/lib/droneRental/pricingRules";
+import { ENABLED_DRONE_MODELS, CONTROLLER_PROFILES, DRONE_MODEL_PROFILES, formatMyr, modelProfile } from "@/lib/droneRental/pricingRules";
 import {
   createShopAction,
   setShopActiveAction,
   createDroneAction,
+  createControllerAction,
+  deleteControllerAction,
   setDroneStatusAction,
   renameBatteryAction,
   assignMerchantShopsAction,
@@ -49,7 +51,7 @@ export default async function DroneRentalAdminPage() {
       supabase.from("dr_shops").select("id,human_id,name,address,lat,lng,active").order("created_at", { ascending: true }),
       supabase.from("dr_drones").select("id,human_id,shop_id,status,serial_number,cost_price_myr,model_key").order("human_id"),
       supabase.from("dr_batteries").select("id,human_id,name,drone_id,status").order("human_id"),
-      supabase.from("dr_controllers").select("drone_id,human_id"),
+      supabase.from("dr_controllers").select("id,human_id,shop_id,kind").order("human_id"),
       supabase.from("staff_users").select("id,name,active").eq("role", "DRONE_MERCHANT"),
       supabase.from("dr_merchant_shops").select("staff_user_id,shop_id"),
       supabase
@@ -75,7 +77,6 @@ export default async function DroneRentalAdminPage() {
   }
   const batteriesByDrone = new Map<string, NonNullable<typeof batteries>>();
   for (const b of batteries ?? []) batteriesByDrone.set(b.drone_id, [...(batteriesByDrone.get(b.drone_id) ?? []), b]);
-  const controllerByDrone = new Map((controllers ?? []).map((c) => [c.drone_id, c.human_id]));
   const shopNameById = new Map((shops ?? []).map((s) => [s.id, s.name]));
   const droneHumanById = new Map((drones ?? []).map((d) => [d.id, d.human_id]));
   const assignedShopIdsByMerchant = new Map<string, Set<string>>();
@@ -183,6 +184,47 @@ export default async function DroneRentalAdminPage() {
       </section>
 
       <section className="space-y-3">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">Controllers</h2>
+        <p className="text-xs text-zinc-500">
+          What a customer can add to a drone: the RC-N3 controller or the Goggles N3 + Motion 3 set. A shop only offers the kinds it has here, and each is on one booking at a time.
+        </p>
+        {(controllers ?? []).map((c) => (
+          <div key={c.id} className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">
+            <p className="text-sm">
+              <span className="font-medium">{c.human_id}</span> · {CONTROLLER_PROFILES[c.kind].name} — {shopNameById.get(c.shop_id) ?? "—"}
+            </p>
+            <form action={deleteControllerAction}>
+              <input type="hidden" name="id" value={c.id} />
+              <button type="submit" className="text-xs text-red-600 underline underline-offset-2">
+                Remove
+              </button>
+            </form>
+          </div>
+        ))}
+        {(controllers ?? []).length === 0 && <p className="text-sm text-zinc-400">No controllers yet: customers can only rent drones to fly from their own phone.</p>}
+        <details className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+          <summary className="cursor-pointer text-sm font-semibold">Add a controller</summary>
+          <form action={createControllerAction} className="mt-3 grid gap-2 sm:grid-cols-2">
+            <select name="kind" required defaultValue="RC_N3" className={inputClass}>
+              <option value="RC_N3">{CONTROLLER_PROFILES.RC_N3.name}</option>
+              <option value="GOGGLES_N3">{CONTROLLER_PROFILES.GOGGLES_N3.name}</option>
+            </select>
+            <select name="shopId" required className={inputClass}>
+              <option value="">Select shop…</option>
+              {(shops ?? []).map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+            <button type="submit" className={`${primaryButtonClass} sm:col-span-2`}>
+              Add controller
+            </button>
+          </form>
+        </details>
+      </section>
+
+      <section className="space-y-3">
         <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">Drones</h2>
         {(drones ?? []).map((d) => {
           const batteryCount = batteryCountByDrone.get(d.id) ?? { total: 0, atShop: 0 };
@@ -194,7 +236,7 @@ export default async function DroneRentalAdminPage() {
                   {d.human_id} · {modelProfile(d.model_key).shortName} — {shopNameById.get(d.shop_id) ?? "—"}
                 </p>
                 <p className="text-sm text-zinc-500">
-                  RM{d.cost_price_myr} cost · Controller {controllerByDrone.get(d.id) ?? "—"} · {batteryCount.atShop}/{batteryCount.total} batteries at shop
+                  RM{d.cost_price_myr} cost · {batteryCount.atShop}/{batteryCount.total} batteries at shop
                 </p>
               </div>
               <form action={setDroneStatusAction} className="flex items-center gap-2">

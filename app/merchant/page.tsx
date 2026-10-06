@@ -6,6 +6,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
 import { batteryLabel, describeDue, formatClock, formatDayLabel, formatDuration, pickupDay } from "@/lib/droneRental/format";
 import { walkInView } from "@/lib/droneRental/walkIn";
+import { modelProfile } from "@/lib/droneRental/pricingRules";
 
 const NO_SHOPS = "00000000-0000-0000-0000-000000000000";
 
@@ -20,7 +21,8 @@ type BookingRow = {
   customer_id: string;
   checked_in_at: string | null;
   source: string;
-  with_controller: boolean;
+  controller_kind: string;
+  controller_id: string | null;
 };
 
 function Stat({ value, label, tone }: { value: string; label: string; tone?: "alert" }) {
@@ -80,7 +82,7 @@ export default async function MerchantHomePage() {
 
   const bookingsQuery = supabase
     .from("dr_bookings")
-    .select("id,human_id,status,source,start_time,end_time,shop_id,drone_id,customer_id,checked_in_at,with_controller")
+    .select("id,human_id,status,source,start_time,end_time,shop_id,drone_id,customer_id,checked_in_at,controller_kind,controller_id")
     .in("status", ["CONFIRMED", "ACTIVE"])
     .order("start_time", { ascending: true });
   const dronesQuery = supabase.from("dr_drones").select("id,human_id,status,shop_id,model_key");
@@ -118,13 +120,16 @@ export default async function MerchantHomePage() {
     // layout's merchant/admin gate, same as the pickup and return pages.
     customerIds.length ? createServiceRoleClient().from("customers").select("id,name,phone").in("id", customerIds) : Promise.resolve({ data: [] }),
     shopIdsShown.length ? supabase.from("dr_shops").select("id,name").in("id", shopIdsShown) : Promise.resolve({ data: [] }),
-    droneIds.length ? supabase.from("dr_controllers").select("drone_id,human_id").in("drone_id", droneIds) : Promise.resolve({ data: [] }),
+    // The controllers set aside for the bookings shown, to say which one goes out or comes back.
+    bookings.some((b) => b.controller_id)
+      ? supabase.from("dr_controllers").select("id,human_id").in("id", bookings.flatMap((b) => (b.controller_id ? [b.controller_id] : [])))
+      : Promise.resolve({ data: [] }),
   ]);
 
   const customerById = new Map((customers ?? []).map((c) => [c.id, c]));
-  const controllerByDrone = new Map((controllers ?? []).map((c) => [c.drone_id, c.human_id]));
-  // A GT50 is tagged next to its number so it isn't mistaken for a Neo 2 at a glance.
-  const droneHumanId = new Map(drones.map((d) => [d.id, d.model_key === "GT50" ? `${d.human_id} · GT50` : d.human_id]));
+  const controllerById = new Map((controllers ?? []).map((c) => [c.id, c.human_id]));
+  // Anything but a Neo 2 is tagged next to its number (the Neo, or a parked GT50) so it isn't mistaken for one at a glance.
+  const droneHumanId = new Map(drones.map((d) => [d.id, d.model_key === "NEO2" ? d.human_id : `${d.human_id} · ${modelProfile(d.model_key).shortName.replace("DJI ", "")}`]));
   const shopNameById = new Map((shops ?? []).map((s) => [s.id, s.name]));
   const showShopName = shopIdsShown.length > 1;
 
@@ -310,11 +315,11 @@ export default async function MerchantHomePage() {
                       {status.label}
                     </span>
                   </div>
-                  {((batteriesByBooking.get(b.id) ?? []).length > 0 || (b.with_controller && controllerByDrone.has(b.drone_id))) && (
+                  {((batteriesByBooking.get(b.id) ?? []).length > 0 || (b.controller_id && controllerById.has(b.controller_id))) && (
                     <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-                      {b.with_controller && controllerByDrone.has(b.drone_id) && (
+                      {b.controller_id && controllerById.has(b.controller_id) && (
                         <>
-                          Controller <span className="font-semibold text-black dark:text-zinc-50">{controllerByDrone.get(b.drone_id)}</span> ·{" "}
+                          {b.controller_kind === "GOGGLES_N3" ? "Goggles set" : "Controller"} <span className="font-semibold text-black dark:text-zinc-50">{controllerById.get(b.controller_id)}</span> ·{" "}
                         </>
                       )}
                       Batteries: <span className="font-semibold text-black dark:text-zinc-50">{(batteriesByBooking.get(b.id) ?? []).join(", ")}</span>

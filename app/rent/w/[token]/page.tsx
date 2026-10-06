@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { getWalkInRequestByToken, viewOf } from "@/lib/droneRental/walkInRequests";
-import { depositMyrFor, formatMyr, modelProfile, rentalFeeMyr } from "@/lib/droneRental/pricingRules";
+import { getWalkInRequestByToken, requestController, viewOf } from "@/lib/droneRental/walkInRequests";
+import { controllerLabel, depositMyrFor, formatMyr, modelProfile, rentalFeeMyr } from "@/lib/droneRental/pricingRules";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
 
 // Per-customer and time-sensitive (the merchant confirms, the order expires) — must never be cached.
@@ -37,6 +37,7 @@ export default async function WalkInCustomerPage({ params }: { params: Promise<{
   const { data: shop } = await supabase.from("dr_shops").select("name").eq("id", request.shop_id).single();
   const hours = request.duration_minutes / 60;
   const batteries = request.batteries_count === 1 ? 1 : 2;
+  const controller = requestController(request);
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
@@ -50,7 +51,11 @@ export default async function WalkInCustomerPage({ params }: { params: Promise<{
       <div className="space-y-1 rounded-2xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">
         <div className="flex justify-between gap-4">
           <span className="text-zinc-500">Drone</span>
-          <span className="text-right font-medium">{request.with_controller ? modelProfile(request.drone_model).name : modelProfile(request.drone_model).shortName}</span>
+          <span className="text-right font-medium">{modelProfile(request.drone_model).shortName}</span>
+        </div>
+        <div className="flex justify-between gap-4">
+          <span className="text-zinc-500">Flying with</span>
+          <span className="text-right font-medium">{controllerLabel(request.drone_model, controller)}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span className="text-zinc-500">Length</span>
@@ -64,11 +69,11 @@ export default async function WalkInCustomerPage({ params }: { params: Promise<{
         </div>
         <div className="flex justify-between gap-4 border-t border-zinc-100 pt-1 dark:border-zinc-800">
           <span className="text-zinc-500">Rental fee</span>
-          <span className="font-semibold">{formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model, request.with_controller))}</span>
+          <span className="font-semibold">{formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model, controller))}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span className="text-zinc-500">Deposit hold</span>
-          <span className="font-medium">{formatMyr(depositMyrFor(request.drone_model, request.with_controller))}</span>
+          <span className="font-medium">{formatMyr(depositMyrFor(request.drone_model, controller))}</span>
         </div>
       </div>
 

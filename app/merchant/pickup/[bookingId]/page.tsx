@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { formatMyr, includesController, modelProfile } from "@/lib/droneRental/pricingRules";
+import { controllerDepositFor, controllerProfileFor, formatMyr, includesController, modelProfile, storedController } from "@/lib/droneRental/pricingRules";
 import { listChargedBatteries } from "@/lib/droneRental/batteries";
 import { batteryLabel } from "@/lib/droneRental/format";
 import { checklistForRental } from "@/lib/droneRental/checklist";
@@ -12,20 +12,23 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
 
   const { data: booking } = await supabase
     .from("dr_bookings")
-    .select("id,status,customer_id,drone_id,start_time,end_time,deposit_myr,batteries_count,drone_model,with_controller")
+    .select("id,status,customer_id,drone_id,start_time,end_time,deposit_myr,batteries_count,drone_model,controller_kind,controller_id")
     .eq("id", bookingId)
     .maybeSingle();
   if (!booking) notFound();
   const profile = modelProfile(booking.drone_model);
-  // A Neo 2 rented without its controller goes out as the drone and batteries only.
-  const withController = includesController(booking.drone_model, booking.with_controller);
+  // A drone rented without a controller goes out as the drone and batteries only.
+  const controller = storedController(booking.drone_model, booking.controller_kind);
+  const withController = includesController(booking.drone_model, controller);
+  const controllerProfile = controllerProfileFor(booking.drone_model, controller);
 
-  const [{ data: customer }, { data: drone }, { data: items }, { data: hold }, { data: controller }] = await Promise.all([
+  const [{ data: customer }, { data: drone }, { data: items }, { data: hold }, { data: controllerUnit }] = await Promise.all([
     supabase.from("customers").select("name,phone").eq("id", booking.customer_id).single(),
     supabase.from("dr_drones").select("human_id").eq("id", booking.drone_id).single(),
     supabase.from("dr_checklist_items").select("item_key,label").eq("active", true).contains("applies_to", [profile.key]).order("sort_order"),
     supabase.from("dr_deposit_authorizations").select("status").eq("booking_id", bookingId).maybeSingle(),
-    supabase.from("dr_controllers").select("human_id").eq("drone_id", booking.drone_id).maybeSingle(),
+    // The shop's controller set aside for this booking when it was made (older bookings have none recorded).
+    booking.controller_id ? supabase.from("dr_controllers").select("human_id").eq("id", booking.controller_id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
 
   const holdOnFile = hold?.status === "AUTHORIZED";
@@ -48,8 +51,7 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
           </li>
           {withController ? (
             <li>
-              {controller ? `Controller ${controller.human_id}` : profile.controllerName}
-              {controller && profile.controllerType && <span className="font-normal text-zinc-500"> ({profile.controllerType})</span>}
+              {controllerUnit ? `${controllerProfile?.name} ${controllerUnit.human_id}` : controllerProfile?.name}
             </li>
           ) : (
             <li>
@@ -65,7 +67,7 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
 
       {holdOnFile ? (
         <p className="rounded-xl border border-green-300 bg-green-50 p-3 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
-          <span className="font-semibold">Deposit held: {formatMyr(booking.deposit_myr)}</span> ({withController ? <>drone {formatMyr(profile.depositDroneMyr)} + controller {formatMyr(profile.depositControllerMyr)}</> : <>drone only</>})
+          <span className="font-semibold">Deposit held: {formatMyr(booking.deposit_myr)}</span> ({withController ? <>drone {formatMyr(profile.depositDroneMyr)} + {controllerProfile?.shortName} {formatMyr(controllerDepositFor(booking.drone_model, controller))}</> : <>drone only</>})
         </p>
       ) : (
         <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
@@ -80,12 +82,12 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
     <div className="space-y-4 pt-4">
       <PickupForm
         bookingId={booking.id}
-        checklistItems={checklistForRental(items ?? [], withController)}
+        checklistItems={checklistForRental(items ?? [], controller)}
         disabled={booking.status !== "CONFIRMED"}
         batteriesCount={booking.batteries_count}
         photosRequired={profile.photosRequired}
-        controllerType={profile.controllerType}
-        withController={withController}
+        model={profile.key}
+        controller={controller}
         batteryOptions={options.map((b) => ({ id: b.id, label: batteryLabel(b) }))}
         summary={summary}
       />

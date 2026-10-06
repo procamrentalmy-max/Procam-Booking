@@ -4,7 +4,8 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getLandingImageUrls, getLogoUrl } from "@/lib/branding";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { Brand } from "@/components/Brand";
-import { DRONE_MODEL_PROFILES, depositMyrFor, formatMyr, hourlyRateFor } from "@/lib/droneRental/pricingRules";
+import { Fragment } from "react";
+import { CONTROLLER_PROFILES, DRONE_MODEL_PROFILES, depositMyrFor, formatMyr, hourlyRateFor } from "@/lib/droneRental/pricingRules";
 
 /** The page is always dark (white and grey on black) whatever the visitor's theme, so it uses fixed colors rather than dark: variants. */
 
@@ -41,27 +42,95 @@ function DroneIllustration() {
   );
 }
 
+type TableGroup = { title: string; rows: string[][] };
+
+/** A comparison table: one column per choice, rows grouped under a small heading. Each row is the label followed by one cell per column. */
+function CompareTable({ heads, groups, label }: { heads: string[]; groups: TableGroup[]; label: string }) {
+  return (
+    <div className="mt-8 overflow-x-auto rounded-2xl border border-zinc-800 bg-black">
+      <table className="w-full min-w-[26rem] border-collapse text-left text-sm">
+        <thead>
+          <tr className="border-b border-zinc-800">
+            <th scope="col" className="px-4 py-4 md:px-6">
+              <span className="sr-only">{label}</span>
+            </th>
+            {heads.map((h) => (
+              <th key={h} scope="col" className="px-4 py-4 align-bottom text-base font-semibold text-white md:px-6 md:text-lg">
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map((g) => (
+            <Fragment key={g.title}>
+              {g.title && (
+                <tr className="border-b border-zinc-800 bg-zinc-950">
+                  <th colSpan={heads.length + 1} className="px-4 pb-2 pt-4 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 md:px-6">
+                    {g.title}
+                  </th>
+                </tr>
+              )}
+              {g.rows.map(([rowLabel, ...cells]) => (
+                <tr key={rowLabel} className="border-b border-zinc-900 last:border-b-0">
+                  <th scope="row" className="px-4 py-3.5 text-left font-normal text-zinc-400 md:px-6">
+                    {rowLabel}
+                  </th>
+                  {cells.map((cell, i) => (
+                    <td key={i} className="px-4 py-3.5 font-medium text-zinc-100 md:px-6">
+                      {cell === "✓" ? <span className="text-emerald-400" aria-label="Yes">✓</span> : cell === "✗" ? <span className="text-zinc-500" aria-label="No">✗</span> : cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </Fragment>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default async function Home() {
   const locale = await getLocale();
   const dict = getDictionary(locale);
   const t = dict.home;
   const [logoUrl, pictures] = await Promise.all([getLogoUrl(), getLandingImageUrls()]);
 
-  // Every price in the table comes from the same pricing rules the booking flow charges with, so this page can't drift from them.
+  // Every price in the tables comes from the same pricing rules the booking flow charges with, so this page can't drift from them.
   const c = t.compare;
+  const fly = t.fly;
+  const neo = DRONE_MODEL_PROFILES.NEO;
   const neo2 = DRONE_MODEL_PROFILES.NEO2;
-  const priceRows: [string, string, string][] = [
-    [c.rows.perHour, formatMyr(hourlyRateFor("NEO2", false)), formatMyr(hourlyRateFor("NEO2", true))],
-    [c.rows.battery1, formatMyr(neo2.batteryFeeMyr[1]), formatMyr(neo2.batteryFeeMyr[1])],
-    [c.rows.battery2, formatMyr(neo2.batteryFeeMyr[2]), formatMyr(neo2.batteryFeeMyr[2])],
-    [c.rows.swap1, formatMyr(neo2.batteryFeeMyr[1]), formatMyr(neo2.batteryFeeMyr[1])],
-    [c.rows.swap2, formatMyr(neo2.batteryFeeMyr[2]), formatMyr(neo2.batteryFeeMyr[2])],
-    [c.rows.late, formatMyr(hourlyRateFor("NEO2", false)), formatMyr(hourlyRateFor("NEO2", true))],
-    [c.rows.deposit, formatMyr(depositMyrFor("NEO2", false)), formatMyr(depositMyrFor("NEO2", true))],
+  const both = (pick: (p: typeof neo) => number) => [formatMyr(pick(neo)), formatMyr(pick(neo2))];
+  const droneGroups: TableGroup[] = [
+    {
+      title: c.priceGroup,
+      rows: [
+        [c.priceRows.perHour, formatMyr(hourlyRateFor("NEO", "NONE")), formatMyr(hourlyRateFor("NEO2", "NONE"))],
+        [c.priceRows.battery1, ...both((p) => p.batteryFeeMyr[1])],
+        [c.priceRows.battery2, ...both((p) => p.batteryFeeMyr[2])],
+        [c.priceRows.swap1, ...both((p) => p.batteryFeeMyr[1])],
+        [c.priceRows.swap2, ...both((p) => p.batteryFeeMyr[2])],
+        [c.priceRows.late, formatMyr(hourlyRateFor("NEO", "NONE")), formatMyr(hourlyRateFor("NEO2", "NONE"))],
+        [c.priceRows.deposit, formatMyr(depositMyrFor("NEO", "NONE")), formatMyr(depositMyrFor("NEO2", "NONE"))],
+      ],
+    },
+    { title: c.specsGroup, rows: c.specs.map((r) => [r.label, r.neo, r.neo2]) },
   ];
-  const getRows: [string, string, string][] = [
-    [c.rows.need, c.needDroneOnly, c.needWithController],
-    [c.rows.range, c.rangeDroneOnly, c.rangeWithController],
+
+  const rc = CONTROLLER_PROFILES.RC_N3;
+  const gog = CONTROLLER_PROFILES.GOGGLES_N3;
+  const flyGroups: TableGroup[] = [
+    {
+      title: "",
+      rows: [
+        [fly.extraHour, "—", `+${formatMyr(rc.hourlyMyr)}`, `+${formatMyr(gog.hourlyMyr)}`],
+        [fly.extraDeposit, "—", `+${formatMyr(rc.depositMyr)}`, `+${formatMyr(gog.depositMyr)}`],
+        [fly.needsPhone, "✓", "✓", "✗"],
+        ...fly.rows.map((r) => [r.label, r.phone, r.rc, r.goggles]),
+      ],
+    },
   ];
 
   return (
@@ -119,53 +188,14 @@ export default async function Home() {
           <div className="mx-auto max-w-5xl px-6 py-12 md:py-16">
             <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{c.title}</h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-400">{c.sub}</p>
-            <div className="mt-8 overflow-x-auto rounded-2xl border border-zinc-800 bg-black">
-              <table className="w-full min-w-[22rem] border-collapse text-left text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-800">
-                    <th scope="col" className="px-4 py-4 md:px-6">
-                      <span className="sr-only">{c.option}</span>
-                    </th>
-                    <th scope="col" className="whitespace-nowrap px-4 py-4 text-base font-semibold text-white md:px-6 md:text-lg">
-                      {c.droneOnly}
-                    </th>
-                    <th scope="col" className="whitespace-nowrap px-4 py-4 text-base font-semibold text-white md:px-6 md:text-lg">
-                      {c.withController}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b border-zinc-800 bg-zinc-950">
-                    <th colSpan={3} className="px-4 pb-2 pt-4 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 md:px-6">
-                      {c.priceGroup}
-                    </th>
-                  </tr>
-                  {priceRows.map(([label, a, b]) => (
-                    <tr key={label} className="border-b border-zinc-900">
-                      <th scope="row" className="px-4 py-3.5 text-left font-normal text-zinc-400 md:px-6">
-                        {label}
-                      </th>
-                      <td className="px-4 py-3.5 font-medium tabular-nums text-zinc-100 md:px-6">{a}</td>
-                      <td className="px-4 py-3.5 font-medium tabular-nums text-zinc-100 md:px-6">{b}</td>
-                    </tr>
-                  ))}
-                  <tr className="border-b border-zinc-800 bg-zinc-950">
-                    <th colSpan={3} className="px-4 pb-2 pt-4 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 md:px-6">
-                      {c.getGroup}
-                    </th>
-                  </tr>
-                  {getRows.map(([label, a, b]) => (
-                    <tr key={label} className="border-b border-zinc-900 last:border-b-0">
-                      <th scope="row" className="px-4 py-3.5 text-left font-normal text-zinc-400 md:px-6">
-                        {label}
-                      </th>
-                      <td className="px-4 py-3.5 font-medium text-zinc-100 md:px-6">{a}</td>
-                      <td className="px-4 py-3.5 font-medium text-zinc-100 md:px-6">{b}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <CompareTable heads={[c.neo, c.neo2]} groups={droneGroups} label={c.title} />
+            <p className="mt-3 text-xs text-zinc-500">{c.source}</p>
+
+            <h2 id="fly" className="mt-16 scroll-mt-6 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+              {fly.title}
+            </h2>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-400">{fly.sub}</p>
+            <CompareTable heads={[fly.phone, fly.rc, fly.goggles]} groups={flyGroups} label={fly.option} />
 
             <Link
               href="/rent"

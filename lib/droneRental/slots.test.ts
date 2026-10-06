@@ -4,10 +4,12 @@ import {
   droneReadyAt,
   isReturnLate,
   findEligibleDrone,
+  findEligibleResources,
   findNextAvailableSlot,
   computeUnavailableStarts,
   firstAvailableAt,
   InvalidDroneBookingRequestError,
+  type ControllerPool,
   type DroneCandidate,
   type BookingWindow,
 } from "./slots";
@@ -151,5 +153,52 @@ describe("firstAvailableAt", () => {
   it("returns null when nothing is ever eligible", () => {
     const maintDrones: DroneCandidate[] = [{ id: "d1", humanId: "DRN-001", status: "MAINTENANCE" }];
     expect(firstAvailableAt(maintDrones, [], new Date())).toBeNull();
+  });
+});
+
+describe("a rental with a controller needs a controller free as well as a drone", () => {
+  const t = (hhmm: string) => new Date(`2026-09-02T${hhmm}:00.000Z`);
+  const oneController = (bookings: BookingWindow[] = []): ControllerPool => ({
+    candidates: [{ id: "c1", humanId: "CTR-001", status: "AVAILABLE" }],
+    bookings,
+  });
+
+  it("is the same as before when no controller is needed", () => {
+    expect(findEligibleResources(drones(), [], null, t("10:00"), t("11:00"))).toEqual({ droneId: "d1", controllerId: null });
+  });
+
+  it("returns the drone and the controller together when both are free", () => {
+    expect(findEligibleResources(drones(), [], oneController(), t("10:00"), t("11:00"))).toEqual({ droneId: "d1", controllerId: "c1" });
+  });
+
+  it("is not available when the shop has no controller of that kind at all", () => {
+    expect(findEligibleResources(drones(), [], { candidates: [], bookings: [] }, t("10:00"), t("11:00"))).toBeNull();
+  });
+
+  it("is not available while the only controller is on another booking, even though a drone is free", () => {
+    const busy = oneController([{ droneId: "c1", status: "CONFIRMED", startTime: t("10:00"), endTime: t("11:00") }]);
+    expect(findEligibleResources(drones(), [], busy, t("10:30"), t("11:30"))).toBeNull();
+    // Phone only is still fine at the same time.
+    expect(findEligibleResources(drones(), [], null, t("10:30"), t("11:30"))).not.toBeNull();
+  });
+
+  it("holds the controller for the return buffer after its booking, then frees it", () => {
+    const busy = oneController([{ droneId: "c1", status: "CONFIRMED", startTime: t("10:00"), endTime: t("11:00") }]);
+    expect(findEligibleResources(drones(), [], busy, t("11:00"), t("12:00"))).toBeNull();
+    expect(findEligibleResources(drones(), [], busy, t("12:00"), t("13:00"))).toEqual({ droneId: "d1", controllerId: "c1" });
+  });
+
+  it("greys out the slots where the controller is out, but not the others", () => {
+    const busy = oneController([{ droneId: "c1", status: "ACTIVE", startTime: t("10:00"), endTime: t("11:00") }]);
+    const starts = [t("10:00"), t("11:00"), t("12:00")];
+    expect(computeUnavailableStarts(drones(), [], 60, starts, busy)).toEqual([true, true, false]);
+    expect(computeUnavailableStarts(drones(), [], 60, starts)).toEqual([false, false, false]);
+  });
+
+  it("finds the next time the controller is free", () => {
+    const busy = oneController([{ droneId: "c1", status: "ACTIVE", startTime: t("10:00"), endTime: t("11:00") }]);
+    const result = findNextAvailableSlot(drones(), [], 60, t("10:00"), 96, busy);
+    expect(result.outcome).toBe("NEXT_FEASIBLE_SLOT");
+    if (result.outcome !== "INFEASIBLE") expect(result.startTime.toISOString()).toBe("2026-09-02T11:30:00.000Z");
   });
 });

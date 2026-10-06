@@ -8,7 +8,7 @@ import { uploadChecklistPhoto, checklistPhotoPath } from "@/lib/droneRental/stor
 import { computeHandoverWindow } from "@/lib/droneRental/handover";
 import { findChargedBatteries, validateHandoutBatteries, type ChargedBattery } from "@/lib/droneRental/batteries";
 import { dronePhotoSteps } from "@/lib/droneRental/photoSteps";
-import { includesController, modelProfile } from "@/lib/droneRental/pricingRules";
+import { modelProfile, storedController } from "@/lib/droneRental/pricingRules";
 import { checklistForRental } from "@/lib/droneRental/checklist";
 
 export type PickupResult = {
@@ -34,22 +34,22 @@ export async function submitPickupAction(formData: FormData): Promise<PickupResu
 
   const supabase = createServiceRoleClient();
 
-  const { data: booking } = await supabase.from("dr_bookings").select("id,status,drone_id,source,start_time,end_time,batteries_count,drone_model,with_controller").eq("id", bookingId).single();
+  const { data: booking } = await supabase.from("dr_bookings").select("id,status,drone_id,source,start_time,end_time,batteries_count,drone_model,controller_kind").eq("id", bookingId).single();
   if (!booking) throw new Error("Booking not found.");
   if (booking.status !== "CONFIRMED") throw new Error("This booking isn't ready for pickup.");
 
   // Every guided photo is required — checked before anything is saved, so a missing one stops the handover cleanly.
   // (A model with no photo pages, the GT50, has none to check.)
   const profile = modelProfile(booking.drone_model);
-  const withController = includesController(booking.drone_model, booking.with_controller);
-  const photoSteps = profile.photosRequired ? dronePhotoSteps(profile, withController) : [];
+  const controller = storedController(booking.drone_model, booking.controller_kind);
+  const photoSteps = profile.photosRequired ? dronePhotoSteps(profile.key, controller) : [];
   const stepPhotos = photoSteps.map((step) => ({ step, file: formData.get(`photo_${step.key}`) }));
   for (const { step, file } of stepPhotos) {
     if (!(file instanceof File) || file.size === 0) throw new Error(`Missing photo: ${step.label}`);
   }
 
   const { data: items } = await supabase.from("dr_checklist_items").select("item_key").eq("active", true).contains("applies_to", [profile.key]);
-  for (const item of checklistForRental(items ?? [], withController)) {
+  for (const item of checklistForRental(items ?? [], controller)) {
     if (!acknowledgements[item.item_key]) throw new Error(`Please confirm: ${item.item_key}`);
   }
 
