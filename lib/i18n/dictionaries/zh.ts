@@ -47,7 +47,7 @@ export const zh: Dictionary = {
       kitNeo2: "无人机和 RC-N3 遥控器",
       kitGt50: "无人机和遥控器",
       handoverNeo2: "拍照和检查清单",
-      handoverGt50: "简单的检查清单，无需拍照",
+      handoverGt50: "拍照和检查清单",
       specsTitle: "规格对比",
       specs: [
         { label: "重量", neo2: "151 克", gt50: "约 183 克" },

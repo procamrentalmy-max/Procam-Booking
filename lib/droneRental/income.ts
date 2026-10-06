@@ -2,7 +2,7 @@
 // no database access here so the month maths (done on Malaysia time, whatever the server's timezone) can be tested.
 
 import type { DrBookingStatus, DrPaidBy } from "@/lib/db/types";
-import { earningsFor, type Earnings } from "./earnings";
+import { addEarnings, earningsForBooking, ZERO_EARNINGS, type Earnings, type Payment } from "./earnings";
 
 export const MYT_OFFSET_MS = 8 * 60 * 60_000;
 const DAY_MS = 24 * 60 * 60_000;
@@ -24,12 +24,9 @@ export type IncomeBooking = {
   rental_fee_myr: number | string;
   drone_charge_myr: number | string;
   controller_charge_myr: number | string;
-  /** Battery swap fees and succeeded late-fee payments for this booking... */
-  swapFeeMyr: number;
-  lateFeeMyr: number;
-  /** ...and how much of each of those was paid in cash (each payment is card or cash on its own; paid_by is the rental fee's). */
-  swapCashMyr: number;
-  lateCashMyr: number;
+  /** The battery swaps (only those that charged a fee) and late fees paid on this booking, each by card or in cash. */
+  swaps: { feeMyr: number; paidBy: DrPaidBy }[];
+  lateFees: { amountMyr: number; paidBy: DrPaidBy }[];
 };
 
 /** Year and month (0-11) of an instant as seen on a clock in Malaysia. */
@@ -44,54 +41,28 @@ export function monthStartMs(now: number, monthsBack = 0): number {
   return Date.UTC(year, month - monthsBack, 1) - MYT_OFFSET_MS;
 }
 
-const NO_EARNINGS: Earnings = earningsFor(0, "CARD");
-
 export function bookingIncome(b: IncomeBooking) {
   const rental = Number(b.rental_fee_myr);
+  const swap = b.swaps.reduce((sum, x) => sum + x.feeMyr, 0);
+  const late = b.lateFees.reduce((sum, x) => sum + x.amountMyr, 0);
   const kept = Number(b.drone_charge_myr) + Number(b.controller_charge_myr);
-  return { rental, swap: b.swapFeeMyr, late: b.lateFeeMyr, kept, total: rental + b.swapFeeMyr + b.lateFeeMyr + kept };
+  return { rental, swap, late, kept, total: rental + swap + late + kept };
 }
 
 /**
  * The merchant's earnings from one booking (see earnings.ts). The base is what the customer paid for the rental, swaps and
- * late fees; a deposit kept for damage or loss pays for the repair or the replacement, so it isn't shared.
+ * late fees; a deposit kept for damage or loss pays for the repair or the replacement, so it isn't shared. Every payment is
+ * its own card or cash payment, so the card fee is worked out payment by payment.
  */
 export function bookingEarnings(b: IncomeBooking): Earnings & { cashIncome: number } {
-  const inc = bookingIncome(b);
-  // Every payment is worked out on its own: a rental paid by card with a swap paid in cash pays the card cost on one and not the other.
-  const parts: [number, DrPaidBy][] = [
-    [inc.rental, b.paid_by],
-    [inc.swap - b.swapCashMyr, "CARD"],
-    [b.swapCashMyr, "CASH"],
-    [inc.late - b.lateCashMyr, "CARD"],
-    [b.lateCashMyr, "CASH"],
+  const payments: Payment[] = [
+    { amount: Number(b.rental_fee_myr), method: b.paid_by },
+    ...b.swaps.filter((x) => x.feeMyr > 0).map((x): Payment => ({ amount: x.feeMyr, method: x.paidBy })),
+    ...b.lateFees.filter((x) => x.amountMyr > 0).map((x): Payment => ({ amount: x.amountMyr, method: x.paidBy })),
   ];
-  let total = NO_EARNINGS;
-  let cashIncome = 0;
-  for (const [amount, method] of parts) {
-    if (amount <= 0) continue;
-    total = addEarnings(total, earningsFor(amount, method));
-    if (method === "CASH") cashIncome += amount;
-  }
-  return { ...total, cashIncome };
+  const cashIncome = payments.filter((p) => p.method === "CASH").reduce((sum, p) => sum + p.amount, 0);
+  return { ...earningsForBooking(payments), cashIncome };
 }
-
-function addEarnings(a: Earnings, b: Earnings): Earnings {
-  return {
-    income: a.income + b.income,
-    costs: {
-      platform: a.costs.platform + b.costs.platform,
-      payment: a.costs.payment + b.costs.payment,
-      kyc: a.costs.kyc + b.costs.kyc,
-      insurance: a.costs.insurance + b.costs.insurance,
-    },
-    totalCosts: a.totalCosts + b.totalCosts,
-    net: a.net + b.net,
-    partner: a.partner + b.partner,
-    procam: a.procam + b.procam,
-  };
-}
-
 
 export type IncomeSummary = {
   monthLabel: string;
@@ -129,7 +100,7 @@ export function summariseIncome(bookings: IncomeBooking[], now: number, modelNam
   const paid = bookings.filter((b) => (PAID_STATUSES as string[]).includes(b.status));
   const monthTotals = Array<number>(monthsShown).fill(0);
   const earningsTotals = Array<number>(monthsShown).fill(0);
-  let earnings = NO_EARNINGS;
+  let earnings = ZERO_EARNINGS;
   let cashIncome = 0;
   let previousEarnings = 0;
   const breakdown = { rental: 0, swap: 0, late: 0, kept: 0 };

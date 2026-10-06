@@ -45,10 +45,8 @@ export default async function MerchantReturnPage({ params }: { params: Promise<{
         checklistItems={items ?? []}
         disabled={booking.status !== "ACTIVE"}
         holdOnFile={hold?.status === "AUTHORIZED"}
-        batteriesCount={booking.batteries_count}
         model={profile.key}
         controllerCode={controller?.human_id ?? null}
-        heldBatteryLabels={(heldBatteries ?? []).map(batteryLabel)}
       />
     </div>
   );

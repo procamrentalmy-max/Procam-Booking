@@ -28,7 +28,7 @@ export const BATTERY_PACKAGE_FEE_MYR: Record<BatteryCount, number> = { 1: 7, 2: 
  * The drone models the shop rents out. Everything that differs between them lives in DRONE_MODEL_PROFILES below;
  * the constants above and the DEPOSIT_* ones further down are the DJI Neo 2's. The GT50 is the cheaper drone:
  * RM7 an hour (RM3 less), batteries RM5 for 1 or RM8 for 2 (also the swap prices), the same RM7 an hour for late fees,
- * a RM150 deposit, and no handover or return photos (a short checklist instead).
+ * and a RM150 deposit. Handover and return are the same as the Neo 2's: the same two photos, then the checklist.
  */
 export const DRONE_MODELS = ["NEO2", "GT50"] as const;
 export type DroneModel = (typeof DRONE_MODELS)[number];
@@ -87,7 +87,7 @@ export const DRONE_MODEL_PROFILES: Record<DroneModel, DroneModelProfile> = {
     batteryFeeMyr: { 1: 5, 2: 8 },
     depositDroneMyr: 100,
     depositControllerMyr: 50,
-    photosRequired: false,
+    photosRequired: true,
     flightMinutes: null,
   },
 };

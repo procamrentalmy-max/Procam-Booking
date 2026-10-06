@@ -3,11 +3,12 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { modelProfile } from "@/lib/droneRental/pricingRules";
 import { PAID_STATUSES, monthStartMs, summariseIncome, type IncomeBooking } from "@/lib/droneRental/income";
-import { COST_SHARES, PARTNER_SHARE } from "@/lib/droneRental/earnings";
+import { CARD_FEE_FIXED_MYR, CARD_FEE_RATE, INSURANCE_RATE, KYC_PER_BOOKING_MYR, PARTNER_SHARE, PLATFORM_RATE } from "@/lib/droneRental/earnings";
+import { EarningsRow } from "@/components/droneRental/EarningsRow";
 import { BarChart, DonutChart } from "@/app/admin/sales/charts";
 
 // The generated types don't know these two relationships, but the foreign keys exist, so PostgREST embeds them.
-type BookingRow = Omit<IncomeBooking, "swapFeeMyr" | "lateFeeMyr" | "swapCashMyr" | "lateCashMyr"> & {
+type BookingRow = Omit<IncomeBooking, "swaps" | "lateFees"> & {
   dr_battery_swaps: { fee_myr: number | string; paid_by: string }[] | null;
   dr_payments: { amount_myr: number | string; kind: string; status: string; provider: string }[] | null;
 };
@@ -66,10 +67,11 @@ export default async function ShopIncomePage() {
     rental_fee_myr: b.rental_fee_myr,
     drone_charge_myr: b.drone_charge_myr,
     controller_charge_myr: b.controller_charge_myr,
-    swapFeeMyr: (b.dr_battery_swaps ?? []).reduce((sum, s) => sum + Number(s.fee_myr), 0),
-    swapCashMyr: (b.dr_battery_swaps ?? []).filter((s) => s.paid_by === "CASH").reduce((sum, s) => sum + Number(s.fee_myr), 0),
-    lateFeeMyr: (b.dr_payments ?? []).filter((p) => p.kind === "LATE_FEE" && p.status === "SUCCEEDED").reduce((sum, p) => sum + Number(p.amount_myr), 0),
-    lateCashMyr: (b.dr_payments ?? []).filter((p) => p.kind === "LATE_FEE" && p.status === "SUCCEEDED" && p.provider === "cash").reduce((sum, p) => sum + Number(p.amount_myr), 0),
+    // A swap of two batteries is two rows, with the fee on the first only; the zero-fee row is not a payment.
+    swaps: (b.dr_battery_swaps ?? []).filter((s) => Number(s.fee_myr) > 0).map((s) => ({ feeMyr: Number(s.fee_myr), paidBy: s.paid_by === "CASH" ? ("CASH" as const) : ("CARD" as const) })),
+    lateFees: (b.dr_payments ?? [])
+      .filter((p) => p.kind === "LATE_FEE" && p.status === "SUCCEEDED")
+      .map((p) => ({ amountMyr: Number(p.amount_myr), paidBy: p.provider === "cash" ? ("CASH" as const) : ("CARD" as const) })),
   }));
 
   const s = summariseIncome(bookings, now, (key) => modelProfile(key).shortName, MONTHS_SHOWN);
@@ -101,19 +103,35 @@ export default async function ShopIncomePage() {
         </p>
       </div>
 
-      <Section title="How your earnings are worked out" note="Every RM a customer pays is shared like this.">
+      <Section title="How your earnings are worked out" note="Costs come off what customers paid, and what is left is split 50/50. Tap an i to see what a cost is.">
         <div className="overflow-hidden rounded-xl border border-zinc-200 text-sm dark:border-zinc-800">
-          <Row label="Customers paid" value={myr2(e.income)} strong />
-          <Row label={`Platform fee ${percent(COST_SHARES.platform)}`} value={`− ${myr2(e.costs.platform)}`} />
-          <Row label={`Payment processing ${percent(COST_SHARES.payment)} (card only)`} value={`− ${myr2(e.costs.payment)}`} />
-          <Row label={`KYC / verification ${percent(COST_SHARES.kyc)}`} value={`− ${myr2(e.costs.kyc)}`} />
-          <Row label={`Insurance / protection ${percent(COST_SHARES.insurance)}`} value={`− ${myr2(e.costs.insurance)}`} />
-          <Row label="Left after costs" value={myr2(e.net)} strong />
-          <Row label={`ProCam ${percent(1 - PARTNER_SHARE)}`} value={myr2(e.procam)} />
-          <Row label={`You ${percent(PARTNER_SHARE)}`} value={myr2(e.partner)} strong highlight />
+          <EarningsRow label="Customers paid" value={myr2(e.income)} strong />
+          <EarningsRow
+            label={`Platform fee ${percent(PLATFORM_RATE)}`}
+            value={`− ${myr2(e.costs.platform)}`}
+            info="What it costs ProCam to run the booking system and the app, to find the customers, and to look after the admin and customer service, so you don't have to."
+          />
+          <EarningsRow
+            label="Payment processing"
+            value={`− ${myr2(e.costs.payment)}`}
+            info={`The card fee Stripe charges on each card payment: ${(CARD_FEE_RATE * 100).toFixed(1)}% plus RM${CARD_FEE_FIXED_MYR.toFixed(2)} per payment. (It is 3% + RM1 on a Malaysian card and 4% + RM1 on a foreign one; 3.1% allows for the odd foreign card.) The rental, a battery swap and a late fee are each a separate payment. Cash has no card fee, so a payment in cash costs nothing here.`}
+          />
+          <EarningsRow
+            label="KYC / verification"
+            value={`− ${myr2(e.costs.kyc)}`}
+            info={`RM${KYC_PER_BOOKING_MYR.toFixed(2)} for every drone booking, for checking the customer's ID and face before they get a drone.`}
+          />
+          <EarningsRow
+            label={`Insurance / protection ${percent(INSURANCE_RATE)}`}
+            value={`− ${myr2(e.costs.insurance)}`}
+            info="Protection against loss and damage, on top of the customer's deposit."
+          />
+          <EarningsRow label="Left after costs" value={myr2(e.net)} strong />
+          <EarningsRow label={`ProCam ${percent(1 - PARTNER_SHARE)}`} value={myr2(e.procam)} />
+          <EarningsRow label={`You ${percent(PARTNER_SHARE)}`} value={myr2(e.partner)} strong highlight />
         </div>
         {e.cashIncome > 0 && (
-          <p className="text-xs text-zinc-500">{myr2(e.cashIncome)} of that was paid in cash. Cash pays no payment-processing fee, so it leaves you more.</p>
+          <p className="text-xs text-zinc-500">{myr2(e.cashIncome)} of that was paid in cash. Cash has no card fee, so it leaves you more.</p>
         )}
         <p className="text-xs text-zinc-400">Counted on the rental, battery swaps and late fees. A deposit kept for damage or loss pays for the repair, so it isn&apos;t shared.</p>
       </Section>
@@ -174,19 +192,6 @@ export default async function ShopIncomePage() {
 
         <p className="text-xs text-zinc-400">A booking counts once it is paid.</p>
       </div>
-    </div>
-  );
-}
-
-function Row({ label, value, strong, highlight }: { label: string; value: string; strong?: boolean; highlight?: boolean }) {
-  return (
-    <div
-      className={`flex items-center justify-between gap-3 border-b border-zinc-100 px-3 py-2 last:border-b-0 dark:border-zinc-800 ${
-        highlight ? "bg-emerald-50 dark:bg-emerald-950" : ""
-      }`}
-    >
-      <span className={strong ? "font-semibold text-black dark:text-zinc-50" : "text-zinc-600 dark:text-zinc-400"}>{label}</span>
-      <span className={`tabular-nums ${strong ? "font-semibold text-black dark:text-zinc-50" : "text-zinc-700 dark:text-zinc-300"}`}>{value}</span>
     </div>
   );
 }

@@ -69,7 +69,7 @@ export async function submitReturnAction(formData: FormData): Promise<ReturnResu
   }
 
   // Every guided photo is required — checked before anything is saved, so a missing one stops the return cleanly.
-  const photoSteps = profile.photosRequired ? dronePhotoSteps(booking.batteries_count, "return") : [];
+  const photoSteps = profile.photosRequired ? dronePhotoSteps(profile) : [];
   const stepPhotos = photoSteps.map((step) => ({ step, file: formData.get(`photo_${step.key}`) }));
   for (const { step, file } of stepPhotos) {
     if (!(file instanceof File) || file.size === 0) throw new Error(`Missing photo: ${step.label}`);

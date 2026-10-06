@@ -76,6 +76,7 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
         disabled={booking.status !== "CONFIRMED"}
         batteriesCount={booking.batteries_count}
         photosRequired={profile.photosRequired}
+        controllerType={profile.controllerType}
         batteryOptions={options.map((b) => ({ id: b.id, label: batteryLabel(b) }))}
         summary={summary}
       />

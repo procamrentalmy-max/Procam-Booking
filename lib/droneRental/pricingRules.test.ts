@@ -181,8 +181,8 @@ describe("the GT50", () => {
     expect(capture.totalMyr).toBe(DRONE_MODEL_PROFILES.GT50.depositDroneMyr);
   });
 
-  it("needs no handover photos; the Neo 2 still does", () => {
-    expect(DRONE_MODEL_PROFILES.GT50.photosRequired).toBe(false);
+  it("takes the same handover and return photos as the Neo 2", () => {
+    expect(DRONE_MODEL_PROFILES.GT50.photosRequired).toBe(true);
     expect(DRONE_MODEL_PROFILES.NEO2.photosRequired).toBe(true);
   });
 

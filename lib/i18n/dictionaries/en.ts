@@ -45,7 +45,7 @@ export const en = {
       kitNeo2: "Drone and RC-N3 controller",
       kitGt50: "Drone and controller",
       handoverNeo2: "Photos and a checklist",
-      handoverGt50: "A quick checklist, no photos",
+      handoverGt50: "Photos and a checklist",
       specsTitle: "Specs side by side",
       specs: [
         { label: "Weight", neo2: "151 g", gt50: "About 183 g" },

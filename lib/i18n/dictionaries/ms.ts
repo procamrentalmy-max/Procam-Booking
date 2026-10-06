@@ -47,7 +47,7 @@ export const ms: Dictionary = {
       kitNeo2: "Dron dan alat kawalan RC-N3",
       kitGt50: "Dron dan alat kawalan",
       handoverNeo2: "Gambar dan senarai semak",
-      handoverGt50: "Senarai semak ringkas, tanpa gambar",
+      handoverGt50: "Gambar dan senarai semak",
       specsTitle: "Spesifikasi bersebelahan",
       specs: [
         { label: "Berat", neo2: "151 g", gt50: "Kira-kira 183 g" },

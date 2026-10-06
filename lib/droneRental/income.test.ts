@@ -14,10 +14,8 @@ function booking(over: Partial<IncomeBooking> & { start_time: string }): IncomeB
     rental_fee_myr: 27,
     drone_charge_myr: 0,
     controller_charge_myr: 0,
-    swapFeeMyr: 0,
-    lateFeeMyr: 0,
-    swapCashMyr: 0,
-    lateCashMyr: 0,
+    swaps: [],
+    lateFees: [],
     ...over,
   };
 }
@@ -39,7 +37,7 @@ describe("monthStartMs", () => {
 describe("summariseIncome", () => {
   it("adds rental, swap, late and kept deposit into the month total and the breakdown", () => {
     const s = summariseIncome(
-      [booking({ start_time: "2026-10-03T03:00:00Z", swapFeeMyr: 7, lateFeeMyr: 4, drone_charge_myr: 100, controller_charge_myr: 50 })],
+      [booking({ start_time: "2026-10-03T03:00:00Z", swaps: [{ feeMyr: 7, paidBy: "CARD" }], lateFees: [{ amountMyr: 4, paidBy: "CARD" }], drone_charge_myr: 100, controller_charge_myr: 50 })],
       NOW,
       model,
     );
@@ -115,7 +113,7 @@ describe("summariseIncome", () => {
     expect(s.months.map((m) => m.label)).toEqual(["Aug 26", "Sep 26", "Oct 26", "Nov 26", "Dec 26", "Jan 27"]);
   });
 
-  it("works out the merchant's earnings as the pitch does: card costs 32%, cash 28%, split 50/50", () => {
+  it("works out the merchant's earnings: a card booking pays the card fee, a cash one does not, both pay the KYC", () => {
     const s = summariseIncome(
       [
         booking({ start_time: "2026-10-02T03:00:00Z", rental_fee_myr: 30 }),
@@ -125,47 +123,66 @@ describe("summariseIncome", () => {
       NOW,
       model,
     );
-    expect(s.earnings.partner).toBeCloseTo(10.2 + 10.8, 10);
+    expect(s.earnings.partner).toBeCloseTo(9.635 + 10.6, 10);
     expect(s.earnings.income).toBe(60);
-    expect(s.earnings.costs.payment).toBeCloseTo(1.2, 10); // only the card booking pays the 4%
+    expect(s.earnings.costs.payment).toBeCloseTo(1.93, 10); // only the card booking pays it
+    expect(s.earnings.costs.kyc).toBe(2); // RM1 for each of the two bookings this month
     expect(s.earnings.cashIncome).toBe(30);
-    expect(s.previousEarnings).toBeCloseTo(10.2, 10);
+    expect(s.previousEarnings).toBeCloseTo(9.635, 10);
     expect(s.earningsMonths.map((m) => m.label)).toEqual(s.months.map((m) => m.label));
-    expect(s.earningsMonths[5].value).toBeCloseTo(21, 10);
-    expect(s.earningsMonths[4].value).toBeCloseTo(10.2, 10);
+    expect(s.earningsMonths[5].value).toBeCloseTo(20.235, 10);
+    expect(s.earningsMonths[4].value).toBeCloseTo(9.635, 10);
   });
 
-  it("includes swap and late fees in the earnings but not a deposit kept for damage", () => {
+  it("includes swap and late fees in the earnings, each as its own card payment, but not a deposit kept for damage", () => {
     const s = summariseIncome(
-      [booking({ start_time: "2026-10-03T03:00:00Z", rental_fee_myr: 20, swapFeeMyr: 7, lateFeeMyr: 3, drone_charge_myr: 100 })],
+      [
+        booking({
+          start_time: "2026-10-03T03:00:00Z",
+          rental_fee_myr: 20,
+          swaps: [{ feeMyr: 7, paidBy: "CARD" }],
+          lateFees: [{ amountMyr: 3, paidBy: "CARD" }],
+          drone_charge_myr: 100,
+        }),
+      ],
       NOW,
       model,
     );
     expect(s.earnings.income).toBe(30);
-    expect(s.earnings.partner).toBeCloseTo(10.2, 10);
+    expect(s.earnings.costs.payment).toBeCloseTo(30 * 0.031 + 3, 10); // three card payments, each with its RM1
+    expect(s.earnings.partner).toBeCloseTo(8.635, 10);
     expect(s.total).toBe(130); // sales still count the kept deposit
   });
 
   it("treats each payment on a booking on its own: rental by card, swap in cash", () => {
     const s = summariseIncome(
-      [booking({ start_time: "2026-10-03T03:00:00Z", rental_fee_myr: 30, swapFeeMyr: 10, swapCashMyr: 10 })],
+      [booking({ start_time: "2026-10-03T03:00:00Z", rental_fee_myr: 30, swaps: [{ feeMyr: 10, paidBy: "CASH" }] })],
       NOW,
       model,
     );
-    // RM30 by card gives 10.20; the RM10 swap in cash gives 10 x 72% / 2 = 3.60
-    expect(s.earnings.partner).toBeCloseTo(13.8, 10);
     expect(s.earnings.income).toBe(40);
+    expect(s.earnings.costs.payment).toBeCloseTo(1.93, 10); // only the RM30 by card
+    expect(s.earnings.partner).toBeCloseTo(13.335, 10);
     expect(s.earnings.cashIncome).toBe(10);
-    expect(s.earnings.costs.payment).toBeCloseTo(1.2, 10); // only the card RM30 pays the 4%
   });
 
-  it("a cash rental with a late fee on the card: the late fee still pays the card cost", () => {
+  it("a cash rental with a late fee on the card: only the late fee pays a card fee", () => {
     const s = summariseIncome(
-      [booking({ start_time: "2026-10-03T03:00:00Z", rental_fee_myr: 30, paid_by: "CASH", lateFeeMyr: 10 })],
+      [booking({ start_time: "2026-10-03T03:00:00Z", rental_fee_myr: 30, paid_by: "CASH", lateFees: [{ amountMyr: 10, paidBy: "CARD" }] })],
       NOW,
       model,
     );
-    expect(s.earnings.partner).toBeCloseTo(10.8 + 3.4, 10); // 30 in cash -> 10.80; 10 by card -> 3.40
+    expect(s.earnings.costs.payment).toBeCloseTo(10 * 0.031 + 1, 10);
+    expect(s.earnings.partner).toBeCloseTo(13.645, 10);
     expect(s.earnings.cashIncome).toBe(30);
+  });
+
+  it("a two-battery swap (a second row with no fee) is one payment", () => {
+    const s = summariseIncome(
+      [booking({ start_time: "2026-10-03T03:00:00Z", rental_fee_myr: 20, swaps: [{ feeMyr: 10, paidBy: "CARD" }, { feeMyr: 0, paidBy: "CARD" }] })],
+      NOW,
+      model,
+    );
+    expect(s.earnings.costs.payment).toBeCloseTo(30 * 0.031 + 2, 10); // the rental and the swap
   });
 });

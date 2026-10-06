@@ -40,7 +40,7 @@ export async function submitPickupAction(formData: FormData): Promise<PickupResu
   // Every guided photo is required — checked before anything is saved, so a missing one stops the handover cleanly.
   // (A model with no photo pages, the GT50, has none to check.)
   const profile = modelProfile(booking.drone_model);
-  const photoSteps = profile.photosRequired ? dronePhotoSteps(booking.batteries_count, "pickup") : [];
+  const photoSteps = profile.photosRequired ? dronePhotoSteps(profile) : [];
   const stepPhotos = photoSteps.map((step) => ({ step, file: formData.get(`photo_${step.key}`) }));
   for (const { step, file } of stepPhotos) {
     if (!(file instanceof File) || file.size === 0) throw new Error(`Missing photo: ${step.label}`);

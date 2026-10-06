@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { dronePhotoSteps } from "./photoSteps";
+import { DRONE_MODEL_PROFILES } from "./pricingRules";
+
+const NEO = DRONE_MODEL_PROFILES.NEO2;
+const GT = DRONE_MODEL_PROFILES.GT50;
 
 describe("dronePhotoSteps", () => {
-  it("has the same seven steps, in the same order, for handover and return", () => {
-    const pickup = dronePhotoSteps(2, "pickup").map((s) => s.key);
-    const ret = dronePhotoSteps(2, "return").map((s) => s.key);
-    expect(pickup).toEqual(["power_on", "front", "top", "underside", "controller", "batteries", "kit_full"]);
-    expect(ret).toEqual(pickup);
+  it("is two photos, in this order: drone and controller both on, then front and camera", () => {
+    expect(dronePhotoSteps(NEO).map((s) => s.key)).toEqual(["drone_and_controller", "front"]);
   });
 
   it("gives every step a unique key, a label and an instruction", () => {
-    const steps = dronePhotoSteps(1, "pickup");
+    const steps = dronePhotoSteps(NEO);
     expect(new Set(steps.map((s) => s.key)).size).toBe(steps.length);
     for (const s of steps) {
       expect(s.label.length).toBeGreaterThan(0);
@@ -18,15 +19,17 @@ describe("dronePhotoSteps", () => {
     }
   });
 
-  it("words the battery steps for one battery", () => {
-    const steps = dronePhotoSteps(1, "pickup");
-    expect(steps.find((s) => s.key === "batteries")).toMatchObject({ label: "Battery", instruction: "Photograph the battery being handed over." });
-    expect(steps.find((s) => s.key === "kit_full")?.instruction).toContain("the battery together");
+  it("asks for the drone from above with the controller, both switched on", () => {
+    const first = dronePhotoSteps(NEO)[0];
+    expect(first.label).toBe("Drone and controller, both on");
+    expect(first.instruction).toContain("from above");
+    expect(first.instruction).toContain("controller");
   });
 
-  it("words the battery steps for two batteries, and for return", () => {
-    const steps = dronePhotoSteps(2, "return");
-    expect(steps.find((s) => s.key === "batteries")).toMatchObject({ label: "Batteries" });
-    expect(steps.find((s) => s.key === "batteries")?.instruction).toContain("2 batteries being returned");
+  it("names the RC-N3 for the Neo 2 and just 'the controller' for the GT50, with the same two photos", () => {
+    expect(dronePhotoSteps(NEO)[0].instruction).toContain("the RC-N3 controller ON");
+    expect(dronePhotoSteps(GT)[0].instruction).toContain("the controller ON");
+    expect(dronePhotoSteps(GT)[0].instruction).not.toContain("RC-N3");
+    expect(dronePhotoSteps(GT).map((x) => x.key)).toEqual(dronePhotoSteps(NEO).map((x) => x.key));
   });
 });

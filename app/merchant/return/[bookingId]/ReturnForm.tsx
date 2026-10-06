@@ -81,16 +81,11 @@ export function ReturnForm({
   checklistItems,
   disabled,
   holdOnFile,
-  batteriesCount,
   model,
   controllerCode,
-  heldBatteryLabels,
 }: {
-  /** The batteries the customer is holding, shown on the battery photo step so the right ones are photographed. */
-  heldBatteryLabels: string[];
   /** The controller's number (CTD-001 or CTG-001) for the controller's verdict card; null if it has none. */
   controllerCode: string | null;
-  batteriesCount: number;
   model: DroneModel;
   bookingId: string;
   checklistItems: { item_key: string; label: string }[];
@@ -101,7 +96,7 @@ export function ReturnForm({
   const profile = DRONE_MODEL_PROFILES[model];
   const deposit = depositMyrFor(model);
   // A model with no photo pages (the GT50) goes straight to the checklist and the deposit verdict.
-  const steps = profile.photosRequired ? dronePhotoSteps(batteriesCount, "return") : [];
+  const steps = profile.photosRequired ? dronePhotoSteps(profile) : [];
   const [step, setStep] = useState(0); // 0..steps.length-1 are the guided photos; steps.length is the verdict page
   const [photos, setPhotos] = useState<Record<string, File>>({});
   const [acks, setAcks] = useState<Record<string, boolean>>(() => Object.fromEntries(checklistItems.map((i) => [i.item_key, false])));
@@ -205,7 +200,6 @@ export function ReturnForm({
     const current = steps[step];
     return (
       <PhotoStepPage
-        hint={current.key === "batteries" && heldBatteryLabels.length > 0 ? `Taking back: ${heldBatteryLabels.join(" and ")}` : undefined}
         step={current}
         index={step}
         total={steps.length + 1}
