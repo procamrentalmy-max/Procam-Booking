@@ -11,6 +11,8 @@ import { isBatteryCount, MAX_BATTERIES_HELD, modelProfile } from "@/lib/droneRen
 const schema = z.object({
   bookingId: uuidSchema,
   returnedBatteryIds: z.array(uuidSchema).min(1, "Pick at least one battery").max(MAX_BATTERIES_HELD),
+  // Each swap is paid for on its own: by the saved card or in cash, whatever the rental fee was.
+  paidBy: z.enum(["CARD", "CASH"]).default("CARD"),
 });
 
 /**
@@ -25,7 +27,7 @@ export async function submitBatterySwapAction(formData: FormData) {
   const ctx = await getAuthContext();
   if (!hasMerchantAccess(ctx)) throw new Error("Not authorized");
 
-  const parsed = schema.safeParse({ bookingId: formData.get("bookingId"), returnedBatteryIds: formData.getAll("returnedBatteryIds") });
+  const parsed = schema.safeParse({ bookingId: formData.get("bookingId"), returnedBatteryIds: formData.getAll("returnedBatteryIds"), paidBy: formData.get("paidBy") ?? undefined });
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Pick the batteries being handed back.");
   const { bookingId } = parsed.data;
   const returnedIds = [...new Set(parsed.data.returnedBatteryIds)];
@@ -60,7 +62,7 @@ export async function submitBatterySwapAction(formData: FormData) {
     );
   }
 
-  await chargeBatterySwapFee(bookingId, count);
+  await chargeBatterySwapFee(bookingId, count, parsed.data.paidBy);
 
   for (let i = 0; i < count; i++) {
     await supabase.from("dr_batteries").update({ status: "AT_SHOP", current_booking_id: null }).eq("id", returnedIds[i]);
@@ -71,6 +73,7 @@ export async function submitBatterySwapAction(formData: FormData) {
       issued_battery_id: replacements[i].id,
       // The whole swap is charged once; it's recorded against the first battery so the fee isn't counted twice.
       fee_myr: i === 0 ? modelProfile(booking.drone_model).batteryFeeMyr[count] : 0,
+      paid_by: parsed.data.paidBy,
       performed_by_staff_id: ctx.staffId,
     });
   }

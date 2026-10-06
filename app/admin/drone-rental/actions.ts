@@ -82,7 +82,7 @@ export async function createDroneAction(formData: FormData) {
     .single();
   if (error || !drone) throw new Error(error?.message ?? "Could not create the drone.");
 
-  // Every drone comes with a controller, numbered CTR-001, CTR-002, ... across all shops in the order added.
+  // Every drone comes with a controller, numbered by make across all shops in the order added: CTD-001, CTD-002, ... for DJI controllers, CTG-001, ... for GT50.
   const { error: controllerError } = await supabase.from("dr_controllers").insert({ drone_id: drone.id });
   if (controllerError) throw new Error(controllerError.message);
 

@@ -7,6 +7,7 @@ import { eligibleDronesForRequest, getWalkInRequestById, viewOf } from "@/lib/dr
 import { depositMyrFor, formatMyr, modelProfile, rentalFeeMyr } from "@/lib/droneRental/pricingRules";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
 import { WalkInButtons } from "./WalkInButtons";
+import { CashButton } from "./CashButton";
 
 function Card({ children, tone }: { children: React.ReactNode; tone?: "good" | "warn" | "bad" }) {
   const tones = {
@@ -30,14 +31,14 @@ export default async function WalkInPage({ params }: { params: Promise<{ request
   const [{ data: drone }, { data: shop }, bookingResult] = await Promise.all([
     request.drone_id ? supabase.from("dr_drones").select("human_id").eq("id", request.drone_id).single() : Promise.resolve({ data: null }),
     supabase.from("dr_shops").select("name").eq("id", request.shop_id).single(),
-    request.booking_id ? supabase.from("dr_bookings").select("status,human_id").eq("id", request.booking_id).single() : Promise.resolve({ data: null }),
+    request.booking_id ? supabase.from("dr_bookings").select("status,human_id,paid_by").eq("id", request.booking_id).single() : Promise.resolve({ data: null }),
   ]);
   const booking = bookingResult.data;
 
   const view = viewOf(request);
   const hours = request.duration_minutes / 60;
   const batteries = request.batteries_count === 1 ? 1 : 2;
-  const summary = `${modelProfile(request.drone_model).shortName} · ${hours} hour${hours === 1 ? "" : "s"} · ${batteries} ${batteries === 1 ? "battery" : "batteries"} · ${formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model))} + ${formatMyr(depositMyrFor(request.drone_model))} deposit hold`;
+  const summary = `${modelProfile(request.drone_model).shortName} · ${hours} hour${hours === 1 ? "" : "s"} · ${batteries} ${batteries === 1 ? "battery" : "batteries"} · ${formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model))}${booking?.paid_by === "CASH" ? " in cash" : ""} + ${formatMyr(depositMyrFor(request.drone_model))} deposit hold`;
 
   const bookingStatus = booking?.status ?? null;
   const droneOptions = view === "SUBMITTED" ? await eligibleDronesForRequest(request) : [];
@@ -68,17 +69,29 @@ export default async function WalkInPage({ params }: { params: Promise<{ request
         </>
       )}
 
-      {view === "ACCEPTED" && (bookingStatus === "PENDING_PAYMENT" || bookingStatus === null) && (
+      {view === "ACCEPTED" && (bookingStatus === "PENDING_PAYMENT" || bookingStatus === null) && booking?.paid_by !== "CASH" && (
         <Card tone="warn">
           <p className="text-center text-base font-semibold text-amber-900 dark:text-amber-200">Confirmed. Waiting for {request.customer_name} to pay</p>
           <p className="mt-1 text-center text-sm text-amber-800 dark:text-amber-300">Their phone is on the payment page now. This updates by itself.</p>
         </Card>
       )}
 
+      {view === "ACCEPTED" && bookingStatus === "PENDING_PAYMENT" && booking?.paid_by === "CASH" && request.booking_id && (
+        <>
+          <Card tone="warn">
+            <p className="text-center text-base font-semibold text-amber-900 dark:text-amber-200">{request.customer_name} is paying cash</p>
+            <p className="mt-1 text-center text-sm text-amber-800 dark:text-amber-300">
+              Their card is saved and the deposit is held. Take {formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model))} from them, then tap below.
+            </p>
+          </Card>
+          <CashButton requestId={request.id} amount={formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model))} />
+        </>
+      )}
+
       {view === "ACCEPTED" && bookingStatus === "CONFIRMED" && booking && request.booking_id && (
         <>
           <Card tone="good">
-            <p className="text-center text-lg font-bold text-green-900 dark:text-green-100">Paid. Ready to hand over</p>
+            <p className="text-center text-lg font-bold text-green-900 dark:text-green-100">{booking.paid_by === "CASH" ? "Paid in cash. Ready to hand over" : "Paid. Ready to hand over"}</p>
             <p className="mt-1 text-center text-sm text-green-800 dark:text-green-200">
               {request.customer_name} · {booking.human_id}
             </p>

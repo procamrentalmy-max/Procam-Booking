@@ -18,6 +18,8 @@ const schema = z.object({
   controllerOutcome: outcomeSchema,
   droneDamageMyr: z.coerce.number().optional(),
   controllerDamageMyr: z.coerce.number().optional(),
+  // How a late fee, if there is one, is paid: by the saved card or in cash, whatever the rental fee was.
+  lateFeePaidBy: z.enum(["CARD", "CASH"]).default("CARD"),
 });
 
 export type ReturnResult = {
@@ -40,6 +42,7 @@ export async function submitReturnAction(formData: FormData): Promise<ReturnResu
     controllerOutcome: formData.get("controllerOutcome"),
     droneDamageMyr: formData.get("droneDamageMyr") || undefined,
     controllerDamageMyr: formData.get("controllerDamageMyr") || undefined,
+    lateFeePaidBy: formData.get("lateFeePaidBy") ?? undefined,
   });
   const acknowledgements = JSON.parse(String(formData.get("acknowledgements") ?? "{}")) as Record<string, boolean>;
   const notes = String(formData.get("notes") ?? "").trim() || null;
@@ -134,7 +137,7 @@ export async function submitReturnAction(formData: FormData): Promise<ReturnResu
   if (isReturnLate(actualReturnTime, scheduledEnd)) {
     lateFee = lateFeeMyr((actualReturnTime.getTime() - scheduledEnd.getTime()) / 60_000, profile.key);
     try {
-      await chargeLateFee(parsed.bookingId, lateFee);
+      await chargeLateFee(parsed.bookingId, lateFee, parsed.lateFeePaidBy);
       lateFeeCharged = true;
     } catch (err) {
       console.error("[drone return] late fee charge failed", err);

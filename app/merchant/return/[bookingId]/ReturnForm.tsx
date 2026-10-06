@@ -14,6 +14,8 @@ import {
   type DroneModel,
   type ItemOutcome,
 } from "@/lib/droneRental/pricingRules";
+import { PayMethodChoice } from "@/components/droneRental/PayMethodChoice";
+import type { DrPaidBy } from "@/lib/db/types";
 import { submitReturnAction, type ReturnResult } from "./actions";
 
 const OUTCOME_OPTIONS: { value: ItemOutcome; label: string; active: string }[] = [
@@ -86,7 +88,7 @@ export function ReturnForm({
 }: {
   /** The batteries the customer is holding, shown on the battery photo step so the right ones are photographed. */
   heldBatteryLabels: string[];
-  /** The controller's number (CTR-001) for the controller's verdict card; null if it has none. */
+  /** The controller's number (CTD-001 or CTG-001) for the controller's verdict card; null if it has none. */
   controllerCode: string | null;
   batteriesCount: number;
   model: DroneModel;
@@ -108,6 +110,7 @@ export function ReturnForm({
   const [droneDamage, setDroneDamage] = useState("");
   const [controllerDamage, setControllerDamage] = useState("");
   const [notes, setNotes] = useState("");
+  const [lateFeeMethod, setLateFeeMethod] = useState<DrPaidBy>("CARD");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ReturnResult | null>(null);
@@ -142,6 +145,7 @@ export function ReturnForm({
       if (controllerOutcome === "DAMAGED") formData.set("controllerDamageMyr", controllerDamage);
       formData.set("acknowledgements", JSON.stringify(acks));
       formData.set("notes", notes);
+      formData.set("lateFeePaidBy", lateFeeMethod);
       for (const s of steps) formData.set(`photo_${s.key}`, photos[s.key]);
       setResult(await submitReturnAction(formData));
     } catch (err) {
@@ -176,7 +180,9 @@ export function ReturnForm({
         )}
         {result.lateFeeMyr > 0 && (
           <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-            {result.lateFeeCharged
+            {lateFeeMethod === "CASH"
+              ? `Returned late — a ${formatMyr(result.lateFeeMyr)} late fee is due. Collect it from the customer in cash.`
+              : result.lateFeeCharged
               ? `Returned late — a ${formatMyr(result.lateFeeMyr)} late fee was charged to the customer's saved card.`
               : `Returned late — a ${formatMyr(result.lateFeeMyr)} late fee is due, but the saved card couldn't be charged. Collect it from the customer another way.`}
           </p>
@@ -291,6 +297,11 @@ export function ReturnForm({
           rows={3}
         />
       )}
+
+      <div className="space-y-1">
+        <PayMethodChoice label="If it's late: how does the customer pay the late fee?" value={lateFeeMethod} onChange={setLateFeeMethod} />
+        <p className="text-xs text-zinc-500">Only used when the drone is back past the grace time. Take it in cash, or it goes on their saved card.</p>
+      </div>
 
       {error && <p className="text-center text-sm text-red-600">{error}</p>}
 

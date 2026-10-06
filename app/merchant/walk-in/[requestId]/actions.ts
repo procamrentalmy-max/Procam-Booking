@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { uuidSchema } from "@/lib/zod-helpers";
 import { getAuthContext, hasMerchantAccess } from "@/lib/auth/session";
 import { canAccessShop } from "@/lib/droneRental/access";
+import { markDroneBookingPaidCash } from "@/lib/droneRental/payment";
 import { acceptWalkInRequest, closeWalkInRequest, getWalkInRequestById, WalkInError } from "@/lib/droneRental/walkInRequests";
 
 async function authorize(requestId: string) {
@@ -31,6 +32,15 @@ export async function confirmWalkInOrderAction(requestId: string): Promise<void>
 export async function declineWalkInOrderAction(requestId: string): Promise<void> {
   const { request } = await authorize(requestId);
   await closeWalkInRequest(request.id, "DECLINED");
+  revalidatePath(`/merchant/walk-in/${request.id}`);
+  revalidatePath("/merchant");
+}
+
+/** The customer pays the rental fee in cash at the counter instead of by card: the order is confirmed and handover can start. */
+export async function markWalkInPaidCashAction(requestId: string): Promise<void> {
+  const { request } = await authorize(requestId);
+  if (!request.booking_id) throw new Error("Confirm the order first.");
+  await markDroneBookingPaidCash(request.booking_id);
   revalidatePath(`/merchant/walk-in/${request.id}`);
   revalidatePath("/merchant");
 }

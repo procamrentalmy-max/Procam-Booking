@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { primaryButtonClass } from "@/components/formStyles";
+import { PayMethodChoice } from "@/components/droneRental/PayMethodChoice";
+import type { DrPaidBy } from "@/lib/db/types";
 import { BatteryPicker, useBatteryPicks, type BatteryOption } from "@/components/droneRental/BatteryPicker";
 import { formatMyr, isBatteryCount, type BatteryCount } from "@/lib/droneRental/pricingRules";
 import { submitBatterySwapAction } from "./actions";
@@ -25,6 +27,7 @@ export function BatterySwapForm({
   const [selected, setSelected] = useState<string[]>(heldBatteries[0] ? [heldBatteries[0].id] : []);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [payMethod, setPayMethod] = useState<DrPaidBy>("CARD");
 
   const count = selected.length;
   const fee = isBatteryCount(count) ? batteryFees[count] : 0;
@@ -41,6 +44,7 @@ export function BatterySwapForm({
     try {
       const formData = new FormData();
       formData.set("bookingId", bookingId);
+      formData.set("paidBy", payMethod);
       for (const id of selected) formData.append("returnedBatteryIds", id);
       for (const id of give) formData.append("replacementIds", id);
       await submitBatterySwapAction(formData);
@@ -79,15 +83,18 @@ export function BatterySwapForm({
           </p>
         ))}
 
+      <PayMethodChoice label="How does the customer pay the swap fee?" value={payMethod} onChange={setPayMethod} />
+      {payMethod === "CASH" && count > 0 && <p className="text-center text-sm font-semibold text-amber-700 dark:text-amber-400">Take {formatMyr(fee)} in cash before you hand over the batteries.</p>}
+
       {error && <p className="text-center text-sm text-red-600">{error}</p>}
       <button type="button" disabled={loading || !ready} onClick={submit} className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}>
         {loading
-          ? `Charging ${formatMyr(fee)}…`
+          ? `Saving ${formatMyr(fee)}…`
           : count === 0
             ? "Pick the batteries being returned"
             : !enough
               ? "Not enough charged batteries"
-              : `Swap ${count} ${count === 1 ? "battery" : "batteries"} (charge ${formatMyr(fee)})`}
+              : `Swap ${count} ${count === 1 ? "battery" : "batteries"} (${payMethod === "CASH" ? "cash" : "charge"} ${formatMyr(fee)})`}
       </button>
     </div>
   );

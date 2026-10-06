@@ -542,6 +542,8 @@ export type DrBatteryStatus = "AT_SHOP" | "WITH_CUSTOMER" | "MAINTENANCE" | "LOS
 export type DrBookingStatus = "PENDING_PAYMENT" | "CONFIRMED" | "ACTIVE" | "COMPLETED" | "CANCELLED" | "EXPIRED";
 export type DrBookingSource = "ONLINE" | "MERCHANT_INSTANT";
 export type DrDepositOutcome = "NONE" | "DAMAGED" | "LOST";
+/** How a drone booking was paid: by card through Stripe, or in cash at the shop (the merchant marks it). */
+export type DrPaidBy = "CARD" | "CASH";
 export type DrPaymentKind = "RENTAL_FEE" | "BATTERY_SWAP_FEE" | "LATE_FEE";
 export type DrChecklistPhase = "PICKUP" | "RETURN";
 
@@ -581,7 +583,7 @@ export type DrDroneRow = {
   updated_at: string;
 };
 
-/** A drone's controller, numbered CTR-001, CTR-002, ... across all shops in the order added. One per drone. */
+/** A drone's controller, numbered by make: CTD-001, ... for DJI controllers, CTG-001, ... for GT50 (across all shops, in the order added). One per drone. */
 export type DrControllerRow = {
   id: string;
   human_id: string;
@@ -630,6 +632,10 @@ export type DrBookingRow = {
   drone_charge_myr: number;
   controller_charge_myr: number;
   source: DrBookingSource;
+  /** How the rental fee was (or will be) paid. Swaps and late fees are chosen separately. */
+  paid_by: DrPaidBy;
+  /** The customer's saved card when they chose to pay the rental fee in cash (otherwise it is found from the card payment). */
+  stripe_payment_method_id: string | null;
   created_by_staff_id: string | null;
   created_at: string;
   updated_at: string;
@@ -641,6 +647,7 @@ export type DrBatterySwapRow = {
   released_battery_id: string | null;
   issued_battery_id: string;
   fee_myr: number;
+  paid_by: DrPaidBy;
   performed_by_staff_id: string;
   created_at: string;
 };

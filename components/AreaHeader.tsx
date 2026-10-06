@@ -6,11 +6,14 @@ export function AreaHeader({
   title,
   name,
   homeHref,
+  nav,
   logoUrl,
 }: {
   title: string;
   name: string;
   homeHref?: string;
+  /** Replaces the plain "Home" link (the logo still goes to homeHref). */
+  nav?: React.ReactNode;
   logoUrl: string | null;
 }) {
   return (
@@ -20,11 +23,12 @@ export function AreaHeader({
         <p className="mt-0.5 text-xs text-zinc-500">{title}</p>
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        {homeHref && (
-          <Link href={homeHref} className="inline-flex min-h-10 items-center px-1 text-sm font-medium text-zinc-500 underline underline-offset-2">
-            Home
-          </Link>
-        )}
+        {nav ??
+          (homeHref && (
+            <Link href={homeHref} className="inline-flex min-h-10 items-center px-1 text-sm font-medium text-zinc-500 underline underline-offset-2">
+              Home
+            </Link>
+          ))}
         <form action={signOutAction} className="flex items-center gap-3">
           <span className="text-sm text-zinc-600 dark:text-zinc-400">{name}</span>
           <button type="submit" className="min-h-10 px-1 text-sm font-medium text-zinc-500 underline underline-offset-2">
