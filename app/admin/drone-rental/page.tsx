@@ -45,6 +45,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 export default async function DroneRentalAdminPage() {
   const supabase = await createServerSupabaseClient();
   const monthStart = startOfMalaysiaMonthIso(new Date());
+  const { count: damagePending } = await supabase.from("dr_bookings").select("id", { count: "exact", head: true }).eq("damage_review", "PENDING");
 
   const [{ data: shops }, { data: drones }, { data: batteries }, { data: controllers }, { data: merchants }, { data: assignments }, { data: recent }, { data: monthBookings }] =
     await Promise.all([
@@ -92,6 +93,17 @@ export default async function DroneRentalAdminPage() {
 
   return (
     <div className="space-y-8 pt-4">
+      <Link
+        href="/admin/drone-rental/damage"
+        className="flex min-h-12 items-center justify-between rounded-xl border border-zinc-200 p-4 hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
+      >
+        <span>
+          <span className="block font-medium text-black dark:text-zinc-50">Damage review{damagePending ? ` · ${damagePending} waiting` : ""}</span>
+          <span className="block text-sm text-zinc-500">Tonight: type the amount to keep for each damaged item and capture it from the deposit</span>
+        </span>
+        <span aria-hidden className="text-zinc-400">→</span>
+      </Link>
+
       <Link
         href="/admin/drone-rental/sales"
         className="flex min-h-12 items-center justify-between rounded-xl border border-zinc-200 p-4 hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"

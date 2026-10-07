@@ -6,7 +6,7 @@ import { getAuthContext, hasMerchantAccess } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { uploadChecklistPhoto, checklistPhotoPath } from "@/lib/droneRental/storage";
 import { resolveDroneDeposit, chargeLateFee } from "@/lib/droneRental/payment";
-import { computeDepositCapture, includesController, lateFeeMyr, modelProfile, storedController, DepositCaptureError } from "@/lib/droneRental/pricingRules";
+import { computeDepositCapture, includesController, lateFeeMyr, modelProfile, storedController, DepositCaptureError, type DepositCapture } from "@/lib/droneRental/pricingRules";
 import { isReturnLate } from "@/lib/droneRental/slots";
 import { dronePhotoSteps } from "@/lib/droneRental/photoSteps";
 
@@ -16,8 +16,6 @@ const schema = z.object({
   bookingId: uuidSchema,
   droneOutcome: outcomeSchema,
   controllerOutcome: outcomeSchema,
-  droneDamageMyr: z.coerce.number().optional(),
-  controllerDamageMyr: z.coerce.number().optional(),
   // How a late fee, if there is one, is paid: by the saved card or in cash, whatever the rental fee was.
   lateFeePaidBy: z.enum(["CARD", "CASH"]).default("CARD"),
 });
@@ -30,6 +28,8 @@ export type ReturnResult = {
   capturedMyr: number;
   /** False when there was no card hold on file — any amount owed has to be collected another way. */
   holdFound: boolean;
+  /** True when something came back damaged: the deposit stays held and the admin reviews the damage and decides the amount. */
+  damageReview: boolean;
 };
 
 export async function submitReturnAction(formData: FormData): Promise<ReturnResult> {
@@ -40,8 +40,6 @@ export async function submitReturnAction(formData: FormData): Promise<ReturnResu
     bookingId: formData.get("bookingId"),
     droneOutcome: formData.get("droneOutcome"),
     controllerOutcome: formData.get("controllerOutcome"),
-    droneDamageMyr: formData.get("droneDamageMyr") || undefined,
-    controllerDamageMyr: formData.get("controllerDamageMyr") || undefined,
     lateFeePaidBy: formData.get("lateFeePaidBy") ?? undefined,
   });
   const acknowledgements = JSON.parse(String(formData.get("acknowledgements") ?? "{}")) as Record<string, boolean>;
@@ -58,19 +56,18 @@ export async function submitReturnAction(formData: FormData): Promise<ReturnResu
   // Nothing was held for a controller that wasn't rented, so whatever came in about it counts for nothing.
   const controllerOutcome = withController ? parsed.controllerOutcome : "NONE";
 
-  // Validate the verdict before touching anything — a bad damage amount
-  // should stop the return cleanly, not leave it half-saved. The deposit is the model's own.
-  let capture;
-  try {
-    capture = computeDepositCapture(
-      { outcome: parsed.droneOutcome, damageMyr: parsed.droneDamageMyr },
-      { outcome: controllerOutcome, damageMyr: withController ? parsed.controllerDamageMyr : undefined },
-      profile.key,
-      controller,
-    );
-  } catch (err) {
-    if (err instanceof DepositCaptureError) throw new Error(err.message);
-    throw err;
+  // Anything damaged is reviewed by the admin at night, who decides the amount: the deposit stays held until then (Stripe takes just
+  // one capture per hold, so a lost item on the same booking is settled in that review too). Otherwise the verdict is settled now.
+  const anyDamaged = parsed.droneOutcome === "DAMAGED" || controllerOutcome === "DAMAGED";
+  if (anyDamaged && !notes) throw new Error("Say what is damaged, so it can be reviewed tonight.");
+  let capture: DepositCapture | null = null;
+  if (!anyDamaged) {
+    try {
+      capture = computeDepositCapture({ outcome: parsed.droneOutcome }, { outcome: controllerOutcome }, profile.key, controller);
+    } catch (err) {
+      if (err instanceof DepositCaptureError) throw new Error(err.message);
+      throw err;
+    }
   }
 
   // Every guided photo is required — checked before anything is saved, so a missing one stops the return cleanly.
@@ -112,13 +109,24 @@ export async function submitReturnAction(formData: FormData): Promise<ReturnResu
     if (photoRowsError) throw new Error("Could not save the photos. Please try the return again.");
   }
 
-  const { holdFound } = await resolveDroneDeposit({
-    bookingId: parsed.bookingId,
-    capture,
-    droneOutcome: parsed.droneOutcome,
-    controllerOutcome,
-    resolvedByStaffId: ctx.staffId,
-  });
+  let holdFound: boolean;
+  if (capture) {
+    ({ holdFound } = await resolveDroneDeposit({
+      bookingId: parsed.bookingId,
+      capture,
+      droneOutcome: parsed.droneOutcome,
+      controllerOutcome,
+      resolvedByStaffId: ctx.staffId,
+    }));
+  } else {
+    // Damaged: leave the hold alone and put the booking on tonight's review list with the verdict as the merchant gave it.
+    const { data: hold } = await supabase.from("dr_deposit_authorizations").select("status").eq("booking_id", parsed.bookingId).maybeSingle();
+    holdFound = hold?.status === "AUTHORIZED";
+    await supabase
+      .from("dr_bookings")
+      .update({ drone_outcome: parsed.droneOutcome, controller_outcome: controllerOutcome, deposit_outcome: "DAMAGED", damage_review: "PENDING" })
+      .eq("id", parsed.bookingId);
+  }
 
   // Every battery still checked out to this booking comes back to the shop.
   await supabase.from("dr_batteries").update({ status: "AT_SHOP", current_booking_id: null }).eq("current_booking_id", parsed.bookingId);
@@ -149,5 +157,5 @@ export async function submitReturnAction(formData: FormData): Promise<ReturnResu
     }
   }
 
-  return { lateFeeMyr: lateFee, lateFeeCharged, capturedMyr: capture.totalMyr, holdFound };
+  return { lateFeeMyr: lateFee, lateFeeCharged, capturedMyr: capture?.totalMyr ?? 0, holdFound, damageReview: capture === null };
 }

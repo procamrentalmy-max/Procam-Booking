@@ -644,6 +644,9 @@ export type DrBookingRow = {
   deposit_outcome: DrDepositOutcome;
   deposit_deduction_myr: number;
   drone_outcome: DrDepositOutcome;
+  /** NONE: nothing was damaged. PENDING: something was damaged and the admin has yet to review it (the deposit is still held). DONE: reviewed and settled. */
+  damage_review: "NONE" | "PENDING" | "DONE";
+  damage_reviewed_at: string | null;
   controller_outcome: DrDepositOutcome;
   drone_charge_myr: number;
   controller_charge_myr: number;

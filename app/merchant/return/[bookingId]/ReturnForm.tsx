@@ -32,16 +32,12 @@ function ItemVerdict({
   title,
   heldMyr,
   outcome,
-  damage,
   onOutcome,
-  onDamage,
 }: {
   title: string;
   heldMyr: number;
   outcome: ItemOutcome;
-  damage: string;
   onOutcome: (o: ItemOutcome) => void;
-  onDamage: (v: string) => void;
 }) {
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
@@ -63,19 +59,8 @@ function ItemVerdict({
           </button>
         ))}
       </div>
-      {outcome === "DAMAGED" && (
-        <label className="mt-3 block text-sm">
-          <span className="font-medium">Damage charge (RM)</span>
-          <input
-            inputMode="decimal"
-            value={damage}
-            onChange={(e) => onDamage(e.target.value)}
-            placeholder={`Up to ${heldMyr}`}
-            className={`mt-1 w-full ${inputClass}`}
-          />
-        </label>
-      )}
-      {outcome === "LOST" && <p className="mt-3 text-sm font-medium text-red-700 dark:text-red-400">Full {formatMyr(heldMyr)} will be kept.</p>}
+      {outcome === "DAMAGED" && <p className="mt-3 text-sm font-medium text-amber-700 dark:text-amber-400">No amount needed here: ProCam reviews the damage tonight and decides what to keep.</p>}
+            {outcome === "LOST" && <p className="mt-3 text-sm font-medium text-red-700 dark:text-red-400">Full {formatMyr(heldMyr)} will be kept.</p>}
     </div>
   );
 }
@@ -111,30 +96,20 @@ export function ReturnForm({
   const [acks, setAcks] = useState<Record<string, boolean>>(() => Object.fromEntries(checklistItems.map((i) => [i.item_key, false])));
   const [droneOutcome, setDroneOutcome] = useState<ItemOutcome>("NONE");
   const [controllerOutcome, setControllerOutcome] = useState<ItemOutcome>("NONE");
-  const [droneDamage, setDroneDamage] = useState("");
-  const [controllerDamage, setControllerDamage] = useState("");
   const [notes, setNotes] = useState("");
   const [lateFeeMethod, setLateFeeMethod] = useState<DrPaidBy>("CARD");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ReturnResult | null>(null);
 
-  // The same rule the server applies — so what the merchant sees here is
-  // exactly what will be captured, and a bad amount is caught before submit.
-  let capture: ReturnType<typeof computeDepositCapture> | null = null;
-  let captureProblem: string | null = null;
-  try {
-    capture = computeDepositCapture(
-      { outcome: droneOutcome, damageMyr: droneDamage === "" ? undefined : Number(droneDamage) },
-      { outcome: controllerOutcome, damageMyr: controllerDamage === "" ? undefined : Number(controllerDamage) },
-      model, controller);
-  } catch (err) {
-    captureProblem = err instanceof DepositCaptureError ? err.message : "Check the amounts.";
-  }
+  // Damage is reviewed by ProCam tonight, who decides the amount; until then the whole deposit stays held. Everything else is settled
+  // right now by the same rule the server applies, so what the merchant sees here is exactly what will be captured.
+  const anyDamaged = droneOutcome === "DAMAGED" || (withController && controllerOutcome === "DAMAGED");
+  const capture = anyDamaged ? null : computeDepositCapture({ outcome: droneOutcome }, { outcome: withController ? controllerOutcome : "NONE" }, model, controller);
 
   const anythingWrong = droneOutcome !== "NONE" || controllerOutcome !== "NONE";
   const allPhotos = steps.every((s) => photos[s.key]);
-  const canSubmit = !loading && allPhotos && capture !== null;
+  const canSubmit = !loading && allPhotos && (!anyDamaged || notes.trim().length > 0);
 
   async function submit() {
     setLoading(true);
@@ -144,8 +119,6 @@ export function ReturnForm({
       formData.set("bookingId", bookingId);
       formData.set("droneOutcome", droneOutcome);
       formData.set("controllerOutcome", controllerOutcome);
-      if (droneOutcome === "DAMAGED") formData.set("droneDamageMyr", droneDamage);
-      if (controllerOutcome === "DAMAGED") formData.set("controllerDamageMyr", controllerDamage);
       formData.set("acknowledgements", JSON.stringify(acks));
       formData.set("notes", notes);
       formData.set("lateFeePaidBy", lateFeeMethod);
@@ -167,7 +140,10 @@ export function ReturnForm({
       <div className="space-y-4">
         <div className="rounded-2xl border border-green-300 bg-green-50 p-4 text-center dark:border-green-800 dark:bg-green-950">
           <p className="text-lg font-semibold text-green-900 dark:text-green-100">Return completed</p>
-          {result.holdFound && (
+          {result.damageReview && (
+            <p className="mt-1 text-sm text-green-800 dark:text-green-200">The deposit stays held until ProCam has reviewed the damage tonight.</p>
+          )}
+          {result.holdFound && !result.damageReview && (
             <p className="mt-1 text-sm text-green-800 dark:text-green-200">
               {result.capturedMyr > 0
                 ? `${formatMyr(result.capturedMyr)} kept from the deposit; the rest was released.`
@@ -175,7 +151,7 @@ export function ReturnForm({
             </p>
           )}
         </div>
-        {!result.holdFound && (
+        {!result.holdFound && !result.damageReview && (
           <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
             There was no card hold on file for this booking, so nothing was charged automatically.
             {result.capturedMyr > 0 ? ` Collect ${formatMyr(result.capturedMyr)} from the customer another way.` : ""}
@@ -249,24 +225,20 @@ export function ReturnForm({
           title="Drone"
           heldMyr={profile.depositDroneMyr}
           outcome={droneOutcome}
-          damage={droneDamage}
           onOutcome={setDroneOutcome}
-          onDamage={setDroneDamage}
         />
         {withController && (
           <ItemVerdict
             title={controllerCode ? `${controllerProfile?.shortName} ${controllerCode}` : (controllerProfile?.name ?? "Controller")}
             heldMyr={controllerDepositFor(model, controller)}
             outcome={controllerOutcome}
-            damage={controllerDamage}
             onOutcome={setControllerOutcome}
-            onDamage={setControllerDamage}
           />
         )}
 
         <div
           className={`rounded-2xl border-2 p-4 ${
-            capture && capture.totalMyr > 0 ? "border-amber-400 bg-amber-50 dark:bg-amber-950" : "border-green-300 bg-green-50 dark:border-green-800 dark:bg-green-950"
+            !capture || capture.totalMyr > 0 ? "border-amber-400 bg-amber-50 dark:bg-amber-950" : "border-green-300 bg-green-50 dark:border-green-800 dark:bg-green-950"
           }`}
         >
           {capture ? (
@@ -281,7 +253,9 @@ export function ReturnForm({
               </div>
             </div>
           ) : (
-            <p className="text-sm font-medium text-amber-900 dark:text-amber-200">{captureProblem}</p>
+            <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+              The whole {formatMyr(deposit)} deposit stays held. ProCam reviews the damage tonight and keeps only the amount it decides, then releases the rest.
+            </p>
           )}
         </div>
 
@@ -296,7 +270,7 @@ export function ReturnForm({
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="What happened? (kept on file)"
+          placeholder={anyDamaged ? "What is damaged? ProCam reads this tonight (required)" : "What happened? (kept on file)"}
           className={`w-full ${inputClass}`}
           rows={3}
         />
@@ -312,9 +286,11 @@ export function ReturnForm({
       <button type="button" disabled={!canSubmit} onClick={submit} className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}>
         {loading
           ? "Completing…"
-          : capture && capture.totalMyr > 0
-            ? `Complete return · keep ${formatMyr(capture.totalMyr)}`
-            : "Complete return · release deposit"}
+          : !capture
+            ? "Complete return · damage to be reviewed"
+            : capture.totalMyr > 0
+              ? `Complete return · keep ${formatMyr(capture.totalMyr)}`
+              : "Complete return · release deposit"}
       </button>
       {steps.length > 0 && (
         <button type="button" onClick={() => setStep(steps.length - 1)} className="w-full text-center text-sm text-zinc-500 underline underline-offset-2">
