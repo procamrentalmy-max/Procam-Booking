@@ -4,6 +4,8 @@ import { controllerDepositFor, controllerProfileFor, formatMyr, includesControll
 import { listChargedBatteries } from "@/lib/droneRental/batteries";
 import { batteryLabel } from "@/lib/droneRental/format";
 import { checklistForRental } from "@/lib/droneRental/checklist";
+import { checkWind } from "@/lib/droneRental/wind";
+import { formatWind } from "@/lib/droneRental/windRules";
 import { PickupForm } from "./PickupForm";
 
 export default async function MerchantPickupPage({ params }: { params: Promise<{ bookingId: string }> }) {
@@ -12,7 +14,7 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
 
   const { data: booking } = await supabase
     .from("dr_bookings")
-    .select("id,status,customer_id,drone_id,start_time,end_time,deposit_myr,batteries_count,drone_model,controller_kind,controller_id")
+    .select("id,status,shop_id,customer_id,drone_id,start_time,end_time,deposit_myr,batteries_count,drone_model,controller_kind,controller_id")
     .eq("id", bookingId)
     .maybeSingle();
   if (!booking) notFound();
@@ -32,6 +34,9 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
   ]);
 
   const holdOnFile = hold?.status === "AUTHORIZED";
+
+  // The wind at the shop for the next hour: a drone shouldn't go out when it is stronger than the drone can fly in.
+  const wind = booking.status === "CONFIRMED" ? await checkWind(booking.shop_id, booking.drone_model, new Date(), new Date(Date.now() + 60 * 60_000)) : null;
 
   // Every charged battery at the shop that fits this drone: the merchant picks which ones to hand out.
   const options = booking.status === "CONFIRMED" ? await listChargedBatteries(booking.drone_id) : [];
@@ -64,6 +69,12 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
         </ul>
         <p className="mt-2 text-xs text-zinc-500">Nothing else goes out — no case, no charging cable.</p>
       </div>
+
+      {wind?.tooWindy && wind.windMps !== null && wind.limitMps !== null && (
+        <p className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm font-semibold text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+          Too windy to fly right now: {formatWind(wind.windMps)}, and the {profile.shortName} can fly in {formatWind(wind.limitMps)} at most. Don&apos;t hand it over.
+        </p>
+      )}
 
       {holdOnFile ? (
         <p className="rounded-xl border border-green-300 bg-green-50 p-3 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200">

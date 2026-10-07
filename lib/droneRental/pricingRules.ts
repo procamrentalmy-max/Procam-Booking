@@ -97,6 +97,8 @@ export type DroneModelProfile = {
   depositDroneMyr: number;
   /** Whether the merchant takes guided photos at handover and return. */
   photosRequired: boolean;
+  /** The strongest wind it may be rented in, m/s: DJI's own wind resistance for the drone. Null when no limit is known (nothing is blocked). */
+  maxWindMps: number | null;
   /** About how many minutes of flying each battery choice gives, ready to show; null when it isn't known, so nothing is claimed. */
   flightMinutes: Record<BatteryCount, string> | null;
 };
@@ -112,6 +114,7 @@ export const DRONE_MODEL_PROFILES: Record<DroneModel, DroneModelProfile> = {
     batteryFeeMyr: BATTERY_PACKAGE_FEE_MYR,
     depositDroneMyr: 700,
     photosRequired: true,
+    maxWindMps: 10.7, // Level 5
     flightMinutes: { 1: "12–15", 2: "25–30" },
   },
   NEO: {
@@ -124,6 +127,7 @@ export const DRONE_MODEL_PROFILES: Record<DroneModel, DroneModelProfile> = {
     batteryFeeMyr: { 1: BATTERY_PACKAGE_FEE_MYR[1] - 1, 2: BATTERY_PACKAGE_FEE_MYR[2] - 1 },
     depositDroneMyr: 600,
     photosRequired: true,
+    maxWindMps: 8, // Level 4, DJI's rating for the original Neo
     flightMinutes: { 1: "12–15", 2: "25–30" },
   },
   GT50: {
@@ -137,6 +141,7 @@ export const DRONE_MODEL_PROFILES: Record<DroneModel, DroneModelProfile> = {
     batteryFeeMyr: { 1: 5, 2: 8 },
     depositDroneMyr: 100,
     photosRequired: true,
+    maxWindMps: null,
     flightMinutes: null,
   },
 };

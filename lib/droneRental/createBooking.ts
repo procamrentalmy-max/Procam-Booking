@@ -2,6 +2,8 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { buildShopFleetSnapshot } from "./snapshot";
+import { checkWind } from "./wind";
+import { formatWind } from "./windRules";
 import { alignToNextInterval, findEligibleDrone, findEligibleResources, InvalidDroneBookingRequestError } from "./slots";
 import {
   rentalFeeMyr,
@@ -22,6 +24,14 @@ export class NoDroneAvailableError extends Error {
   constructor() {
     super("No drone is available for that time.");
     this.name = "NoDroneAvailableError";
+  }
+}
+
+/** The wind forecast for the rental is stronger than the drone can fly in. */
+export class TooWindyError extends Error {
+  constructor(windMps: number, limitMps: number) {
+    super(`Too windy to fly then: ${formatWind(windMps)} forecast, and this drone's limit is ${formatWind(limitMps)}.`);
+    this.name = "TooWindyError";
   }
 }
 
@@ -81,6 +91,9 @@ export async function createPendingDroneBooking(params: {
   const startTime = alignToNextInterval(params.startTime);
   if (startTime.getTime() < Date.now() - 60_000) throw new NoDroneAvailableError();
   const endTime = new Date(startTime.getTime() + params.durationMinutes * 60_000);
+
+  const wind = await checkWind(params.shopId, model, startTime, endTime);
+  if (wind.tooWindy && wind.windMps !== null && wind.limitMps !== null) throw new TooWindyError(wind.windMps, wind.limitMps);
 
   const snapshot = await buildShopFleetSnapshot(params.shopId, model, controller);
   const free = findEligibleResources(snapshot.drones, snapshot.bookings, snapshot.controllers, startTime, endTime);

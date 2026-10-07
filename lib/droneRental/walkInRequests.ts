@@ -5,6 +5,8 @@ import { buildShopFleetSnapshot } from "./snapshot";
 import { eligibleWalkInDrones, walkInDurationsForShop } from "./merchantBooking";
 import { findOrCreateCustomer, createMerchantInstantBooking, NoControllerAvailableError, NoDroneAvailableError } from "./createBooking";
 import { walkInExpiry, walkInView, type WalkInView } from "./walkIn";
+import { checkWind } from "./wind";
+import { formatWind } from "./windRules";
 import type { DrWalkInRequestRow } from "@/lib/db/types";
 import {
   DEFAULT_CONTROLLER,
@@ -50,11 +52,20 @@ export async function walkInDurationOptions(shopId: string, model: DroneModel = 
 }
 
 /** What a walk-in customer can choose: for each model, for each way of flying it, the lengths on offer. Anything with no length left is left out. */
+/** The models the wind right now rules out at this shop (stronger than the drone can fly in), with the reading and the limit. */
+export async function windyModelsNow(shopId: string): Promise<{ model: DroneModel; windMps: number; limitMps: number }[]> {
+  const now = new Date();
+  const later = new Date(now.getTime() + 60 * 60_000);
+  const checks = await Promise.all(ENABLED_DRONE_MODELS.map(async (m) => [m, await checkWind(shopId, m, now, later)] as const));
+  return checks.flatMap(([model, c]) => (c.tooWindy && c.windMps !== null && c.limitMps !== null ? [{ model, windMps: c.windMps, limitMps: c.limitMps }] : []));
+}
+
 export type WalkInOptions = Partial<Record<DroneModel, Partial<Record<ControllerKind, number[]>>>>;
 
 export async function walkInOptionsByModel(shopId: string): Promise<WalkInOptions> {
+  const windy = new Set((await windyModelsNow(shopId)).map((w) => w.model));
   const entries = await Promise.all(
-    ENABLED_DRONE_MODELS.map(async (m) => {
+    ENABLED_DRONE_MODELS.filter((m) => !windy.has(m)).map(async (m) => {
       const perController = await Promise.all(
         modelProfile(m).controllerOptions.map(async (c) => [c, await walkInDurationOptions(shopId, m, c)] as const)
       );
@@ -66,7 +77,7 @@ export async function walkInOptionsByModel(shopId: string): Promise<WalkInOption
 
 export type SubmitWalkInOrderResult =
   | { ok: true; publicToken: string }
-  | { ok: false; reason: "shop_not_found" | "length_unavailable" | "too_many_open" };
+  | { ok: false; reason: "shop_not_found" | "length_unavailable" | "too_many_open" | "too_windy" };
 
 /**
  * A customer's walk-in order, made from the shop's standing QR: the length and batteries they chose plus their
@@ -103,6 +114,8 @@ export async function submitWalkInOrder(params: {
   if ((open ?? []).length >= MAX_OPEN_WALKIN_ORDERS_PER_SHOP) return { ok: false, reason: "too_many_open" };
 
   const controller = effectiveController(model, params.controller ?? DEFAULT_CONTROLLER);
+  const wind = (await windyModelsNow(shop.id)).find((w) => w.model === model);
+  if (wind) return { ok: false, reason: "too_windy" };
   const allowed = await walkInDurationOptions(shop.id, model, controller);
   if (!allowed.includes(params.durationMinutes)) return { ok: false, reason: "length_unavailable" };
 
@@ -169,6 +182,9 @@ export async function acceptWalkInRequest(requestId: string, staffId: string): P
   if (!request) throw new WalkInError("Order not found.");
   if (viewOf(request) !== "SUBMITTED") throw new WalkInError("This order isn't waiting for confirmation.");
   if (!request.customer_name || !request.customer_phone || !request.customer_email) throw new WalkInError("The customer's details are missing.");
+
+  const windy = (await windyModelsNow(request.shop_id)).find((w) => w.model === request.drone_model);
+  if (windy) throw new WalkInError(`Too windy to fly right now: ${formatWind(windy.windMps)}, and this drone's limit is ${formatWind(windy.limitMps)}. Decline this order.`);
 
   const eligible = await eligibleDronesForRequest(request);
   const drone = eligible[0];

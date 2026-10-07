@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import { ControllerChoice } from "@/components/droneRental/ControllerChoice";
 import { ComboCard, TotalSummary } from "@/components/droneRental/ComboCard";
+import { DroneChoice } from "@/components/droneRental/DroneChoice";
 import {
   BATTERY_OPTIONS,
   DEFAULT_BATTERIES,
@@ -28,13 +29,16 @@ const idleClass = "border-zinc-300 dark:border-zinc-700";
 
 export function WalkInOrderForm({ code, options, pictures }: { code: string; options: WalkInOptions; pictures: Record<string, string> }) {
   const router = useRouter();
-  const models = ENABLED_DRONE_MODELS.filter((m) => Object.keys(options[m] ?? {}).length > 0);
-  const [model, setModel] = useState<DroneModel>(models.includes("NEO2") ? "NEO2" : models[0]);
+  // Every drone is listed; only those with a length on offer right now can be picked, the rest are greyed out.
+  const models = ENABLED_DRONE_MODELS;
+  const pickableModels = models.filter((m) => Object.keys(options[m] ?? {}).length > 0);
+  const [model, setModel] = useState<DroneModel>(pickableModels.includes("NEO2") ? "NEO2" : pickableModels[0]);
   const profile = DRONE_MODEL_PROFILES[model];
-  // How they can fly this drone right now: only the ways that still have a length on offer (a controller out with someone else drops off).
-  const controllerOptions = profile.controllerOptions.filter((o) => (options[model]?.[o] ?? []).length > 0);
+  // Every way of flying is listed; only those with a length on offer (a controller the shop has none of, or has out, has none) can be picked.
+  const controllerOptions = profile.controllerOptions;
+  const selectableControllers = controllerOptions.filter((o) => (options[model]?.[o] ?? []).length > 0);
   const [pickedController, setPickedController] = useState<ControllerKind>("NONE");
-  const controller = controllerOptions.includes(pickedController) ? pickedController : controllerOptions[0];
+  const controller = selectableControllers.includes(pickedController) ? pickedController : selectableControllers[0];
   const durationsMinutes = options[model]?.[controller] ?? [];
   const [chosenMinutes, setChosenMinutes] = useState(durationsMinutes[0] ?? 60);
   // Another model may offer different lengths; fall back to its first if the current pick isn't on offer.
@@ -68,27 +72,15 @@ export function WalkInOrderForm({ code, options, pictures }: { code: string; opt
       }}
       className="space-y-6"
     >
-      {models.length > 1 && (
-        <div>
-          <p className="mb-2 text-sm font-medium">Which drone?</p>
-          <div className="grid grid-cols-2 gap-2">
-            {models.map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setModel(m)}
-                aria-pressed={model === m}
-                className={`rounded-xl border px-3 py-3 text-center ${model === m ? selectedClass : idleClass}`}
-              >
-                <span className="block text-sm font-semibold">{DRONE_MODEL_PROFILES[m].shortName}</span>
-                <span className={`block text-xs ${model === m ? "opacity-80" : "text-zinc-500"}`}>{formatMyr(DRONE_MODEL_PROFILES[m].hourlyRateMyr)} per hour</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      <DroneChoice models={models} value={model} onChange={setModel} unavailable={models.filter((m) => !pickableModels.includes(m))} />
 
-      <ControllerChoice model={model} options={controllerOptions} value={controller} onChange={setPickedController} />
+      <ControllerChoice
+        model={model}
+        options={controllerOptions}
+        value={controller}
+        onChange={setPickedController}
+        unavailable={controllerOptions.filter((o) => !selectableControllers.includes(o))}
+      />
 
       <div>
         <p className="mb-2 text-sm font-medium">How long do you need it?</p>

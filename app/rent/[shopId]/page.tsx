@@ -20,7 +20,8 @@ export default async function ShopBookingPage({ params }: { params: Promise<{ sh
   // Offer only the models this shop actually has a working drone of.
   const { data: shopDrones } = await supabase.from("dr_drones").select("model_key,status").eq("shop_id", shop.id);
   const offered = new Set((shopDrones ?? []).filter((d) => d.status !== "RETIRED" && d.status !== "LOST").map((d) => d.model_key));
-  const models: DroneModel[] = ENABLED_DRONE_MODELS.filter((m) => offered.has(m) && isDroneModel(m));
+  const models: DroneModel[] = ENABLED_DRONE_MODELS.filter((m) => isDroneModel(m));
+  const availableModels: DroneModel[] = models.filter((m) => offered.has(m));
 
   // And only the controllers this shop actually has (a shop with none rents phone-only).
   const { data: shopControllers } = await supabase.from("dr_controllers").select("kind").eq("shop_id", shop.id);
@@ -34,7 +35,7 @@ export default async function ShopBookingPage({ params }: { params: Promise<{ sh
         <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">{shop.name}</h1>
         <p className="mt-0.5 text-sm text-zinc-500">{shop.address}</p>
       </div>
-      <DroneBookingWizard shopId={shop.id} models={models.length ? models : ["NEO2"]} controllers={controllers} pictures={pictures} />
+      <DroneBookingWizard shopId={shop.id} models={models} availableModels={availableModels.length ? availableModels : ["NEO2"]} controllers={controllers} pictures={pictures} />
     </div>
   );
 }

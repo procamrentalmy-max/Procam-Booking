@@ -7,6 +7,7 @@ import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
 import { ControllerChoice } from "@/components/droneRental/ControllerChoice";
 import { ComboCard, TotalSummary } from "@/components/droneRental/ComboCard";
+import { DroneChoice } from "@/components/droneRental/DroneChoice";
 import {
   BATTERY_OPTIONS,
   DEFAULT_BATTERIES,
@@ -52,22 +53,27 @@ function StepHeader({ step, onBack }: { step: Step; onBack?: () => void }) {
   );
 }
 
-/** `controllers` is what this shop actually has to rent out (the RC-N3, the goggles set); phone only is always possible. */
-/** `pictures` are the admin's pictures for each combination, by comboKey (drone, how it is flown, batteries). */
+/**
+ * Every drone and every way of flying is listed. `availableModels` and `controllers` are what this shop actually has to rent
+ * out (drones that aren't retired or lost, the RC-N3, the goggles set); anything the shop has none of is greyed out and can't be
+ * picked. Phone only is always possible. `pictures` are the admin's pictures for each combination, by comboKey.
+ */
 export function DroneBookingWizard({
   shopId,
   models,
+  availableModels,
   controllers,
   pictures,
 }: {
   shopId: string;
   models: DroneModel[];
+  availableModels: DroneModel[];
   controllers: ControllerKind[];
   pictures: Record<string, string>;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("duration");
-  const [model, setModel] = useState<DroneModel>(models.includes("NEO2") ? "NEO2" : models[0]);
+  const [model, setModel] = useState<DroneModel>(availableModels.includes("NEO2") ? "NEO2" : (availableModels[0] ?? models[0]));
   const [durationHours, setDurationHours] = useState(1);
   const [batteries, setBatteries] = useState<BatteryCount>(DEFAULT_BATTERIES);
   // How they will fly it: their own phone, or a controller the shop has. Only choices this shop can actually offer are shown.
@@ -76,6 +82,8 @@ export function DroneBookingWizard({
   const [dayOffset, setDayOffset] = useState(0);
   const [slots, setSlots] = useState<Date[]>([]);
   const [unavailable, setUnavailable] = useState<Set<number> | null>(null);
+  // Set when some of the day's times are too windy for this drone (the forecast is over its limit).
+  const [windNote, setWindNote] = useState<{ limit: number; worst: number } | null>(null);
   const [selectedStart, setSelectedStart] = useState<Date | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -85,8 +93,11 @@ export function DroneBookingWizard({
 
   const durationMinutes = durationHours * 60;
   const profile = DRONE_MODEL_PROFILES[model];
-  const controllerOptions = profile.controllerOptions.filter((o) => o === "NONE" || controllers.includes(o));
-  const controller = controllerOptions.includes(effectiveController(model, pickedController)) ? effectiveController(model, pickedController) : controllerOptions[0];
+  // Every way of flying is listed; those the shop has none of are greyed out and never chosen.
+  const controllerOptions = profile.controllerOptions;
+  const selectableControllers = controllerOptions.filter((o) => o === "NONE" || controllers.includes(o));
+  const asked = effectiveController(model, pickedController);
+  const controller = selectableControllers.includes(asked) ? asked : selectableControllers[0];
   const withController = includesController(model, controller);
   const hourly = hourlyRateFor(model, controller);
   const deposit = depositMyrFor(model, controller);
@@ -107,6 +118,7 @@ export function DroneBookingWizard({
       return;
     }
     setUnavailable(null);
+    setWindNote(null);
     let cancelled = false;
     getUnavailableDroneStartsAction({ shopId, model, controller, durationMinutes, starts: candidates.map((d) => d.toISOString()) })
       .then((result) => {
@@ -116,6 +128,7 @@ export function DroneBookingWizard({
           if (isBad) bad.add(i);
         });
         setUnavailable(bad);
+        setWindNote(result.windy.some(Boolean) && result.windLimitMps !== null && result.worstWindMps !== null ? { limit: result.windLimitMps, worst: result.worstWindMps } : null);
       })
       .catch(() => {
         if (!cancelled) setUnavailable(new Set());
@@ -153,27 +166,15 @@ export function DroneBookingWizard({
       <div className="space-y-6">
         <StepHeader step={step} />
 
-        {models.length > 1 && (
-          <div>
-            <p className="mb-2 text-sm font-medium">Which drone?</p>
-            <div className="grid grid-cols-2 gap-2">
-              {models.map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setModel(m)}
-                  aria-pressed={model === m}
-                  className={`rounded-xl border px-3 py-3 text-center ${model === m ? selectedClass : idleClass}`}
-                >
-                  <span className="block text-sm font-semibold">{DRONE_MODEL_PROFILES[m].shortName}</span>
-                  <span className={`block text-xs ${model === m ? "opacity-80" : "text-zinc-500"}`}>{formatMyr(DRONE_MODEL_PROFILES[m].hourlyRateMyr)} per hour</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        <DroneChoice models={models} value={model} onChange={setModel} unavailable={models.filter((m) => !availableModels.includes(m))} />
 
-        <ControllerChoice model={model} options={controllerOptions} value={controller} onChange={setPickedController} />
+        <ControllerChoice
+          model={model}
+          options={controllerOptions}
+          value={controller}
+          onChange={setPickedController}
+          unavailable={controllerOptions.filter((o) => !selectableControllers.includes(o))}
+        />
 
         <ComboCard
           pictureUrl={pictures[comboKey(model, controller, batteries)]}
@@ -290,7 +291,12 @@ export function DroneBookingWizard({
           </div>
         )}
         {unavailable === null && slots.length > 0 && <p className="text-center text-xs text-zinc-400">Checking availability…</p>}
-        {unavailable && slots.length > 0 && unavailable.size === slots.length && (
+        {windNote && (
+          <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-center text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+            Too windy to fly at the greyed-out times: up to {Math.round(windNote.worst * 10) / 10} m/s forecast, and the {profile.shortName} can fly in {windNote.limit} m/s at most.
+          </p>
+        )}
+        {unavailable && slots.length > 0 && unavailable.size === slots.length && !windNote && (
           <p className="text-center text-xs text-zinc-500">Fully booked this day. Try another day or another shop.</p>
         )}
 

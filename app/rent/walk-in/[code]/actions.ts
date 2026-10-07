@@ -21,6 +21,7 @@ const REASON_MESSAGES = {
   shop_not_found: "We couldn't find this shop. Please ask the staff.",
   length_unavailable: "That rental length or controller isn't available right now. Pick another, or ask the staff.",
   too_many_open: "The shop has a lot of orders waiting. Please ask the staff.",
+  too_windy: "It is too windy to fly this drone right now. Please ask the staff.",
 } as const;
 
 /** Public: a customer in the shop scanning its standing QR. Nothing is booked yet; the merchant confirms the order. */
