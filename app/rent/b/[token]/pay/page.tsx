@@ -3,6 +3,9 @@ import { notFound, redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { createDroneRentalFeePaymentIntent, finishCashCardSetup, startCashCardSetup } from "@/lib/droneRental/payment";
 import { PaymentForm } from "@/components/PaymentForm";
+import { SlotCheckedPayment } from "@/components/droneRental/SlotCheckedPayment";
+import { SlotTakenDialog } from "@/components/droneRental/SlotTakenDialog";
+import { cancelLostBooking, isSlotStillFree } from "@/lib/droneRental/claimSlot";
 import { CashCardForm } from "@/components/droneRental/CashCardForm";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
 import { formatMyr, includesController, storedController } from "@/lib/droneRental/pricingRules";
@@ -35,7 +38,13 @@ export default async function DroneBookingPayPage({
     .eq("secure_token", token)
     .maybeSingle();
   if (!booking) notFound();
+  // The last drone for this time was taken by someone who paid first: say so (their details are still on the booking page they came from).
+  if (booking.status === "CANCELLED") return <SlotTakenDialog shopId={booking.shop_id} walkIn={booking.source === "MERCHANT_INSTANT"} />;
   if (booking.status !== "PENDING_PAYMENT") redirect(nextPath ?? `/rent/b/${token}`);
+  if (booking.source === "ONLINE" && !(await isSlotStillFree(booking.id))) {
+    await cancelLostBooking(booking.id);
+    return <SlotTakenDialog shopId={booking.shop_id} />;
+  }
   const { data: shop } = await supabase.from("dr_shops").select("name").eq("id", booking.shop_id).single();
 
   // Cash is for walk-ins, who are at the shop. Online bookings are paid up front by card.
@@ -154,7 +163,11 @@ export default async function DroneBookingPayPage({
             payingCash ? (
               <CashCardForm clientSecret={clientSecret} returnUrl={cashReturnUrl} />
             ) : (
-              <PaymentForm clientSecret={clientSecret} returnUrl={returnUrl} locale="en" />
+              booking.source === "ONLINE" ? (
+                <SlotCheckedPayment token={token} shopId={booking.shop_id} clientSecret={clientSecret} returnUrl={returnUrl} />
+              ) : (
+                <PaymentForm clientSecret={clientSecret} returnUrl={returnUrl} locale="en" />
+              )
             )
           ) : (
             <p className="rounded-xl border border-zinc-200 p-4 text-center text-sm text-zinc-500 dark:border-zinc-800">

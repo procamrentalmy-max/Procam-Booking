@@ -8,6 +8,7 @@ import { formatMalaysiaTime } from "@/lib/i18n/locale";
 import { ControllerChoice } from "@/components/droneRental/ControllerChoice";
 import { ComboCard, TotalSummary } from "@/components/droneRental/ComboCard";
 import { DroneChoice } from "@/components/droneRental/DroneChoice";
+import { SlotTakenDialog } from "@/components/droneRental/SlotTakenDialog";
 import {
   BATTERY_OPTIONS,
   DEFAULT_BATTERIES,
@@ -29,6 +30,13 @@ import { getUnavailableDroneStartsAction, createDroneBookingAction } from "@/app
 
 const DURATION_OPTIONS_HOURS = [1, 2, 3, 4, 5, 6];
 const DAYS_AHEAD = 7;
+
+/**
+ * What the customer typed and picked is kept in this browser tab's own memory (sessionStorage), never sent to the server, so that if
+ * the last drone for their time is taken by someone who paid first they can choose another time without filling everything in
+ * again. It is read once when they come back and then deleted, and it disappears with the tab: close or leave the page and it's gone.
+ */
+const DRAFT_KEY = "procam-booking-draft";
 
 type Step = "duration" | "slot" | "contact";
 
@@ -64,12 +72,15 @@ export function DroneBookingWizard({
   availableModels,
   controllers,
   pictures,
+  retry = false,
 }: {
   shopId: string;
   models: DroneModel[];
   availableModels: DroneModel[];
   controllers: ControllerKind[];
   pictures: Record<string, string>;
+  /** True when the customer is sent back here because the time they paid for was taken: restore what they had and go to the times. */
+  retry?: boolean;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("duration");
@@ -90,6 +101,7 @@ export function DroneBookingWizard({
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [slotTaken, setSlotTaken] = useState(false);
 
   const durationMinutes = durationHours * 60;
   const profile = DRONE_MODEL_PROFILES[model];
@@ -138,6 +150,37 @@ export function DroneBookingWizard({
     };
   }, [step, shopId, model, controller, durationMinutes, dayOffset]);
 
+  // Coming back after losing the last drone: put their choices and details back, ready to pick another time.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(DRAFT_KEY);
+      sessionStorage.removeItem(DRAFT_KEY);
+      if (!retry || !raw) return;
+      const d = JSON.parse(raw) as Partial<{ shopId: string; model: DroneModel; controller: ControllerKind; durationHours: number; batteries: BatteryCount; dayOffset: number; name: string; phone: string; email: string }>;
+      if (d.shopId !== shopId) return;
+      if (d.model && models.includes(d.model)) setModel(d.model);
+      if (d.controller) setPickedController(d.controller);
+      if (typeof d.durationHours === "number") setDurationHours(d.durationHours);
+      if (d.batteries === 1 || d.batteries === 2) setBatteries(d.batteries);
+      if (typeof d.dayOffset === "number") setDayOffset(d.dayOffset);
+      setName(d.name ?? "");
+      setPhone(d.phone ?? "");
+      setEmail(d.email ?? "");
+      setStep("slot");
+    } catch {
+      // No tab memory (a private window, say): they just start again.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function rememberDraft() {
+    try {
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ shopId, model, controller, durationHours, batteries, dayOffset, name, phone, email }));
+    } catch {
+      // Nothing to remember it in: they would start again, nothing worse.
+    }
+  }
+
   async function submit() {
     if (!selectedStart) return;
     setLoading(true);
@@ -154,6 +197,13 @@ export function DroneBookingWizard({
         phone,
         email,
       });
+      // Someone else paid for the last drone first: the popup, with everything still filled in.
+      if ("slotTaken" in result) {
+        setSlotTaken(true);
+        setLoading(false);
+        return;
+      }
+      rememberDraft();
       router.push(`/rent/b/${result.secureToken}/pay`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong — please try again.");
@@ -315,6 +365,15 @@ export function DroneBookingWizard({
   return (
     <div className="space-y-5">
       <StepHeader step={step} onBack={() => setStep("slot")} />
+      {slotTaken && (
+        <SlotTakenDialog
+          onChooseAnother={() => {
+            setSlotTaken(false);
+            setSelectedStart(null);
+            setStep("slot");
+          }}
+        />
+      )}
 
       {selectedStart && (
         <div className="space-y-1 rounded-2xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">

@@ -11,6 +11,9 @@ export type ShopFleetSnapshot = {
 };
 
 /**
+ * A booking that hasn't been paid for yet holds nothing (see claimSlot.ts), so it isn't counted: only paid bookings, which are
+ * CONFIRMED, ACTIVE or finished, take a drone or a controller out of what's free.
+ *
  * Builds the drone-fleet snapshot findNextAvailableSlot/findEligibleDrone
  * need, scoped to one shop — a booking request always targets one shop
  * (drones don't move between shops the way ProCam's locker assets do, so
@@ -33,7 +36,7 @@ export async function buildShopFleetSnapshot(shopId: string, model?: DroneModel,
         .from("dr_bookings")
         .select("drone_id,status,start_time,end_time")
         .in("drone_id", droneIds)
-        .not("status", "in", "(CANCELLED,EXPIRED)")
+        .not("status", "in", "(PENDING_PAYMENT,CANCELLED,EXPIRED)")
         .gte("end_time", snapshotCutoff)
     : { data: [] };
 
@@ -47,7 +50,7 @@ export async function buildShopFleetSnapshot(shopId: string, model?: DroneModel,
           .from("dr_bookings")
           .select("controller_id,status,start_time,end_time")
           .in("controller_id", controllerIds)
-          .not("status", "in", "(CANCELLED,EXPIRED)")
+          .not("status", "in", "(PENDING_PAYMENT,CANCELLED,EXPIRED)")
           .gte("end_time", snapshotCutoff)
       : { data: [] };
     controllers = {

@@ -5,8 +5,9 @@ import { getComboPictureUrls, getLogoUrl } from "@/lib/branding";
 import { Brand } from "@/components/Brand";
 import { ENABLED_DRONE_MODELS, isDroneModel, type ControllerKind, type DroneModel } from "@/lib/droneRental/pricingRules";
 
-export default async function ShopBookingPage({ params }: { params: Promise<{ shopId: string }> }) {
+export default async function ShopBookingPage({ params, searchParams }: { params: Promise<{ shopId: string }>; searchParams: Promise<{ retry?: string }> }) {
   const { shopId } = await params;
+  const { retry } = await searchParams;
   const supabase = createServiceRoleClient();
 
   const { data: shop } = await supabase
@@ -35,7 +36,7 @@ export default async function ShopBookingPage({ params }: { params: Promise<{ sh
         <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">{shop.name}</h1>
         <p className="mt-0.5 text-sm text-zinc-500">{shop.address}</p>
       </div>
-      <DroneBookingWizard shopId={shop.id} models={models} availableModels={availableModels.length ? availableModels : ["NEO2"]} controllers={controllers} pictures={pictures} />
+      <DroneBookingWizard shopId={shop.id} models={models} availableModels={availableModels.length ? availableModels : ["NEO2"]} controllers={controllers} pictures={pictures} retry={retry === "1"} />
     </div>
   );
 }

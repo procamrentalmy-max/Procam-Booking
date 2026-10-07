@@ -9,15 +9,26 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 /** Generic Stripe Elements checkout — shared by any flow that just needs to collect a card against a clientSecret (camera rental fee, photo print orders, ...). */
-export function PaymentForm({ clientSecret, returnUrl, locale }: { clientSecret: string; returnUrl: string; locale: Locale }) {
+export function PaymentForm({
+  clientSecret,
+  returnUrl,
+  locale,
+  beforePay,
+}: {
+  clientSecret: string;
+  returnUrl: string;
+  locale: Locale;
+  /** Runs just before the card is charged; return false to stop (nothing is charged), after showing the customer why. */
+  beforePay?: () => Promise<boolean>;
+}) {
   return (
     <Elements stripe={stripePromise} options={{ clientSecret }}>
-      <CheckoutForm returnUrl={returnUrl} locale={locale} />
+      <CheckoutForm returnUrl={returnUrl} locale={locale} beforePay={beforePay} />
     </Elements>
   );
 }
 
-function CheckoutForm({ returnUrl, locale }: { returnUrl: string; locale: Locale }) {
+function CheckoutForm({ returnUrl, locale, beforePay }: { returnUrl: string; locale: Locale; beforePay?: () => Promise<boolean> }) {
   const dict = getDictionary(locale);
   const stripe = useStripe();
   const elements = useElements();
@@ -29,6 +40,11 @@ function CheckoutForm({ returnUrl, locale }: { returnUrl: string; locale: Locale
     if (!stripe || !elements) return;
     setLoading(true);
     setError(null);
+
+    if (beforePay && !(await beforePay())) {
+      setLoading(false);
+      return;
+    }
 
     const { error: submitError } = await stripe.confirmPayment({
       elements,

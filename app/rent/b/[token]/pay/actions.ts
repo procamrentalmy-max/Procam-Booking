@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { cancelLostBooking, claimBookingSlot, isSlotStillFree } from "@/lib/droneRental/claimSlot";
 
 /**
  * DEV ONLY — bypasses Stripe and marks a booking CONFIRMED exactly as if
@@ -25,9 +26,26 @@ export async function devBypassDronePaymentAction(formData: FormData) {
   if (!booking) throw new Error("Booking not found.");
   if (booking.status !== "PENDING_PAYMENT") throw new Error("This booking has already been paid.");
 
-  await supabase.from("dr_bookings").update({ status: "CONFIRMED" }).eq("id", booking.id);
+  // The same rule as a real payment: whoever pays first gets the drone. A booking that lost it is closed and shows its popup.
+  const claim = await claimBookingSlot(booking.id);
+  if (!claim.claimed) await cancelLostBooking(booking.id);
 
-  redirect(next ?? `/rent/b/${token}`);
+  redirect(claim.claimed ? (next ?? `/rent/b/${token}`) : `/rent/b/${token}/pay`);
+}
+
+/**
+ * Called by the pay page just before a card payment is taken: is a drone (and controller) still free for this booking? If not,
+ * the booking is closed and nothing is charged, so the customer can be told to pick another time instead of paying for
+ * something they can't have. Only the person holding the booking's link can ask.
+ */
+export async function checkSlotStillFreeAction(token: string): Promise<{ free: boolean }> {
+  const parsed = z.string().min(1).max(200).parse(token);
+  const supabase = createServiceRoleClient();
+  const { data: booking } = await supabase.from("dr_bookings").select("id,status").eq("secure_token", parsed).maybeSingle();
+  if (!booking || booking.status !== "PENDING_PAYMENT") return { free: booking?.status !== "CANCELLED" };
+  const free = await isSlotStillFree(booking.id);
+  if (!free) await cancelLostBooking(booking.id);
+  return { free };
 }
 
 /**

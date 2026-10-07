@@ -6,6 +6,7 @@ import { controllerProfileFor, formatMyr, includesController, modelProfile, stor
 import { generateQrDataUrl } from "@/lib/qr";
 import { requestOrigin } from "@/lib/requestOrigin";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
+import { SlotTakenDialog } from "@/components/droneRental/SlotTakenDialog";
 import { formatDuration } from "@/lib/droneRental/format";
 
 // The QR stops being offered the moment the merchant accepts it — never cache this page.
@@ -36,6 +37,8 @@ export default async function DroneBookingDashboardPage({ params }: { params: Pr
     .maybeSingle();
   if (!booking) notFound();
   const controller = storedController(booking.drone_model, booking.controller_kind);
+  // The only way an online booking ends up cancelled is that someone else paid for the last drone first.
+  if (booking.status === "CANCELLED") return <SlotTakenDialog shopId={booking.shop_id} walkIn={booking.source === "MERCHANT_INSTANT"} />;
 
   const [{ data: shop }, { data: drone }] = await Promise.all([
     supabase.from("dr_shops").select("name,address,google_maps_url").eq("id", booking.shop_id).single(),

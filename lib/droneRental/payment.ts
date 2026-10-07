@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { getStripe, toCents } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import type { DrPaidBy } from "@/lib/db/types";
+import { claimBookingSlot, cancelLostBooking } from "./claimSlot";
 import { modelProfile, type BatteryCount, type DepositCapture, type ItemOutcome } from "./pricingRules";
 
 /** How a single payment is made: by card (Stripe) or in cash at the shop. Each payment on a booking is chosen on its own. */
@@ -221,27 +222,55 @@ export async function markDroneBookingPaidCash(bookingId: string): Promise<void>
     }
   }
 
-  const { data: claimed } = await supabase
-    .from("dr_bookings")
-    .update({ status: "CONFIRMED" })
-    .eq("id", bookingId)
-    .eq("status", "PENDING_PAYMENT")
-    .select("id");
-  if (!claimed || claimed.length === 0) throw new Error("This order isn't waiting for payment any more.");
+  // The cash is in hand: claim the drone (the same rule as a card payment: whoever pays first gets it).
+  const claim = await claimBookingSlot(bookingId);
+  if (!claim.claimed) {
+    await cancelLostBooking(bookingId);
+    throw new Error("That drone was taken by someone else while the customer was paying. Don't take the cash: decline this order.");
+  }
 
   const record = { provider: "cash", provider_ref: `cash-${bookingId}`, status: "SUCCEEDED" as const };
   if (pending) await supabase.from("dr_payments").update(record).eq("id", pending.id);
   else await supabase.from("dr_payments").insert({ booking_id: bookingId, kind: "RENTAL_FEE", amount_myr: booking.rental_fee_myr, ...record });
 }
 
-/** Rental fee succeeded -> booking CONFIRMED, then the deposit hold goes on immediately. Called from the webhook. */
+/**
+ * Rental fee succeeded -> the booking claims its drone and becomes CONFIRMED (which is when the merchant first sees it), then
+ * the deposit hold goes on immediately. Called from the webhook.
+ *
+ * If someone else paid for the last drone first, the claim fails: this customer's payment is refunded in full and the booking
+ * is closed, and their page tells them to pick another time. (The pay page also checks just before taking a card payment, so
+ * this only happens when two people pay at almost exactly the same moment.)
+ */
 export async function confirmDroneBookingAfterPayment(bookingId: string): Promise<void> {
   const supabase = createServiceRoleClient();
   // A booking set to pay in cash already has its deposit held; a late card payment must not confirm it a second time.
   const { data: current } = await supabase.from("dr_bookings").select("paid_by").eq("id", bookingId).single();
   if (current?.paid_by === "CASH") return;
-  await supabase.from("dr_bookings").update({ status: "CONFIRMED" }).eq("id", bookingId).eq("status", "PENDING_PAYMENT");
+
+  const claim = await claimBookingSlot(bookingId);
+  if (!claim.claimed) {
+    await cancelLostBooking(bookingId);
+    await refundDroneRentalFee(bookingId);
+    return;
+  }
   await placeDroneDepositHold(bookingId);
+}
+
+/** Gives the rental fee back (in full) for a booking that lost its slot after paying. Safe to run again: it does nothing once refunded. */
+async function refundDroneRentalFee(bookingId: string): Promise<void> {
+  const supabase = createServiceRoleClient();
+  const { data: payment } = await supabase
+    .from("dr_payments")
+    .select("id,provider_ref,status")
+    .eq("booking_id", bookingId)
+    .eq("kind", "RENTAL_FEE")
+    .eq("provider", "stripe")
+    .maybeSingle();
+  if (!payment || payment.status === "REFUNDED") return;
+  // Thrown on failure so the webhook is retried and the refund isn't lost.
+  await getStripe().refunds.create({ payment_intent: payment.provider_ref });
+  await supabase.from("dr_payments").update({ status: "REFUNDED" }).eq("id", payment.id);
 }
 
 /**

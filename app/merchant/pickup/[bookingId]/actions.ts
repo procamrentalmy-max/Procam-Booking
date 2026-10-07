@@ -125,7 +125,7 @@ export async function submitPickupAction(formData: FormData): Promise<PickupResu
     .select("start_time")
     .eq("drone_id", booking.drone_id)
     .neq("id", bookingId)
-    .not("status", "in", "(CANCELLED,EXPIRED,COMPLETED)")
+    .not("status", "in", "(PENDING_PAYMENT,CANCELLED,EXPIRED,COMPLETED)")
     .gte("start_time", originalEnd.toISOString())
     .order("start_time", { ascending: true })
     .limit(1)

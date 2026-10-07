@@ -70,7 +70,7 @@ export async function createDroneBookingAction(input: {
   name: string;
   phone: string;
   email: string;
-}): Promise<{ secureToken: string; startTime: string; endTime: string }> {
+}): Promise<{ secureToken: string; startTime: string; endTime: string } | { slotTaken: true }> {
   const parsed = createBookingSchema.safeParse(input);
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Check your details and try again.");
   const data = parsed.data;
@@ -93,8 +93,8 @@ export async function createDroneBookingAction(input: {
     return { secureToken: booking.secure_token, startTime: booking.start_time, endTime: booking.end_time };
   } catch (err) {
     if (err instanceof TooWindyError) throw new Error(err.message);
-    if (err instanceof NoDroneAvailableError) throw new Error("Sorry, that time was just taken — pick another slot.");
-    if (err instanceof NoControllerAvailableError) throw new Error(`Sorry, the ${err.controller} was just taken for that time — pick another slot or another way to fly.`);
+    // Someone paid for the last drone (or the controller) first: the page shows its popup and keeps everything typed.
+    if (err instanceof NoDroneAvailableError || err instanceof NoControllerAvailableError) return { slotTaken: true };
     throw err;
   }
 }
