@@ -123,15 +123,15 @@ describe("summariseIncome", () => {
       NOW,
       model,
     );
-    expect(s.earnings.partner).toBeCloseTo(9.635 + 10.6, 10);
+    expect(s.earnings.partner).toBeCloseTo(10.685 + 11.65, 10);
     expect(s.earnings.income).toBe(60);
     expect(s.earnings.costs.payment).toBeCloseTo(1.93, 10); // only the card booking pays it
-    expect(s.earnings.costs.kyc).toBe(2); // RM1 for each of the two bookings this month
+    expect(s.earnings.costs.kyc).toBeCloseTo(2.6, 10); // RM1.30 for each of the two bookings this month
     expect(s.earnings.cashIncome).toBe(30);
-    expect(s.previousEarnings).toBeCloseTo(9.635, 10);
+    expect(s.previousEarnings).toBeCloseTo(10.685, 10);
     expect(s.earningsMonths.map((m) => m.label)).toEqual(s.months.map((m) => m.label));
-    expect(s.earningsMonths[5].value).toBeCloseTo(20.235, 10);
-    expect(s.earningsMonths[4].value).toBeCloseTo(9.635, 10);
+    expect(s.earningsMonths[5].value).toBeCloseTo(22.335, 10);
+    expect(s.earningsMonths[4].value).toBeCloseTo(10.685, 10);
   });
 
   it("includes swap and late fees in the earnings, each as its own card payment, but not a deposit kept for damage", () => {
@@ -150,7 +150,7 @@ describe("summariseIncome", () => {
     );
     expect(s.earnings.income).toBe(30);
     expect(s.earnings.costs.payment).toBeCloseTo(30 * 0.031 + 3, 10); // three card payments, each with its RM1
-    expect(s.earnings.partner).toBeCloseTo(8.635, 10);
+    expect(s.earnings.partner).toBeCloseTo(9.685, 10);
     expect(s.total).toBe(130); // sales still count the kept deposit
   });
 
@@ -162,7 +162,7 @@ describe("summariseIncome", () => {
     );
     expect(s.earnings.income).toBe(40);
     expect(s.earnings.costs.payment).toBeCloseTo(1.93, 10); // only the RM30 by card
-    expect(s.earnings.partner).toBeCloseTo(13.335, 10);
+    expect(s.earnings.partner).toBeCloseTo(14.785, 10);
     expect(s.earnings.cashIncome).toBe(10);
   });
 
@@ -173,7 +173,7 @@ describe("summariseIncome", () => {
       model,
     );
     expect(s.earnings.costs.payment).toBeCloseTo(10 * 0.031 + 1, 10);
-    expect(s.earnings.partner).toBeCloseTo(13.645, 10);
+    expect(s.earnings.partner).toBeCloseTo(15.095, 10);
     expect(s.earnings.cashIncome).toBe(30);
   });
 

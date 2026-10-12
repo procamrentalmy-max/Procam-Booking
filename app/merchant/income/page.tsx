@@ -3,7 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { modelProfile } from "@/lib/droneRental/pricingRules";
 import { PAID_STATUSES, monthStartMs, summariseIncome, type IncomeBooking } from "@/lib/droneRental/income";
-import { CARD_FEE_FIXED_MYR, CARD_FEE_RATE, INSURANCE_RATE, KYC_PER_BOOKING_MYR, PARTNER_SHARE, PLATFORM_RATE } from "@/lib/droneRental/earnings";
+import { CARD_FEE_FIXED_MYR, CARD_FEE_RATE, KYC_PER_BOOKING_MYR, PARTNER_SHARE, PLATFORM_RATE } from "@/lib/droneRental/earnings";
 import { EarningsRow } from "@/components/droneRental/EarningsRow";
 import { BarChart, DonutChart } from "@/app/admin/sales/charts";
 
@@ -120,11 +120,6 @@ export default async function ShopIncomePage() {
             label="KYC / verification"
             value={`− ${myr2(e.costs.kyc)}`}
             info={`RM${KYC_PER_BOOKING_MYR.toFixed(2)} for every drone booking, for checking the customer's ID and face before they get a drone.`}
-          />
-          <EarningsRow
-            label={`Insurance / protection ${percent(INSURANCE_RATE)}`}
-            value={`− ${myr2(e.costs.insurance)}`}
-            info="Protection against loss and damage, on top of the customer's deposit."
           />
           <EarningsRow label="Left after costs" value={myr2(e.net)} strong />
           <EarningsRow label={`ProCam ${percent(1 - PARTNER_SHARE)}`} value={myr2(e.procam)} />
