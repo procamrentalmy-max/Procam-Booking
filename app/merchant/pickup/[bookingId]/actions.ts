@@ -10,6 +10,7 @@ import { findChargedBatteries, validateHandoutBatteries, type ChargedBattery } f
 import { dronePhotoSteps } from "@/lib/droneRental/photoSteps";
 import { modelProfile, storedController } from "@/lib/droneRental/pricingRules";
 import { checklistForRental } from "@/lib/droneRental/checklist";
+import { needsDepositConfirmation } from "@/lib/droneRental/payment";
 
 export type PickupResult = {
   /** When the customer has to bring everything back (the rental's end), as an ISO string. */
@@ -37,6 +38,7 @@ export async function submitPickupAction(formData: FormData): Promise<PickupResu
   const { data: booking } = await supabase.from("dr_bookings").select("id,status,drone_id,source,start_time,end_time,batteries_count,drone_model,controller_kind").eq("id", bookingId).single();
   if (!booking) throw new Error("Booking not found.");
   if (booking.status !== "CONFIRMED") throw new Error("This booking isn't ready for pickup.");
+  if (await needsDepositConfirmation(bookingId)) throw new Error("The customer's deposit hold isn't on yet. Ask them to confirm the deposit on their booking page first.");
 
   // Every guided photo is required — checked before anything is saved, so a missing one stops the handover cleanly.
   // (A model with no photo pages, the GT50, has none to check.)

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { cancelLostBooking, claimBookingSlot, isSlotStillFree } from "@/lib/droneRental/claimSlot";
+import { startDepositConfirmation } from "@/lib/droneRental/payment";
 
 /**
  * DEV ONLY — bypasses Stripe and marks a booking CONFIRMED exactly as if
@@ -46,6 +47,17 @@ export async function checkSlotStillFreeAction(token: string): Promise<{ free: b
   const free = await isSlotStillFree(booking.id);
   if (!free) await cancelLostBooking(booking.id);
   return { free };
+}
+
+/**
+ * The customer's deposit hold didn't go on automatically (their bank refused or wanted approval), so they confirm it here, on
+ * their booking page. Returns what the card form needs. Only the person holding the booking's link can ask.
+ */
+export async function startDepositConfirmationAction(token: string): Promise<{ clientSecret: string }> {
+  const parsed = z.string().min(1).max(200).parse(token);
+  const { data: booking } = await createServiceRoleClient().from("dr_bookings").select("id").eq("secure_token", parsed).maybeSingle();
+  if (!booking) throw new Error("Booking not found.");
+  return startDepositConfirmation(booking.id);
 }
 
 /**

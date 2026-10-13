@@ -26,10 +26,12 @@ export function DamageReviewForm({ bookingId, items, holdFound }: { bookingId: s
     const n = Number(amounts[key]);
     return amounts[key] !== undefined && amounts[key] !== "" && Number.isFinite(n) && n > 0 ? n : 0;
   };
-  const keptFor = (item: ReviewItem) => (item.outcome === "LOST" ? item.heldMyr : item.outcome === "DAMAGED" ? Math.min(typed(item.key), item.heldMyr) : 0);
-  const total = items.reduce((sum, item) => sum + keptFor(item), 0);
+  const askedFor = (item: ReviewItem) => (item.outcome === "LOST" ? item.heldMyr : item.outcome === "DAMAGED" ? typed(item.key) : 0);
+  const asked = items.reduce((sum, item) => sum + askedFor(item), 0);
   const held = items.reduce((sum, item) => sum + item.heldMyr, 0);
-  const tooMuch = items.some((item) => item.outcome === "DAMAGED" && typed(item.key) > item.heldMyr);
+  // The whole deposit is the limit; anything above it is not captured.
+  const total = Math.min(asked, held);
+  const overHold = asked > held;
 
   async function submit() {
     setLoading(true);
@@ -107,10 +109,14 @@ export function DamageReviewForm({ bookingId, items, holdFound }: { bookingId: s
           There is no card hold on file for this booking, so nothing can be captured automatically.
         </p>
       )}
-      {tooMuch && <p className="text-sm text-red-600">An amount can&apos;t be more than what is held for that item.</p>}
+      {overHold && (
+        <p className="text-sm text-amber-700 dark:text-amber-400">
+          Only {formatMyr(held)} is held on the card, so that is the most that can be captured. The rest of the cost is yours to absorb.
+        </p>
+      )}
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <button type="submit" disabled={loading || tooMuch} className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}>
+      <button type="submit" disabled={loading} className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}>
         {loading ? "Capturing…" : total > 0 ? `Capture ${formatMyr(total)} and finish` : "Charge nothing and release the deposit"}
       </button>
     </form>

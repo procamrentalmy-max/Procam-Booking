@@ -461,6 +461,9 @@ export function DroneBookingWizard({
           {loading ? "Booking…" : `Book and pay ${formatMyr(rentalFee)}`}
         </button>
         <p className="text-center text-xs text-zinc-400">You&apos;ll pay on the next page. Nothing is charged until then.</p>
+        <p className="text-center text-xs text-zinc-400">
+          By booking you agree to the <Link href="/legal/terms" target="_blank" className="underline underline-offset-2">Terms</Link>, the <Link href="/legal/refunds" target="_blank" className="underline underline-offset-2">Refund policy</Link> and the <Link href="/legal/privacy" target="_blank" className="underline underline-offset-2">Privacy policy</Link>.
+        </p>
       </form>
     </div>
   );

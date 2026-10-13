@@ -5,7 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { confirmBookingAfterPayment } from "@/lib/booking/confirm";
 import { assertValidDepositTransition } from "@/lib/state-machine/deposit";
 import { logAudit } from "@/lib/audit";
-import { confirmDroneBookingAfterPayment } from "@/lib/droneRental/payment";
+import { confirmDroneBookingAfterPayment, finishDepositConfirmation } from "@/lib/droneRental/payment";
 
 /**
  * Orchestrates the payment side of the booking lifecycle:
@@ -70,6 +70,14 @@ export async function POST(req: Request) {
 
         await supabase.from("payments").update({ status: "SUCCEEDED" }).eq("provider_ref", intent.id);
         await confirmBookingAfterPayment(bookingId);
+        break;
+      }
+
+      case "payment_intent.amount_capturable_updated": {
+        // A deposit the customer confirmed on their booking page is now held (the card was authorized, not charged).
+        const intent = event.data.object as Stripe.PaymentIntent;
+        const { droneBookingId, kind } = intent.metadata as { droneBookingId?: string; kind?: string };
+        if (kind === "DRONE_DEPOSIT" && droneBookingId) await finishDepositConfirmation(droneBookingId, intent.id);
         break;
       }
 
@@ -144,9 +152,13 @@ export async function POST(req: Request) {
     }
   } catch (err) {
     console.error("[stripe webhook] handler error", err);
-    // Return 200 anyway — Stripe retries on non-2xx, and retrying a handler
-    // that already partially applied its effects (idempotency guards above
-    // aside) is more likely to cause duplicate side effects than to help.
+    // A drone rental event that failed (a database or network problem while confirming a paid booking, say) must not be
+    // lost: answer with an error so Stripe sends it again. Every drone step is safe to repeat (the claim, the deposit
+    // hold and the refund each check what is already done). A card refusing the deposit hold is not an error here.
+    const failedKind = (event.data.object as { metadata?: { kind?: string } }).metadata?.kind;
+    if (failedKind?.startsWith("DRONE_")) return NextResponse.json({ error: "handler failed, retry" }, { status: 500 });
+    // Anything else: return 200 anyway — retrying a handler that already partially applied its effects (idempotency guards
+    // above aside) is more likely to cause duplicate side effects than to help.
   }
 
   return NextResponse.json({ received: true });

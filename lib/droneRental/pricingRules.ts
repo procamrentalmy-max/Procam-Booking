@@ -271,11 +271,10 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
  * What to capture for one item: nothing if it's fine, its full value if
- * it's lost, and whatever damage amount the merchant assessed if it's
- * damaged (never more than the item's own deposit — the hold can't cover
- * more than that item was held for).
+ * it's lost, and whatever damage amount was assessed if it's damaged, up to
+ * `capMyr` (the item's own deposit unless a bigger limit is given).
  */
-export function itemCaptureMyr(itemName: string, itemValueMyr: number, item: ItemReturn): number {
+export function itemCaptureMyr(itemName: string, itemValueMyr: number, item: ItemReturn, capMyr: number = itemValueMyr): number {
   if (item.outcome === "NONE") return 0;
   if (item.outcome === "LOST") return itemValueMyr;
 
@@ -283,13 +282,14 @@ export function itemCaptureMyr(itemName: string, itemValueMyr: number, item: Ite
   if (damage === undefined || !Number.isFinite(damage) || damage <= 0) {
     throw new DepositCaptureError(`Enter the damage charge for the ${itemName}.`);
   }
-  if (damage > itemValueMyr) {
-    throw new DepositCaptureError(`The ${itemName} damage charge can't be more than its ${formatMyr(itemValueMyr)} deposit.`);
-  }
-  return round2(damage);
+  return round2(Math.min(damage, capMyr));
 }
 
-/** Total to capture from the held deposit; whatever isn't captured is released back to the customer. */
+/**
+ * Total to capture from the held deposit; whatever isn't captured is released back to the customer. The limit is the whole
+ * deposit held (drone plus controller): if the damage costs more than that, the whole deposit is taken and ProCam absorbs the
+ * rest. A lost item is always kept in full first; a damaged item's amount is cut back to fit what is left.
+ */
 export function computeDepositCapture(
   drone: ItemReturn,
   controller: ItemReturn,
@@ -299,8 +299,18 @@ export function computeDepositCapture(
   const profile = modelProfile(model);
   // A rental without a controller has nothing held for it, so whatever is said about it counts for nothing.
   const controllerItem: ItemReturn = includesController(model, rented) ? controller : { outcome: "NONE" };
-  const droneChargeMyr = itemCaptureMyr("drone", profile.depositDroneMyr, drone);
-  const controllerChargeMyr = itemCaptureMyr(controllerProfileFor(model, rented)?.name ?? "controller", controllerDepositFor(model, rented), controllerItem);
+  const heldMyr = profile.depositDroneMyr + (includesController(model, rented) ? controllerDepositFor(model, rented) : 0);
+  let droneChargeMyr = itemCaptureMyr("drone", profile.depositDroneMyr, drone, heldMyr);
+  let controllerChargeMyr = itemCaptureMyr(controllerProfileFor(model, rented)?.name ?? "controller", controllerDepositFor(model, rented), controllerItem, heldMyr);
+  let excess = round2(droneChargeMyr + controllerChargeMyr - heldMyr);
+  if (excess > 0) {
+    if (drone.outcome === "DAMAGED") {
+      const cut = Math.min(excess, droneChargeMyr);
+      droneChargeMyr = round2(droneChargeMyr - cut);
+      excess = round2(excess - cut);
+    }
+    if (excess > 0 && controllerItem.outcome === "DAMAGED") controllerChargeMyr = round2(controllerChargeMyr - Math.min(excess, controllerChargeMyr));
+  }
   const outcomes = [drone.outcome, controllerItem.outcome];
   const overallOutcome: ItemOutcome = outcomes.includes("LOST") ? "LOST" : outcomes.includes("DAMAGED") ? "DAMAGED" : "NONE";
   return { droneChargeMyr, controllerChargeMyr, totalMyr: round2(droneChargeMyr + controllerChargeMyr), overallOutcome };

@@ -140,8 +140,20 @@ describe("computeDepositCapture", () => {
     expect(() => itemCaptureMyr("drone", 800, { outcome: "DAMAGED", damageMyr: Number.NaN })).toThrow(DepositCaptureError);
   });
 
-  it("rejects a damage charge larger than the item's own deposit", () => {
-    expect(() => computeDepositCapture({ outcome: "NONE" }, { outcome: "DAMAGED", damageMyr: 401 })).toThrow(/can't be more than/);
+  it("takes at most the whole deposit held when the damage costs more (ProCam absorbs the rest)", () => {
+    // Drone only: the whole RM700 is the limit.
+    expect(computeDepositCapture({ outcome: "DAMAGED", damageMyr: 5000 }, { outcome: "NONE" }, "NEO2", "NONE")).toMatchObject({ droneChargeMyr: 700, totalMyr: 700 });
+    // With a controller: one damaged item may use the whole RM1100.
+    expect(computeDepositCapture({ outcome: "DAMAGED", damageMyr: 5000 }, { outcome: "NONE" }, "NEO2", "RC_N3")).toMatchObject({ droneChargeMyr: 1100, controllerChargeMyr: 0, totalMyr: 1100 });
+    expect(computeDepositCapture({ outcome: "DAMAGED", damageMyr: 900 }, { outcome: "NONE" }, "NEO2", "RC_N3").totalMyr).toBe(900);
+  });
+
+  it("keeps a lost item in full first and cuts a damaged one back to what is left of the hold", () => {
+    const capture = computeDepositCapture({ outcome: "DAMAGED", damageMyr: 5000 }, { outcome: "LOST" }, "NEO2", "RC_N3");
+    expect(capture).toMatchObject({ droneChargeMyr: 700, controllerChargeMyr: 400, totalMyr: 1100, overallOutcome: "LOST" });
+    const both = computeDepositCapture({ outcome: "DAMAGED", damageMyr: 900 }, { outcome: "DAMAGED", damageMyr: 600 }, "NEO2", "RC_N3");
+    expect(both.totalMyr).toBe(1100);
+    expect(both.droneChargeMyr + both.controllerChargeMyr).toBe(1100);
   });
 
   it("ignores a stray damage amount on an item that isn't damaged", () => {
@@ -203,13 +215,14 @@ describe("the three ways to fly: phone only, the RC-N3 or the Goggles N3 + Motio
     expect(computeDepositCapture({ outcome: "LOST" }, { outcome: "LOST" }, "NEO2", "RC_N3").totalMyr).toBe(1100);
   });
 
-  it("captures a lost goggles set at its own RM800 deposit, and caps damage there", () => {
+  it("captures a lost goggles set at its own RM800 deposit, and caps damage at the whole hold", () => {
     expect(computeDepositCapture({ outcome: "NONE" }, { outcome: "LOST" }, "NEO2", "GOGGLES_N3")).toMatchObject({ controllerChargeMyr: 800, totalMyr: 800, overallOutcome: "LOST" });
     expect(computeDepositCapture({ outcome: "LOST" }, { outcome: "LOST" }, "NEO2", "GOGGLES_N3").totalMyr).toBe(1500);
     expect(computeDepositCapture({ outcome: "NONE" }, { outcome: "DAMAGED", damageMyr: 800 }, "NEO2", "GOGGLES_N3").totalMyr).toBe(800);
-    expect(() => computeDepositCapture({ outcome: "NONE" }, { outcome: "DAMAGED", damageMyr: 801 }, "NEO2", "GOGGLES_N3")).toThrow(/can't be more than/);
-    // The RC-N3 is capped at its own RM400.
-    expect(() => computeDepositCapture({ outcome: "NONE" }, { outcome: "DAMAGED", damageMyr: 401 }, "NEO2", "RC_N3")).toThrow(/can't be more than/);
+    expect(computeDepositCapture({ outcome: "NONE" }, { outcome: "DAMAGED", damageMyr: 801 }, "NEO2", "GOGGLES_N3").totalMyr).toBe(801);
+    expect(computeDepositCapture({ outcome: "NONE" }, { outcome: "DAMAGED", damageMyr: 9999 }, "NEO2", "GOGGLES_N3").totalMyr).toBe(1500);
+    // The RC-N3's damage may use the drone's part of the hold too, up to RM1100.
+    expect(computeDepositCapture({ outcome: "NONE" }, { outcome: "DAMAGED", damageMyr: 401 }, "NEO2", "RC_N3").totalMyr).toBe(401);
   });
 
   it("leaves the batteries and swaps alone: the same prices whichever way it is flown", () => {
@@ -298,12 +311,11 @@ describe("the GT50", () => {
     expect(depositMyrFor("NEO2")).toBe(DEPOSIT_MYR);
   });
 
-  it("caps a damage charge at the GT50's own item deposit, not the Neo 2's", () => {
-    const { depositDroneMyr } = DRONE_MODEL_PROFILES.GT50;
-    expect(computeDepositCapture({ outcome: "DAMAGED", damageMyr: depositDroneMyr }, { outcome: "NONE" }, "GT50").totalMyr).toBe(depositDroneMyr);
-    expect(() => computeDepositCapture({ outcome: "DAMAGED", damageMyr: depositDroneMyr + 1 }, { outcome: "NONE" }, "GT50")).toThrow(/can't be more than/);
-    // The same amount is fine on a Neo 2.
-    expect(computeDepositCapture({ outcome: "DAMAGED", damageMyr: depositDroneMyr + 1 }, { outcome: "NONE" }, "NEO2").totalMyr).toBe(depositDroneMyr + 1);
+  it("caps a damage charge at the GT50's whole RM150 hold, not the Neo 2's", () => {
+    expect(computeDepositCapture({ outcome: "DAMAGED", damageMyr: 150 }, { outcome: "NONE" }, "GT50").totalMyr).toBe(150);
+    expect(computeDepositCapture({ outcome: "DAMAGED", damageMyr: 151 }, { outcome: "NONE" }, "GT50").totalMyr).toBe(150);
+    // The same amount is under a Neo 2's deposit, so all of it is taken.
+    expect(computeDepositCapture({ outcome: "DAMAGED", damageMyr: 151 }, { outcome: "NONE" }, "NEO2").totalMyr).toBe(151);
   });
 
   it("keeps a lost GT50 drone's whole item deposit and nothing more", () => {

@@ -14,21 +14,24 @@ export function PaymentForm({
   returnUrl,
   locale,
   beforePay,
+  buttonLabel,
 }: {
   clientSecret: string;
   returnUrl: string;
   locale: Locale;
   /** Runs just before the card is charged; return false to stop (nothing is charged), after showing the customer why. */
   beforePay?: () => Promise<boolean>;
+  /** Replaces "Pay Now" on the button. */
+  buttonLabel?: string;
 }) {
   return (
     <Elements stripe={stripePromise} options={{ clientSecret }}>
-      <CheckoutForm returnUrl={returnUrl} locale={locale} beforePay={beforePay} />
+      <CheckoutForm returnUrl={returnUrl} locale={locale} beforePay={beforePay} buttonLabel={buttonLabel} />
     </Elements>
   );
 }
 
-function CheckoutForm({ returnUrl, locale, beforePay }: { returnUrl: string; locale: Locale; beforePay?: () => Promise<boolean> }) {
+function CheckoutForm({ returnUrl, locale, beforePay, buttonLabel }: { returnUrl: string; locale: Locale; beforePay?: () => Promise<boolean>; buttonLabel?: string }) {
   const dict = getDictionary(locale);
   const stripe = useStripe();
   const elements = useElements();
@@ -68,7 +71,7 @@ function CheckoutForm({ returnUrl, locale, beforePay }: { returnUrl: string; loc
         disabled={!stripe || loading}
         className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
       >
-        {loading ? dict.common.processing : dict.paymentForm.payNow}
+        {loading ? dict.common.processing : (buttonLabel ?? dict.paymentForm.payNow)}
       </button>
     </form>
   );

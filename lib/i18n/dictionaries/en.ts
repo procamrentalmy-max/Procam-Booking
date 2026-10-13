@@ -85,6 +85,9 @@ export const en = {
     camerasTitle: "Action cameras and phone housings",
     camerasText: "Staying at a partner hotel? Scan the QR code at reception and we deliver to you.",
     terms: "Terms",
+    refunds: "Refunds",
+    privacy: "Privacy",
+    contact: "Contact",
   },
   landing: {
     brand: "ProCam",

@@ -254,7 +254,108 @@ export async function confirmDroneBookingAfterPayment(bookingId: string): Promis
     await refundDroneRentalFee(bookingId);
     return;
   }
-  await placeDroneDepositHold(bookingId);
+  try {
+    await placeDroneDepositHold(bookingId);
+  } catch (err) {
+    // The bank said no (declined, or it wants the customer to approve the hold). The booking stays confirmed and paid: the
+    // customer is asked on their booking page to confirm the deposit while they are there to approve it, and the shop can't
+    // hand the drone over until it is on (see needsDepositConfirmation). Anything else, such as a network or database
+    // problem, is thrown so the webhook is retried.
+    if (isCardError(err)) {
+      console.error("[drone deposit] the card refused the deposit hold; the customer will be asked to confirm it", bookingId, (err as Error).message);
+      return;
+    }
+    throw err;
+  }
+}
+
+/** A card refusal from Stripe (declined, or authentication needed), as opposed to a fault on our side or in the network. */
+function isCardError(err: unknown): boolean {
+  return typeof err === "object" && err !== null && (err as { type?: string }).type === "StripeCardError";
+}
+
+/**
+ * A paid card booking that has no deposit hold on it yet: the automatic hold didn't go through, so the customer has to confirm
+ * the deposit themselves. Not the case for a booking that never had a Stripe card payment (the local dev shortcut, a cash rental
+ * whose card step is still to come).
+ */
+export async function needsDepositConfirmation(bookingId: string): Promise<boolean> {
+  const supabase = createServiceRoleClient();
+  const [{ data: booking }, { data: hold }, { data: fee }] = await Promise.all([
+    supabase.from("dr_bookings").select("status").eq("id", bookingId).single(),
+    supabase.from("dr_deposit_authorizations").select("status").eq("booking_id", bookingId).maybeSingle(),
+    supabase.from("dr_payments").select("id").eq("booking_id", bookingId).eq("kind", "RENTAL_FEE").eq("provider", "stripe").eq("status", "SUCCEEDED").maybeSingle(),
+  ]);
+  return booking?.status === "CONFIRMED" && hold?.status !== "AUTHORIZED" && !!fee;
+}
+
+/**
+ * The customer is on their booking page and asks to confirm the deposit: a new manual-capture PaymentIntent for the deposit, to be
+ * confirmed in the browser (so a bank that wants 3D Secure can ask for it, and the customer can use another card if this one
+ * has no room). Nothing is charged; finishDepositConfirmation records the hold once Stripe has it.
+ */
+export async function startDepositConfirmation(bookingId: string): Promise<{ clientSecret: string }> {
+  if (!(await needsDepositConfirmation(bookingId))) throw new Error("This booking doesn't need a deposit confirmation.");
+  const supabase = createServiceRoleClient();
+  const stripe = getStripe();
+
+  const { data: booking } = await supabase.from("dr_bookings").select("customer_id,deposit_myr").eq("id", bookingId).single();
+  if (!booking) throw new Error("Booking not found.");
+  const { data: customer } = await supabase.from("customers").select("id,name,email,stripe_customer_id").eq("id", booking.customer_id).single();
+  if (!customer) throw new Error("Booking data is incomplete.");
+  let stripeCustomerId = customer.stripe_customer_id;
+  if (!stripeCustomerId) {
+    const created = await stripe.customers.create({ name: customer.name, email: customer.email });
+    stripeCustomerId = created.id;
+    await supabase.from("customers").update({ stripe_customer_id: stripeCustomerId }).eq("id", customer.id);
+  }
+
+  const intent = await stripe.paymentIntents.create({
+    amount: toCents(booking.deposit_myr),
+    currency: "myr",
+    customer: stripeCustomerId,
+    payment_method_types: ["card"],
+    capture_method: "manual",
+    metadata: { droneBookingId: bookingId, kind: "DRONE_DEPOSIT" },
+  });
+  if (!intent.client_secret) throw new Error("Stripe did not return a client secret.");
+  return { clientSecret: intent.client_secret };
+}
+
+/**
+ * Records the deposit hold once Stripe has it (the customer confirmed it on their booking page). Checked against Stripe itself,
+ * not the browser: it must be this booking's deposit, for the full amount, and actually held. Safe to run twice, and called
+ * both when the customer comes back to the page and from the webhook.
+ */
+export async function finishDepositConfirmation(bookingId: string, paymentIntentId: string): Promise<boolean> {
+  const intent = await getStripe().paymentIntents.retrieve(paymentIntentId);
+  if (intent.metadata?.kind !== "DRONE_DEPOSIT" || intent.metadata?.droneBookingId !== bookingId) return false;
+  if (intent.status !== "requires_capture") return false;
+
+  const supabase = createServiceRoleClient();
+  const { data: booking } = await supabase.from("dr_bookings").select("deposit_myr").eq("id", bookingId).single();
+  if (!booking || intent.amount !== toCents(booking.deposit_myr)) return false;
+
+  const { data: existing } = await supabase.from("dr_deposit_authorizations").select("id,status,provider_ref").eq("booking_id", bookingId).maybeSingle();
+  if (existing?.status === "AUTHORIZED") return true;
+  if (existing) {
+    // An earlier hold that ended (it expired, say): this one takes its place.
+    await supabase
+      .from("dr_deposit_authorizations")
+      .update({ provider_ref: intent.id, amount_myr: booking.deposit_myr, status: "AUTHORIZED", resolved_at: null, resolved_by: null })
+      .eq("id", existing.id);
+    return true;
+  }
+  const { error } = await supabase.from("dr_deposit_authorizations").insert({
+    booking_id: bookingId,
+    provider: "stripe",
+    provider_ref: intent.id,
+    amount_myr: booking.deposit_myr,
+    status: "AUTHORIZED",
+  });
+  // 23505: the webhook and the page recorded it at the same moment; either way it is there now.
+  if (error && error.code !== "23505") throw new Error(error.message);
+  return true;
 }
 
 /** Gives the rental fee back (in full) for a booking that lost its slot after paying. Safe to run again: it does nothing once refunded. */
@@ -269,7 +370,7 @@ async function refundDroneRentalFee(bookingId: string): Promise<void> {
     .maybeSingle();
   if (!payment || payment.status === "REFUNDED") return;
   // Thrown on failure so the webhook is retried and the refund isn't lost.
-  await getStripe().refunds.create({ payment_intent: payment.provider_ref });
+  await getStripe().refunds.create({ payment_intent: payment.provider_ref }, { idempotencyKey: `drone-rental-refund-${bookingId}` });
   await supabase.from("dr_payments").update({ status: "REFUNDED" }).eq("id", payment.id);
 }
 
@@ -383,27 +484,51 @@ export async function resolveDroneDeposit(params: {
     .eq("booking_id", params.bookingId)
     .maybeSingle();
 
+  // Whether there was a live hold to settle. A hold Stripe had already ended (it ran out after about 7 days) counts as no hold.
+  let holdFound = !!deposit && deposit.status !== "EXPIRED" && deposit.status !== "VOIDED";
+
   if (deposit && deposit.status === "AUTHORIZED") {
     const stripe = getStripe();
     if (capture.totalMyr > deposit.amount_myr) {
       throw new Error("The amount to capture is more than the deposit that was held.");
     }
-    if (capture.totalMyr <= 0) {
-      await stripe.paymentIntents.cancel(deposit.provider_ref);
-      await supabase
-        .from("dr_deposit_authorizations")
-        .update({ status: "RELEASED", resolved_at: new Date().toISOString(), resolved_by: params.resolvedByStaffId })
-        .eq("id", deposit.id);
-    } else {
-      await stripe.paymentIntents.capture(deposit.provider_ref, { amount_to_capture: toCents(capture.totalMyr) });
-      await supabase
-        .from("dr_deposit_authorizations")
-        .update({
-          status: capture.totalMyr >= deposit.amount_myr ? "CAPTURED" : "PARTIALLY_CAPTURED",
-          resolved_at: new Date().toISOString(),
-          resolved_by: params.resolvedByStaffId,
-        })
-        .eq("id", deposit.id);
+    const resolvedAt = new Date().toISOString();
+    try {
+      if (capture.totalMyr <= 0) {
+        await stripe.paymentIntents.cancel(deposit.provider_ref);
+        await supabase
+          .from("dr_deposit_authorizations")
+          .update({ status: "RELEASED", resolved_at: resolvedAt, resolved_by: params.resolvedByStaffId })
+          .eq("id", deposit.id);
+      } else {
+        await stripe.paymentIntents.capture(deposit.provider_ref, { amount_to_capture: toCents(capture.totalMyr) });
+        await supabase
+          .from("dr_deposit_authorizations")
+          .update({
+            status: capture.totalMyr >= deposit.amount_myr ? "CAPTURED" : "PARTIALLY_CAPTURED",
+            resolved_at: resolvedAt,
+            resolved_by: params.resolvedByStaffId,
+          })
+          .eq("id", deposit.id);
+      }
+    } catch (err) {
+      // Stripe won't act on a hold that is no longer open. Look at what it is now instead of failing the return.
+      if ((err as { code?: string }).code !== "payment_intent_unexpected_state") throw err;
+      const intent = await stripe.paymentIntents.retrieve(deposit.provider_ref);
+      if (intent.status === "canceled") {
+        // Already gone (it ran out, or was released by hand): nothing can be captured from it any more.
+        await supabase.from("dr_deposit_authorizations").update({ status: "EXPIRED", resolved_at: resolvedAt }).eq("id", deposit.id);
+        holdFound = false;
+      } else if (intent.status === "succeeded") {
+        // Already captured earlier (the record just didn't get updated): record it as it is.
+        const kept = (intent.amount_received ?? 0) / 100;
+        await supabase
+          .from("dr_deposit_authorizations")
+          .update({ status: kept >= deposit.amount_myr ? "CAPTURED" : "PARTIALLY_CAPTURED", resolved_at: resolvedAt, resolved_by: params.resolvedByStaffId })
+          .eq("id", deposit.id);
+      } else {
+        throw err;
+      }
     }
   }
 
@@ -419,5 +544,5 @@ export async function resolveDroneDeposit(params: {
     })
     .eq("id", params.bookingId);
 
-  return { holdFound: !!deposit };
+  return { holdFound };
 }

@@ -258,9 +258,20 @@ export default async function Home() {
       <footer className="border-t border-zinc-800">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-6 text-xs text-zinc-600">
           <span>© ProCam Rental</span>
-          <Link href="/terms" className="hover:text-zinc-300">
-            {t.terms}
-          </Link>
+          <nav aria-label="Legal" className="flex flex-wrap justify-end gap-x-4 gap-y-1">
+            <Link href="/legal/terms" className="hover:text-zinc-300">
+              {t.terms}
+            </Link>
+            <Link href="/legal/refunds" className="hover:text-zinc-300">
+              {t.refunds}
+            </Link>
+            <Link href="/legal/privacy" className="hover:text-zinc-300">
+              {t.privacy}
+            </Link>
+            <Link href="/legal/contact" className="hover:text-zinc-300">
+              {t.contact}
+            </Link>
+          </nav>
         </div>
       </footer>
     </div>

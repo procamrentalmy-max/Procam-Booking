@@ -8,6 +8,8 @@ import { requestOrigin } from "@/lib/requestOrigin";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
 import { SlotTakenDialog } from "@/components/droneRental/SlotTakenDialog";
 import { formatDuration } from "@/lib/droneRental/format";
+import { DepositConfirm } from "@/components/droneRental/DepositConfirm";
+import { finishDepositConfirmation, needsDepositConfirmation } from "@/lib/droneRental/payment";
 
 // The QR stops being offered the moment the merchant accepts it — never cache this page.
 export const dynamic = "force-dynamic";
@@ -26,17 +28,21 @@ const STATUS_MESSAGES: Record<string, string> = {
   COMPLETED: "Thanks for flying with us.",
 };
 
-export default async function DroneBookingDashboardPage({ params }: { params: Promise<{ token: string }> }) {
+export default async function DroneBookingDashboardPage({ params, searchParams }: { params: Promise<{ token: string }>; searchParams: Promise<{ payment_intent?: string }> }) {
   const { token } = await params;
+  const { payment_intent: returnedIntent } = await searchParams;
   const supabase = createServiceRoleClient();
 
   const { data: booking } = await supabase
     .from("dr_bookings")
-    .select("human_id,status,source,start_time,end_time,shop_id,drone_id,rental_fee_myr,deposit_myr,checked_in_at,batteries_count,drone_model,controller_kind")
+    .select("id,human_id,status,source,start_time,end_time,shop_id,drone_id,rental_fee_myr,deposit_myr,checked_in_at,batteries_count,drone_model,controller_kind")
     .eq("secure_token", token)
     .maybeSingle();
   if (!booking) notFound();
   const controller = storedController(booking.drone_model, booking.controller_kind);
+  // Back from confirming the deposit on this page: record the hold (the webhook does too; whichever comes first).
+  if (returnedIntent) await finishDepositConfirmation(booking.id, returnedIntent).catch((err) => console.error("[drone deposit] could not record the confirmed hold", err));
+  const depositNeeded = await needsDepositConfirmation(booking.id);
   // The only way an online booking ends up cancelled is that someone else paid for the last drone first.
   if (booking.status === "CANCELLED") return <SlotTakenDialog shopId={booking.shop_id} walkIn={booking.source === "MERCHANT_INSTANT"} />;
 
@@ -97,6 +103,8 @@ export default async function DroneBookingDashboardPage({ params }: { params: Pr
           </div>
         </div>
       )}
+
+      {depositNeeded && <DepositConfirm token={token} depositLabel={formatMyr(booking.deposit_myr)} returnUrl={`${process.env.NEXT_PUBLIC_APP_URL}/rent/b/${token}`} />}
 
       {showQr && qrDataUrl && (
         <div className="rounded-2xl border border-zinc-200 p-5 text-center dark:border-zinc-800">

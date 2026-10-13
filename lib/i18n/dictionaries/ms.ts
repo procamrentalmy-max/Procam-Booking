@@ -87,6 +87,9 @@ export const ms: Dictionary = {
     camerasTitle: "Kamera aksi dan sarung telefon",
     camerasText: "Menginap di hotel rakan kongsi? Imbas kod QR di kaunter penerimaan dan kami hantar kepada anda.",
     terms: "Terma",
+    refunds: "Bayaran balik",
+    privacy: "Privasi",
+    contact: "Hubungi kami",
   },
   landing: {
     brand: "ProCam",

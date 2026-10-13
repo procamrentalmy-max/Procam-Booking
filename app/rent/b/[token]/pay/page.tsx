@@ -128,6 +128,9 @@ export default async function DroneBookingPayPage({
       <p className="-mt-2 text-xs text-zinc-400">
         The deposit is only a hold, not a charge. It&apos;s released when you return the drone{includesController(booking.drone_model, storedController(booking.drone_model, booking.controller_kind)) ? " and controller" : ""} in good condition.
       </p>
+      <p className="-mt-2 text-xs text-zinc-400">
+        By booking you agree to the <Link href="/legal/terms" target="_blank" className="underline underline-offset-2">Terms</Link>, the <Link href="/legal/refunds" target="_blank" className="underline underline-offset-2">Refund policy</Link> and the <Link href="/legal/privacy" target="_blank" className="underline underline-offset-2">Privacy policy</Link>.
+      </p>
 
       {cashChosen ? (
         <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-center dark:border-amber-800 dark:bg-amber-950">

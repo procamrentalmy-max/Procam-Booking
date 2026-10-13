@@ -87,6 +87,9 @@ export const zh: Dictionary = {
     camerasTitle: "运动相机和手机防水壳",
     camerasText: "入住合作酒店？扫描前台的二维码，我们送到您手上。",
     terms: "条款",
+    refunds: "退款",
+    privacy: "隐私",
+    contact: "联系我们",
   },
   landing: {
     brand: "ProCam",

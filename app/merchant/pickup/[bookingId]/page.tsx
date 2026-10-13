@@ -5,6 +5,7 @@ import { listChargedBatteries } from "@/lib/droneRental/batteries";
 import { batteryLabel } from "@/lib/droneRental/format";
 import { checklistForRental } from "@/lib/droneRental/checklist";
 import { checkWind } from "@/lib/droneRental/wind";
+import { needsDepositConfirmation } from "@/lib/droneRental/payment";
 import { formatWind } from "@/lib/droneRental/windRules";
 import { PickupForm } from "./PickupForm";
 
@@ -34,6 +35,8 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
   ]);
 
   const holdOnFile = hold?.status === "AUTHORIZED";
+  // A card booking whose deposit hold didn't go on: the customer has to confirm it on their phone before the drone goes out.
+  const holdMissing = await needsDepositConfirmation(bookingId);
 
   // The wind at the shop for the next hour: a drone shouldn't go out when it is stronger than the drone can fly in.
   const wind = booking.status === "CONFIRMED" ? await checkWind(booking.shop_id, booking.drone_model, new Date(), new Date(Date.now() + 60 * 60_000)) : null;
@@ -82,8 +85,10 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
         </p>
       ) : (
         <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-          <span className="font-semibold">No card hold on file</span> for this booking — expected deposit is {formatMyr(booking.deposit_myr)}. Sort that out
-          before handing anything over.
+          <span className="font-semibold">No card hold on file</span> for this booking — expected deposit is {formatMyr(booking.deposit_myr)}.{" "}
+          {holdMissing
+            ? "The customer's bank didn't accept the hold. Ask them to open their booking link on their phone and tap Confirm deposit. Hand over once this turns green."
+            : "Sort that out before handing anything over."}
         </p>
       )}
     </>
@@ -94,7 +99,7 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
       <PickupForm
         bookingId={booking.id}
         checklistItems={checklistForRental(items ?? [], controller)}
-        disabled={booking.status !== "CONFIRMED"}
+        disabled={booking.status !== "CONFIRMED" || holdMissing}
         batteriesCount={booking.batteries_count}
         photosRequired={profile.photosRequired}
         model={profile.key}
