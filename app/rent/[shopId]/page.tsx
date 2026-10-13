@@ -3,6 +3,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { DroneBookingWizard } from "@/components/droneRental/DroneBookingWizard";
 import { getComboPictureUrls, getLogoUrl } from "@/lib/branding";
 import { Brand } from "@/components/Brand";
+import { getAuthContext, isAdmin } from "@/lib/auth/session";
 import { ENABLED_DRONE_MODELS, isDroneModel, type ControllerKind, type DroneModel } from "@/lib/droneRental/pricingRules";
 
 export default async function ShopBookingPage({ params, searchParams }: { params: Promise<{ shopId: string }>; searchParams: Promise<{ retry?: string }> }) {
@@ -27,6 +28,8 @@ export default async function ShopBookingPage({ params, searchParams }: { params
   // And only the controllers this shop actually has (a shop with none rents phone-only).
   const { data: shopControllers } = await supabase.from("dr_controllers").select("kind").eq("shop_id", shop.id);
   const controllers: ControllerKind[] = [...new Set((shopControllers ?? []).map((c) => c.kind))];
+  // A signed-in admin gets test-only skip buttons on the live site; nobody else does.
+  const adminCanSkip = isAdmin(await getAuthContext());
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-5 px-6 py-6">
@@ -36,7 +39,7 @@ export default async function ShopBookingPage({ params, searchParams }: { params
         <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">{shop.name}</h1>
         <p className="mt-0.5 text-sm text-zinc-500">{shop.address}</p>
       </div>
-      <DroneBookingWizard shopId={shop.id} models={models} availableModels={availableModels.length ? availableModels : ["NEO2"]} controllers={controllers} pictures={pictures} retry={retry === "1"} />
+      <DroneBookingWizard adminCanSkip={adminCanSkip} shopId={shop.id} models={models} availableModels={availableModels.length ? availableModels : ["NEO2"]} controllers={controllers} pictures={pictures} retry={retry === "1"} />
     </div>
   );
 }

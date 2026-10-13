@@ -5,6 +5,7 @@ import { findShopByWalkInCode, walkInOptionsByModel, windyModelsNow } from "@/li
 import { formatWind } from "@/lib/droneRental/windRules";
 import { DRONE_MODEL_PROFILES } from "@/lib/droneRental/pricingRules";
 import { WalkInOrderForm } from "./WalkInOrderForm";
+import { getAuthContext, isAdmin } from "@/lib/auth/session";
 
 // Which lengths are offered depends on which drones are free right now — never cache this.
 export const dynamic = "force-dynamic";
@@ -39,7 +40,7 @@ export default async function WalkInOrderPage({ params }: { params: Promise<{ co
           <p className="mt-1 text-sm text-zinc-500">{windy.length > 0 ? "Please ask the staff, or try again later." : "Please ask the staff when one will be back."}</p>
         </div>
       ) : (
-        <WalkInOrderForm code={code} options={options} pictures={pictures} />
+        <WalkInOrderForm code={code} options={options} pictures={pictures} adminCanSkip={isAdmin(await getAuthContext())} />
       )}
     </div>
   );

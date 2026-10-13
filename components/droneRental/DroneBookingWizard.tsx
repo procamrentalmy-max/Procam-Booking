@@ -74,6 +74,7 @@ export function DroneBookingWizard({
   controllers,
   pictures,
   retry = false,
+  adminCanSkip = false,
 }: {
   shopId: string;
   models: DroneModel[];
@@ -82,6 +83,8 @@ export function DroneBookingWizard({
   pictures: Record<string, string>;
   /** True when the customer is sent back here because the time they paid for was taken: restore what they had and go to the times. */
   retry?: boolean;
+  /** A signed-in admin is testing the live site: show the skip-ID-check button. */
+  adminCanSkip?: boolean;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("duration");
@@ -182,7 +185,7 @@ export function DroneBookingWizard({
     }
   }
 
-  const { verifyThen, panel: idCheckPanel, kycBusy, kycMessage } = useDroneKyc();
+  const { verifyThen, panel: idCheckPanel, kycBusy, kycMessage } = useDroneKyc({ adminCanSkip });
 
   /** The first thing "Book and pay" does: the ID check. The booking itself is made once it has passed. */
   function submit() {

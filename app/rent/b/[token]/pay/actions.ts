@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { cancelLostBooking, claimBookingSlot, isSlotStillFree } from "@/lib/droneRental/claimSlot";
 import { startDepositConfirmation } from "@/lib/droneRental/payment";
+import { getAuthContext, isAdmin } from "@/lib/auth/session";
 
 /**
  * DEV ONLY — bypasses Stripe and marks a booking CONFIRMED exactly as if
@@ -18,6 +19,19 @@ import { startDepositConfirmation } from "@/lib/droneRental/payment";
 export async function devBypassDronePaymentAction(formData: FormData) {
   // Hiding the button isn't enough: a server action can be POSTed directly, so refuse in production here too.
   if (process.env.NODE_ENV === "production") throw new Error("Not available in production.");
+  await confirmWithoutPayment(formData);
+}
+
+/**
+ * A signed-in ADMIN testing the live site: confirms a booking without taking any payment, exactly like the local shortcut.
+ * Nobody who isn't signed in as an admin can run it, whatever they send. The booking has no payment and no deposit hold.
+ */
+export async function adminSkipPaymentAction(formData: FormData) {
+  if (!isAdmin(await getAuthContext())) throw new Error("Not available.");
+  await confirmWithoutPayment(formData);
+}
+
+async function confirmWithoutPayment(formData: FormData) {
   const token = z.string().min(1).parse(formData.get("token"));
   const rawNext = formData.get("next");
   const next = typeof rawNext === "string" && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : null;

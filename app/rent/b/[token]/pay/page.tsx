@@ -11,7 +11,8 @@ import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
 import { formatMyr, includesController, storedController } from "@/lib/droneRental/pricingRules";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
 import { formatDuration } from "@/lib/droneRental/format";
-import { devBypassDronePaymentAction, devBypassCashChoiceAction } from "./actions";
+import { devBypassDronePaymentAction, devBypassCashChoiceAction, adminSkipPaymentAction } from "./actions";
+import { getAuthContext, isAdmin } from "@/lib/auth/session";
 
 /** Only ever a same-origin relative path (e.g. /merchant/pickup/<id> for a walk-in) — never an absolute/protocol-relative URL, so this can't be turned into an open redirect via the `next` query param. */
 function safeNextPath(next: string | undefined): string | null {
@@ -81,6 +82,9 @@ export default async function DroneBookingPayPage({
       clientSecret = null;
     }
   }
+
+  // A signed-in admin testing the live site gets a button that confirms the booking without payment (nobody else sees it).
+  const adminTester = process.env.NODE_ENV === "production" && isAdmin(await getAuthContext());
 
   const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL}${nextPath ?? `/rent/b/${token}`}`;
   const cashReturnUrl = `${process.env.NEXT_PUBLIC_APP_URL}${withQuery("")}`;
@@ -178,6 +182,22 @@ export default async function DroneBookingPayPage({
             </p>
           )}
         </>
+      )}
+
+      {adminTester && !cashChosen && (
+        <div className="space-y-2 border-t border-dashed border-amber-400 pt-4">
+          <p className="text-center text-xs text-amber-700 dark:text-amber-400">Admin test: confirms this booking without taking any payment or deposit.</p>
+          <form action={adminSkipPaymentAction}>
+            <input type="hidden" name="token" value={token} />
+            <input type="hidden" name="next" value={nextPath ?? ""} />
+            <button
+              type="submit"
+              className="flex h-10 w-full items-center justify-center rounded-full border border-dashed border-amber-500 text-xs font-medium text-amber-700 dark:text-amber-400"
+            >
+              [ADMIN] Skip payment (test booking)
+            </button>
+          </form>
+        </div>
       )}
 
       {/* Local development only: bypasses Stripe entirely. Never rendered in a production build, and the action refuses to run there too. */}

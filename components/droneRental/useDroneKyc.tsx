@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { DiditSdk } from "@didit-protocol/sdk-web";
-import { confirmDroneKycAction, devSkipDroneKycAction, startDroneKycAction } from "@/app/rent/kycActions";
+import { confirmDroneKycAction, skipDroneKycAction, startDroneKycAction } from "@/app/rent/kycActions";
 import { primaryButtonClass } from "@/components/formStyles";
 
 type Pending = { verificationId: string; sessionUrl: string };
@@ -12,7 +12,7 @@ type Pending = { verificationId: string; sessionUrl: string };
  * customer completes Didit's window), `proceed` is called with the check's id. While the customer still has to do the check,
  * `panel` is what to show instead of the submit button.
  */
-export function useDroneKyc() {
+export function useDroneKyc({ adminCanSkip = false }: { adminCanSkip?: boolean } = {}) {
   const [pending, setPending] = useState<Pending | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -74,7 +74,7 @@ export function useDroneKyc() {
     if (!pending) return;
     setBusy(true);
     try {
-      await devSkipDroneKycAction(pending.verificationId);
+      await skipDroneKycAction(pending.verificationId);
       const id = pending.verificationId;
       setPending(null);
       await passed(id);
@@ -94,9 +94,9 @@ export function useDroneKyc() {
       <button type="button" onClick={openDidit} disabled={busy} className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}>
         Verify my ID
       </button>
-      {process.env.NODE_ENV !== "production" && (
+      {(process.env.NODE_ENV !== "production" || adminCanSkip) && (
         <button type="button" onClick={skipForTesting} disabled={busy} className="w-full rounded-full border border-dashed border-zinc-400 py-3 text-sm font-medium text-zinc-500">
-          [DEV] Skip ID check
+          {adminCanSkip && process.env.NODE_ENV === "production" ? "[ADMIN] Skip ID check (test booking)" : "[DEV] Skip ID check"}
         </button>
       )}
     </div>

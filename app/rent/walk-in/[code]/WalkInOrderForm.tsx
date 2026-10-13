@@ -28,7 +28,7 @@ import { useDroneKyc } from "@/components/droneRental/useDroneKyc";
 const selectedClass = "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black";
 const idleClass = "border-zinc-300 dark:border-zinc-700";
 
-export function WalkInOrderForm({ code, options, pictures }: { code: string; options: WalkInOptions; pictures: Record<string, string> }) {
+export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false }: { code: string; options: WalkInOptions; pictures: Record<string, string>; adminCanSkip?: boolean }) {
   const router = useRouter();
   // Every drone is listed; only those with a length on offer right now can be picked, the rest are greyed out.
   const models = ENABLED_DRONE_MODELS;
@@ -53,7 +53,7 @@ export function WalkInOrderForm({ code, options, pictures }: { code: string; opt
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const { verifyThen, panel: idCheckPanel, kycBusy, kycMessage } = useDroneKyc();
+  const { verifyThen, panel: idCheckPanel, kycBusy, kycMessage } = useDroneKyc({ adminCanSkip });
 
   /** The first thing sending the order does: the ID check. The order is sent once it has passed. */
   function submit() {

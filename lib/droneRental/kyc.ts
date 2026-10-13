@@ -48,9 +48,8 @@ export async function confirmDroneKyc(verificationId: string): Promise<{ verifie
   return { verified: true };
 }
 
-/** Local development only: marks the ID check passed without Didit, the way the locker flow's skip button does. */
-export async function devSkipDroneKyc(verificationId: string): Promise<void> {
-  if (process.env.NODE_ENV === "production") throw new Error("Not available in production.");
+/** Marks the ID check passed without Didit. Callers must have checked it is allowed (local development, or a signed-in admin testing the live site). */
+export async function skipDroneKyc(verificationId: string): Promise<void> {
   await createServiceRoleClient().from("identity_verifications").update({ status: "VERIFIED", verified_at: new Date().toISOString() }).eq("id", verificationId);
 }
 
