@@ -7,6 +7,7 @@ import { computeUnavailableStarts } from "@/lib/droneRental/slots";
 import { isWithinOperatingHours } from "@/lib/droneRental/hours";
 import { isValidRentalMinutes, CONTROLLER_KINDS, ENABLED_DRONE_MODELS, effectiveController, type ControllerKind, type DroneModel } from "@/lib/droneRental/pricingRules";
 import { findOrCreateCustomer, createPendingDroneBooking, NoControllerAvailableError, NoDroneAvailableError, TooWindyError } from "@/lib/droneRental/createBooking";
+import { claimVerification, releaseVerification, ID_CHECK_NEEDED } from "@/lib/droneRental/kyc";
 import { getShopWindForecast } from "@/lib/droneRental/wind";
 import { isTooWindy, maxWindForWindow, windLimitFor } from "@/lib/droneRental/windRules";
 
@@ -57,6 +58,7 @@ const createBookingSchema = z.object({
   name: z.string().trim().min(1, "Enter your name"),
   phone: z.string().trim().regex(/^[0-9+\-()\s]{6,30}$/, "Enter a valid phone number"),
   email: z.string().trim().email("Enter a valid email"),
+  verificationId: uuidSchema,
 });
 
 export async function createDroneBookingAction(input: {
@@ -70,6 +72,8 @@ export async function createDroneBookingAction(input: {
   name: string;
   phone: string;
   email: string;
+  /** The passed ID check this booking relies on (see lib/droneRental/kyc.ts). */
+  verificationId: string;
 }): Promise<{ secureToken: string; startTime: string; endTime: string } | { slotTaken: true }> {
   const parsed = createBookingSchema.safeParse(input);
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Check your details and try again.");
@@ -79,6 +83,8 @@ export async function createDroneBookingAction(input: {
   if (!isWithinOperatingHours(start, data.durationMinutes)) throw new Error("The shop is closed at that time — pick another slot.");
 
   const customerId = await findOrCreateCustomer({ name: data.name, phone: data.phone, email: data.email });
+  // Every booking needs its own passed ID check; it is used up here and given back if the booking doesn't go through.
+  if (!(await claimVerification(data.verificationId, customerId))) throw new Error(ID_CHECK_NEEDED);
 
   try {
     const booking = await createPendingDroneBooking({
@@ -92,6 +98,7 @@ export async function createDroneBookingAction(input: {
     });
     return { secureToken: booking.secure_token, startTime: booking.start_time, endTime: booking.end_time };
   } catch (err) {
+    await releaseVerification(data.verificationId);
     if (err instanceof TooWindyError) throw new Error(err.message);
     // Someone paid for the last drone (or the controller) first: the page shows its popup and keeps everything typed.
     if (err instanceof NoDroneAvailableError || err instanceof NoControllerAvailableError) return { slotTaken: true };

@@ -23,6 +23,7 @@ import {
 } from "@/lib/droneRental/pricingRules";
 import type { WalkInOptions } from "@/lib/droneRental/walkInRequests";
 import { submitWalkInOrderAction } from "./actions";
+import { useDroneKyc } from "@/components/droneRental/useDroneKyc";
 
 const selectedClass = "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black";
 const idleClass = "border-zinc-300 dark:border-zinc-700";
@@ -52,10 +53,18 @@ export function WalkInOrderForm({ code, options, pictures }: { code: string; opt
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function submit() {
+  const { verifyThen, panel: idCheckPanel, kycBusy, kycMessage } = useDroneKyc();
+
+  /** The first thing sending the order does: the ID check. The order is sent once it has passed. */
+  function submit() {
+    setError(null);
+    void verifyThen({ name, phone, email }, sendOrder);
+  }
+
+  async function sendOrder(verificationId: string) {
     setLoading(true);
     setError(null);
-    const result = await submitWalkInOrderAction({ code, durationMinutes, batteries, model, controller, name, phone, email });
+    const result = await submitWalkInOrderAction({ code, durationMinutes, batteries, model, controller, name, phone, email, verificationId });
     if (result.ok) {
       router.push(`/rent/w/${result.token}`);
       return;
@@ -153,14 +162,16 @@ export function WalkInOrderForm({ code, options, pictures }: { code: string; opt
         />
       </div>
 
-      {error && (
+      {(error ?? kycMessage) && (
         <p role="alert" className="text-center text-sm text-red-600">
-          {error}
+          {error ?? kycMessage}
         </p>
       )}
-      <button type="submit" disabled={loading || !name || !phone || !email} className={`w-full ${primaryButtonClass} h-12 rounded-full text-base disabled:opacity-50`}>
-        {loading ? "Sending…" : "Send my order to the shop"}
-      </button>
+      {idCheckPanel ?? (
+        <button type="submit" disabled={loading || kycBusy || !name || !phone || !email} className={`w-full ${primaryButtonClass} h-12 rounded-full text-base disabled:opacity-50`}>
+          {loading || kycBusy ? "Sending…" : "Send my order to the shop"}
+        </button>
+      )}
       <p className="text-center text-xs text-zinc-400">The staff confirm your order, then you pay on this phone.</p>
     </form>
   );

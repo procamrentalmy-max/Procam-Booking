@@ -27,8 +27,9 @@ export default function TermsPage() {
 
       <LegalSection title="2. Who can rent">
         <p>
-          You must be at least 18 years old and able to make a binding agreement. Bring a valid photo ID (MyKad or passport) when you collect the drone. The shop staff check it against the name on your booking and can refuse the rental if you cannot
-          show it, if it does not match the booking, or if they have good reason to doubt who you are. In that case the rental fee is refunded in full.
+          You must be at least 18 years old and able to make a binding agreement. Before we hold a drone for you, you complete an identity check: a photo of your MyKad or passport and a live selfie, done on your phone through our verification
+          provider. Bring the same photo ID when you collect the drone: the shop staff check it against your booking and can refuse the rental if you cannot show it, if it does not match, or if they have good reason to doubt who you are. In that
+          case the rental fee is refunded in full.
         </p>
       </LegalSection>
 

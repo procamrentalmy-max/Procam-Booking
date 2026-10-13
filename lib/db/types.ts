@@ -174,6 +174,8 @@ export type IdentityVerificationRow = {
   id_document_photo_path: string | null;
   verified_at: string | null;
   didit_session_id: string | null;
+  /** Set when a drone booking has used this ID check, so it can't be used again. */
+  used_at: string | null;
   status: IdentityVerificationStatus;
   created_at: string;
 };

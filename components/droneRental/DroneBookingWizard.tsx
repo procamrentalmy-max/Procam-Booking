@@ -27,6 +27,7 @@ import {
 } from "@/lib/droneRental/pricingRules";
 import { dayLabel, formatSlotTime, generateDaySlots } from "@/lib/droneRental/hours";
 import { getUnavailableDroneStartsAction, createDroneBookingAction } from "@/app/rent/[shopId]/actions";
+import { useDroneKyc } from "@/components/droneRental/useDroneKyc";
 
 const DURATION_OPTIONS_HOURS = [1, 2, 3, 4, 5, 6];
 const DAYS_AHEAD = 7;
@@ -181,7 +182,16 @@ export function DroneBookingWizard({
     }
   }
 
-  async function submit() {
+  const { verifyThen, panel: idCheckPanel, kycBusy, kycMessage } = useDroneKyc();
+
+  /** The first thing "Book and pay" does: the ID check. The booking itself is made once it has passed. */
+  function submit() {
+    if (!selectedStart) return;
+    setError(null);
+    void verifyThen({ name, phone, email }, placeBooking);
+  }
+
+  async function placeBooking(verificationId: string) {
     if (!selectedStart) return;
     setLoading(true);
     setError(null);
@@ -196,6 +206,7 @@ export function DroneBookingWizard({
         name,
         phone,
         email,
+        verificationId,
       });
       // Someone else paid for the last drone first: the popup, with everything still filled in.
       if ("slotTaken" in result) {
@@ -448,18 +459,20 @@ export function DroneBookingWizard({
           required
           className={`w-full ${inputClass} py-3 text-base`}
         />
-        {error && (
+        {(error ?? kycMessage) && (
           <p role="alert" className="text-center text-sm text-red-600">
-            {error}
+            {error ?? kycMessage}
           </p>
         )}
-        <button
-          type="submit"
-          disabled={loading || !name || !phone || !email}
-          className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}
-        >
-          {loading ? "Booking…" : `Book and pay ${formatMyr(rentalFee)}`}
-        </button>
+        {idCheckPanel ?? (
+          <button
+            type="submit"
+            disabled={loading || kycBusy || !name || !phone || !email}
+            className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}
+          >
+            {loading || kycBusy ? "Booking…" : `Book and pay ${formatMyr(rentalFee)}`}
+          </button>
+        )}
         <p className="text-center text-xs text-zinc-400">You&apos;ll pay on the next page. Nothing is charged until then.</p>
         <p className="text-center text-xs text-zinc-400">
           By booking you agree to the <Link href="/legal/terms" target="_blank" className="underline underline-offset-2">Terms</Link>, the <Link href="/legal/refunds" target="_blank" className="underline underline-offset-2">Refund policy</Link> and the <Link href="/legal/privacy" target="_blank" className="underline underline-offset-2">Privacy policy</Link>.

@@ -2,6 +2,9 @@
 
 import { z } from "zod";
 import { submitWalkInOrder } from "@/lib/droneRental/walkInRequests";
+import { findOrCreateCustomer } from "@/lib/droneRental/createBooking";
+import { claimVerification, releaseVerification, ID_CHECK_NEEDED } from "@/lib/droneRental/kyc";
+import { uuidSchema } from "@/lib/zod-helpers";
 import { CONTROLLER_KINDS, ENABLED_DRONE_MODELS, type ControllerKind, type DroneModel } from "@/lib/droneRental/pricingRules";
 
 const schema = z.object({
@@ -13,6 +16,7 @@ const schema = z.object({
   name: z.string().trim().min(1, "Enter your name").max(100),
   phone: z.string().trim().regex(/^[0-9+\-()\s]{6,30}$/, "Enter a valid phone number"),
   email: z.string().trim().email("Enter a valid email").max(200),
+  verificationId: uuidSchema,
 });
 
 export type SubmitOrderResult = { ok: true; token: string } | { ok: false; message: string };
@@ -35,10 +39,15 @@ export async function submitWalkInOrderAction(input: {
   name: string;
   phone: string;
   email: string;
+  /** The passed ID check this order relies on (see lib/droneRental/kyc.ts). */
+  verificationId: string;
 }): Promise<SubmitOrderResult> {
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Check your details." };
   const d = parsed.data;
+
+  const customerId = await findOrCreateCustomer({ name: d.name, phone: d.phone, email: d.email });
+  if (!(await claimVerification(d.verificationId, customerId))) return { ok: false, message: ID_CHECK_NEEDED };
 
   const result = await submitWalkInOrder({
     walkinCode: d.code,
@@ -51,5 +60,6 @@ export async function submitWalkInOrderAction(input: {
     email: d.email,
   });
   if (result.ok) return { ok: true, token: result.publicToken };
+  await releaseVerification(d.verificationId);
   return { ok: false, message: REASON_MESSAGES[result.reason] };
 }
