@@ -25,7 +25,7 @@ export function PaymentForm({
   buttonLabel?: string;
 }) {
   return (
-    <Elements stripe={stripePromise} options={{ clientSecret }}>
+    <Elements stripe={stripePromise} options={{ clientSecret, locale }}>
       <CheckoutForm returnUrl={returnUrl} locale={locale} beforePay={beforePay} buttonLabel={buttonLabel} />
     </Elements>
   );

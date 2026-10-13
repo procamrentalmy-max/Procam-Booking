@@ -1,30 +1,37 @@
-import { BUSINESS, LEGAL_UPDATED, SHOPS } from "@/lib/legal";
+import { BUSINESS, legalUpdatedLabel, SHOPS } from "@/lib/legal";
+import { getLocale } from "@/lib/i18n/getLocale";
+import { legalText } from "@/lib/i18n/legal";
 import { LegalSection, LegalTitle } from "../LegalSection";
 
-export const metadata = {
-  title: "Contact — ProCam Rental",
-  description: "How to reach ProCam Rental and where to collect your drone.",
-};
+export async function generateMetadata() {
+  const t = legalText(await getLocale());
+  return { title: `${t.contact.title} — ProCam Rental`, description: t.contact.description };
+}
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const locale = await getLocale();
+  const t = legalText(locale);
+  const c = t.contact;
   return (
     <>
-      <LegalTitle title="Contact" updated={LEGAL_UPDATED} />
+      <LegalTitle title={c.title} updated={t.updated(legalUpdatedLabel(locale))} />
 
-      <LegalSection title="Questions, cancellations and refunds">
-        <p>
-          Please include your booking number (it starts with DBK-) and the name and phone number you booked with, so we can find your booking quickly.
-        </p>
+      <LegalSection title={c.helpTitle}>
+        <p>{c.help}</p>
         {BUSINESS.supportEmail && (
           <p>
-            Email: <a href={`mailto:${BUSINESS.supportEmail}`} className="underline underline-offset-2">{BUSINESS.supportEmail}</a>
+            {c.emailLabel}: <a href={`mailto:${BUSINESS.supportEmail}`} className="underline underline-offset-2">{BUSINESS.supportEmail}</a>
           </p>
         )}
-        {BUSINESS.supportPhone && <p>Phone / WhatsApp: {BUSINESS.supportPhone}</p>}
-        <p>You can also ask the staff at the shop where you collect your drone.</p>
+        {BUSINESS.supportPhone && (
+          <p>
+            {c.phoneLabel}: {BUSINESS.supportPhone}
+          </p>
+        )}
+        <p>{c.staffNote}</p>
       </LegalSection>
 
-      <LegalSection title="Our shops">
+      <LegalSection title={c.shopsTitle}>
         {SHOPS.map((shop) => (
           <p key={shop.name}>
             <span className="font-medium text-black dark:text-zinc-200">{shop.name}</span>
@@ -34,10 +41,10 @@ export default function ContactPage() {
         ))}
       </LegalSection>
 
-      <LegalSection title="The business">
+      <LegalSection title={c.businessTitle}>
         <p>
-          {BUSINESS.registeredName ? `${BUSINESS.registeredName}, trading as ${BUSINESS.brand}, Malaysia.` : `${BUSINESS.brand}, Malaysia.`}
-          {BUSINESS.ssmNumber && <> SSM registration number: {BUSINESS.ssmNumber}.</>}
+          {BUSINESS.registeredName ? c.businessRegistered(BUSINESS.registeredName, BUSINESS.brand) : c.business(BUSINESS.brand)}
+          {BUSINESS.ssmNumber && <> {c.ssm(BUSINESS.ssmNumber)}</>}
         </p>
       </LegalSection>
     </>

@@ -6,6 +6,14 @@ import { findOrCreateCustomer } from "./createBooking";
 /** An ID check can be used for a booking for this long after it passed. */
 const FRESH_HOURS = 2;
 
+/** Why an ID check couldn't go on; the page words it in the visitor's language. */
+export class DroneKycError extends Error {
+  constructor(public readonly code: "cantStart" | "notFound" | "neverStarted") {
+    super(code);
+    this.name = "DroneKycError";
+  }
+}
+
 export type DroneKycStart = { verified: true; verificationId: string } | { verified: false; verificationId: string; sessionUrl: string };
 
 /**
@@ -26,7 +34,7 @@ export async function startDroneKyc(params: { name: string; phone: string; email
     )
     .select("id")
     .single();
-  if (error || !verification) throw new Error("Couldn't start the ID check. Please try again.");
+  if (error || !verification) throw new DroneKycError("cantStart");
   if (bypassed) return { verified: true, verificationId: verification.id };
 
   const session = await createDiditSession(verification.id);
@@ -38,9 +46,9 @@ export async function startDroneKyc(params: { name: string; phone: string; email
 export async function confirmDroneKyc(verificationId: string): Promise<{ verified: boolean; status?: string }> {
   const supabase = createServiceRoleClient();
   const { data: verification } = await supabase.from("identity_verifications").select("id,status,didit_session_id").eq("id", verificationId).single();
-  if (!verification) throw new Error("We couldn't find that ID check. Please start again.");
+  if (!verification) throw new DroneKycError("notFound");
   if (verification.status === "VERIFIED") return { verified: true };
-  if (!verification.didit_session_id) throw new Error("That ID check never started. Please start again.");
+  if (!verification.didit_session_id) throw new DroneKycError("neverStarted");
 
   const status = await getDiditSessionStatus(verification.didit_session_id);
   if (status !== "Approved") return { verified: false, status };

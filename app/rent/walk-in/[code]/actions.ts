@@ -3,7 +3,9 @@
 import { z } from "zod";
 import { submitWalkInOrder } from "@/lib/droneRental/walkInRequests";
 import { findOrCreateCustomer } from "@/lib/droneRental/createBooking";
-import { claimVerification, releaseVerification, ID_CHECK_NEEDED } from "@/lib/droneRental/kyc";
+import { claimVerification, releaseVerification } from "@/lib/droneRental/kyc";
+import { droneText, fieldError } from "@/lib/i18n/drone";
+import { getLocale } from "@/lib/i18n/getLocale";
 import { uuidSchema } from "@/lib/zod-helpers";
 import { CONTROLLER_KINDS, ENABLED_DRONE_MODELS, type ControllerKind, type DroneModel } from "@/lib/droneRental/pricingRules";
 
@@ -21,13 +23,6 @@ const schema = z.object({
 
 export type SubmitOrderResult = { ok: true; token: string } | { ok: false; message: string };
 
-const REASON_MESSAGES = {
-  shop_not_found: "We couldn't find this shop. Please ask the staff.",
-  length_unavailable: "That rental length or controller isn't available right now. Pick another, or ask the staff.",
-  too_many_open: "The shop has a lot of orders waiting. Please ask the staff.",
-  too_windy: "It is too windy to fly this drone right now. Please ask the staff.",
-} as const;
-
 /** Public: a customer in the shop scanning its standing QR. Nothing is booked yet; the merchant confirms the order. */
 export async function submitWalkInOrderAction(input: {
   code: string;
@@ -42,12 +37,14 @@ export async function submitWalkInOrderAction(input: {
   /** The passed ID check this order relies on (see lib/droneRental/kyc.ts). */
   verificationId: string;
 }): Promise<SubmitOrderResult> {
+  const t = droneText(await getLocale()).errors;
+  const reasons = { shop_not_found: t.shopNotFound, length_unavailable: t.lengthUnavailable, too_many_open: t.tooManyOpen, too_windy: t.tooWindyNow } as const;
   const parsed = schema.safeParse(input);
-  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Check your details." };
+  if (!parsed.success) return { ok: false, message: fieldError(t, parsed.error.issues[0]?.path[0]) };
   const d = parsed.data;
 
   const customerId = await findOrCreateCustomer({ name: d.name, phone: d.phone, email: d.email });
-  if (!(await claimVerification(d.verificationId, customerId))) return { ok: false, message: ID_CHECK_NEEDED };
+  if (!(await claimVerification(d.verificationId, customerId))) return { ok: false, message: t.idCheckNeeded };
 
   const result = await submitWalkInOrder({
     walkinCode: d.code,
@@ -61,5 +58,5 @@ export async function submitWalkInOrderAction(input: {
   });
   if (result.ok) return { ok: true, token: result.publicToken };
   await releaseVerification(d.verificationId);
-  return { ok: false, message: REASON_MESSAGES[result.reason] };
+  return { ok: false, message: reasons[result.reason] };
 }

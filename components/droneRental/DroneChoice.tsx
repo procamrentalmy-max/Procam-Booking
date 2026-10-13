@@ -1,6 +1,8 @@
 "use client";
 
 import { DRONE_MODEL_PROFILES, formatMyr, type DroneModel } from "@/lib/droneRental/pricingRules";
+import { droneText } from "@/lib/i18n/drone";
+import type { Locale } from "@/lib/i18n/locale";
 
 const selectedClass = "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black";
 const idleClass = "border-zinc-300 dark:border-zinc-700";
@@ -15,16 +17,19 @@ export function DroneChoice({
   value,
   onChange,
   unavailable = [],
+  locale = "en",
 }: {
+  locale?: Locale;
   models: readonly DroneModel[];
   value: DroneModel;
   onChange: (next: DroneModel) => void;
   unavailable?: readonly DroneModel[];
 }) {
   if (models.length < 2) return null;
+  const t = droneText(locale);
   return (
     <div>
-      <p className="mb-2 text-sm font-medium">Which drone?</p>
+      <p className="mb-2 text-sm font-medium">{t.choice.whichDrone}</p>
       <div className="grid grid-cols-2 gap-2">
         {models.map((m) => {
           const off = unavailable.includes(m);
@@ -39,7 +44,7 @@ export function DroneChoice({
             >
               <span className="text-sm font-semibold leading-tight">{DRONE_MODEL_PROFILES[m].shortName}</span>
               <span className={`text-xs tabular-nums ${off || value !== m ? "" : "opacity-80"} ${off ? "" : value === m ? "" : "text-zinc-500"}`}>
-                {formatMyr(DRONE_MODEL_PROFILES[m].hourlyRateMyr)} per hour
+                {t.common.perHour(formatMyr(DRONE_MODEL_PROFILES[m].hourlyRateMyr))}
               </span>
             </button>
           );

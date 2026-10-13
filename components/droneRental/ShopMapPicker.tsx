@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { getShopsWithAvailabilityAction } from "@/app/rent/actions";
-import { formatMalaysiaTime } from "@/lib/i18n/locale";
+import { formatMalaysiaTime, type Locale } from "@/lib/i18n/locale";
+import { droneText, type DroneText } from "@/lib/i18n/drone";
 
 export type ShopMarker = {
   id: string;
@@ -59,10 +60,10 @@ function loadGoogleMaps(apiKey: string): Promise<void> {
   return mapsLoaderPromise;
 }
 
-function availabilityLabel(shop: ShopMarker): string {
-  if (!shop.firstAvailableAt) return "No drones available right now";
+function availabilityLabel(shop: ShopMarker, t: DroneText["shops"], locale: Locale): string {
+  if (!shop.firstAvailableAt) return t.none;
   const at = new Date(shop.firstAvailableAt);
-  return at.getTime() <= Date.now() ? "First available now" : `Available at ${formatMalaysiaTime(at, "en")}`;
+  return at.getTime() <= Date.now() ? t.nowAvailable : t.availableAt(formatMalaysiaTime(at, locale));
 }
 
 type LatLng = { lat: number; lng: number };
@@ -86,7 +87,8 @@ function nearestShop(shops: ShopMarker[], origin: LatLng): ShopMarker | null {
 
 type LocationStatus = "idle" | "requesting" | "granted" | "denied" | "unavailable" | "unsupported";
 
-export function ShopMapPicker({ initialShops }: { initialShops: ShopMarker[] }) {
+export function ShopMapPicker({ initialShops, locale = "en" }: { initialShops: ShopMarker[]; locale?: Locale }) {
+  const t = droneText(locale).shops;
   const mapDivRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
@@ -230,7 +232,7 @@ export function ShopMapPicker({ initialShops }: { initialShops: ShopMarker[] }) 
       userMarkerRef.current = new google.maps.Marker({
         position: userLocation,
         map,
-        title: "You are here",
+        title: t.youAreHere,
         zIndex: 999,
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
@@ -269,32 +271,31 @@ export function ShopMapPicker({ initialShops }: { initialShops: ShopMarker[] }) 
           disabled={locationStatus === "requesting" || shops.length === 0}
           className="flex h-11 w-full items-center justify-center rounded-full bg-black text-sm font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
         >
-          {locationStatus === "requesting" ? "Finding your location…" : "Nearest to me"}
+          {locationStatus === "requesting" ? t.finding : t.nearest}
         </button>
 
         {locationStatus === "granted" && (
-          <p className="text-center text-xs text-zinc-500">Showing distances from your current location (blue dot).</p>
+          <p className="text-center text-xs text-zinc-500">{t.granted}</p>
         )}
         {locationStatus === "denied" && (
           <p className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-center text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
-            Location access is blocked for this site. Allow it from the lock/tune icon next to the address bar (or your phone&apos;s browser
-            settings), then{" "}
+            {t.deniedBefore}
             <button type="button" onClick={requestLocation} className="underline">
-              try again
+              {t.deniedLink}
             </button>
-            .
+            {t.deniedAfter}
           </p>
         )}
         {locationStatus === "unavailable" && (
           <p className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-center text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
-            Couldn&apos;t work out where you are right now (is location turned on for your device?).{" "}
+            {t.unavailableMsg}{" "}
             <button type="button" onClick={requestLocation} className="underline">
-              Try again
+              {t.tryAgain}
             </button>
           </p>
         )}
         {locationStatus === "unsupported" && (
-          <p className="text-center text-xs text-zinc-500">This browser can&apos;t share your location — pick a shop from the list below.</p>
+          <p className="text-center text-xs text-zinc-500">{t.unsupported}</p>
         )}
       </div>
 
@@ -302,7 +303,7 @@ export function ShopMapPicker({ initialShops }: { initialShops: ShopMarker[] }) 
         <div ref={mapDivRef} className="h-64 w-full overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800" />
       ) : (
         <p className="rounded-xl border border-dashed border-zinc-300 p-4 text-center text-xs text-zinc-400 dark:border-zinc-700">
-          Map unavailable — pick a shop from the list below.
+          {t.mapUnavailable}
         </p>
       )}
 
@@ -320,14 +321,14 @@ export function ShopMapPicker({ initialShops }: { initialShops: ShopMarker[] }) 
                     {shop.name}
                     {nearestId === shop.id && (
                       <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800 dark:bg-green-900 dark:text-green-200">
-                        Nearest
+                        {t.nearestBadge}
                       </span>
                     )}
                   </span>
                   {shop.distanceKm !== null && <span className="shrink-0 text-xs text-zinc-400">{shop.distanceKm.toFixed(1)} km</span>}
                 </div>
                 <p className="mt-0.5 text-xs text-zinc-500">{shop.address}</p>
-                <p className="mt-1 text-xs font-medium">{availabilityLabel(shop)}</p>
+                <p className="mt-1 text-xs font-medium">{availabilityLabel(shop, t, locale)}</p>
               </button>
               {selected && (
                 <div className="mt-3 flex gap-2">
@@ -335,7 +336,7 @@ export function ShopMapPicker({ initialShops }: { initialShops: ShopMarker[] }) 
                     href={`/rent/${shop.id}`}
                     className="flex h-11 flex-1 items-center justify-center rounded-full bg-black text-sm font-semibold text-white dark:bg-white dark:text-black"
                   >
-                    Book at this shop
+                    {t.book}
                   </Link>
                   {shop.googleMapsUrl && (
                     <a
@@ -344,7 +345,7 @@ export function ShopMapPicker({ initialShops }: { initialShops: ShopMarker[] }) 
                       rel="noreferrer"
                       className="flex h-11 items-center justify-center rounded-full border border-zinc-300 px-4 text-sm font-medium dark:border-zinc-700"
                     >
-                      Directions
+                      {t.directions}
                     </a>
                   )}
                 </div>
@@ -352,7 +353,7 @@ export function ShopMapPicker({ initialShops }: { initialShops: ShopMarker[] }) 
             </div>
           );
         })}
-        {shops.length === 0 && <p className="text-center text-sm text-zinc-400">No shops are open right now.</p>}
+        {shops.length === 0 && <p className="text-center text-sm text-zinc-400">{t.noShops}</p>}
       </div>
     </div>
   );

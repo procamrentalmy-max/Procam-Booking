@@ -6,7 +6,7 @@ import { LOCALES, LOCALE_COOKIE, LOCALE_LABELS, type Locale } from "@/lib/i18n/l
 const SHORT_LABELS: Record<Locale, string> = { en: "EN", ms: "BM", zh: "中"};
 
 /** `onDark` is for pages that are always dark regardless of the visitor's theme (the home page): it drops the page-width wrapper and uses fixed light-on-dark colors. */
-export function LanguageToggle({ locale, onDark = false }: { locale: Locale; onDark?: boolean }) {
+export function LanguageToggle({ locale, onDark = false, inline = false }: { locale: Locale; onDark?: boolean; /** Sits inside a wider layout of its own: no page-width wrapper, normal colors. */ inline?: boolean }) {
   const router = useRouter();
 
   function switchTo(next: Locale) {
@@ -16,7 +16,7 @@ export function LanguageToggle({ locale, onDark = false }: { locale: Locale; onD
   }
 
   return (
-    <div className={onDark ? "flex" : "mx-auto flex w-full max-w-md justify-end px-6 pt-4"}>
+    <div className={onDark || inline ? "flex" : "mx-auto flex w-full max-w-md justify-end px-6 pt-4"}>
       <div
         role="group"
         aria-label="Language"

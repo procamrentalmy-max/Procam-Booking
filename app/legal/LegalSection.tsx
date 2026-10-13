@@ -1,8 +1,8 @@
-export function LegalTitle({ title, updated }: { title: string; updated: string }) {
+export function LegalTitle({ title, updated }: { title: string; /** The whole sentence, already in the visitor's language, e.g. "Last updated 13 October 2026." */ updated: string }) {
   return (
     <div>
       <h1 className="text-xl font-semibold text-black dark:text-zinc-50">{title}</h1>
-      <p className="mt-1 text-sm text-zinc-500">Last updated {updated}.</p>
+      <p className="mt-1 text-sm text-zinc-500">{updated}</p>
     </div>
   );
 }

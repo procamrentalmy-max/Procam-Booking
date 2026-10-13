@@ -3,6 +3,8 @@
 import { useState, type FormEvent } from "react";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
+import { droneText } from "@/lib/i18n/drone";
+import type { Locale } from "@/lib/i18n/locale";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -11,15 +13,16 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
  * swap or late fee can go on it. This only saves the card (a SetupIntent), nothing is charged. Stripe brings the browser
  * back to returnUrl, which finishes the setup on the server.
  */
-export function CashCardForm({ clientSecret, returnUrl }: { clientSecret: string; returnUrl: string }) {
+export function CashCardForm({ clientSecret, returnUrl, locale = "en" }: { clientSecret: string; returnUrl: string; locale?: Locale }) {
   return (
-    <Elements stripe={stripePromise} options={{ clientSecret }}>
-      <SaveCardForm returnUrl={returnUrl} />
+    <Elements stripe={stripePromise} options={{ clientSecret, locale }}>
+      <SaveCardForm returnUrl={returnUrl} locale={locale} />
     </Elements>
   );
 }
 
-function SaveCardForm({ returnUrl }: { returnUrl: string }) {
+function SaveCardForm({ returnUrl, locale }: { returnUrl: string; locale: Locale }) {
+  const t = droneText(locale).pay;
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +36,7 @@ function SaveCardForm({ returnUrl }: { returnUrl: string }) {
     const { error: submitError } = await stripe.confirmSetup({ elements, confirmParams: { return_url: returnUrl } });
     // A successful setup redirects to returnUrl itself; this only runs when it fails without redirecting.
     if (submitError) {
-      setError(submitError.message ?? "We couldn't save your card. Please try again.");
+      setError(submitError.message ?? t.saveCardFailed);
       setLoading(false);
     }
   }
@@ -47,7 +50,7 @@ function SaveCardForm({ returnUrl }: { returnUrl: string }) {
         disabled={!stripe || loading}
         className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
       >
-        {loading ? "Saving…" : "Save my card, pay cash at the shop"}
+        {loading ? t.saving : t.saveCard}
       </button>
     </form>
   );

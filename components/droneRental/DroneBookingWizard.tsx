@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
-import { formatMalaysiaTime } from "@/lib/i18n/locale";
+import { formatMalaysiaTime, type Locale } from "@/lib/i18n/locale";
+import { dayLabelFor, droneText } from "@/lib/i18n/drone";
+import { AgreeLine } from "@/components/droneRental/AgreeLine";
 import { ControllerChoice } from "@/components/droneRental/ControllerChoice";
 import { ComboCard, TotalSummary } from "@/components/droneRental/ComboCard";
 import { DroneChoice } from "@/components/droneRental/DroneChoice";
@@ -25,7 +27,7 @@ import {
   includesController,
   rentalFeeMyr,
 } from "@/lib/droneRental/pricingRules";
-import { dayLabel, formatSlotTime, generateDaySlots } from "@/lib/droneRental/hours";
+import { formatSlotTime, generateDaySlots } from "@/lib/droneRental/hours";
 import { getUnavailableDroneStartsAction, createDroneBookingAction } from "@/app/rent/[shopId]/actions";
 import { useDroneKyc } from "@/components/droneRental/useDroneKyc";
 
@@ -44,20 +46,21 @@ type Step = "duration" | "slot" | "contact";
 const selectedClass = "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black";
 const idleClass = "border-zinc-300 dark:border-zinc-700";
 
-function StepHeader({ step, onBack }: { step: Step; onBack?: () => void }) {
+function StepHeader({ step, onBack, locale }: { step: Step; onBack?: () => void; locale: Locale }) {
+  const t = droneText(locale).common;
   const n = step === "duration" ? 1 : step === "slot" ? 2 : 3;
   return (
     <div className="flex h-6 items-center justify-between text-xs text-zinc-500">
       {onBack ? (
         <button type="button" onClick={onBack} className="-ml-1 px-1 py-1 text-sm underline underline-offset-2">
-          ← Back
+          {t.back}
         </button>
       ) : (
         <Link href="/rent" className="-ml-1 px-1 py-1 text-sm underline underline-offset-2">
-          ← Other shops
+          {t.otherShops}
         </Link>
       )}
-      <span>Step {n} of 3</span>
+      <span>{t.step(n)}</span>
     </div>
   );
 }
@@ -75,6 +78,7 @@ export function DroneBookingWizard({
   pictures,
   retry = false,
   adminCanSkip = false,
+  locale = "en",
 }: {
   shopId: string;
   models: DroneModel[];
@@ -85,7 +89,10 @@ export function DroneBookingWizard({
   retry?: boolean;
   /** A signed-in admin is testing the live site: show the skip-ID-check button. */
   adminCanSkip?: boolean;
+  /** The visitor's language. */
+  locale?: Locale;
 }) {
+  const t = droneText(locale);
   const router = useRouter();
   const [step, setStep] = useState<Step>("duration");
   const [model, setModel] = useState<DroneModel>(availableModels.includes("NEO2") ? "NEO2" : (availableModels[0] ?? models[0]));
@@ -118,6 +125,8 @@ export function DroneBookingWizard({
   const hourly = hourlyRateFor(model, controller);
   const deposit = depositMyrFor(model, controller);
   const rentalFee = rentalFeeMyr(durationMinutes, batteries, model, controller);
+  /** "Phone only" in the visitor's language, or the controller's own name (a product name, never translated). */
+  const controllerName = (kind: ControllerKind) => (kind === "NONE" ? t.common.phoneOnly : controllerLabel(model, kind));
 
   // (Re)draw the grid for the chosen day and duration, then grey out what's taken. The grid itself is
   // worked out in Malaysia time (lib/droneRental/hours) so it's right whatever timezone the phone is in;
@@ -185,7 +194,7 @@ export function DroneBookingWizard({
     }
   }
 
-  const { verifyThen, panel: idCheckPanel, kycBusy, kycMessage } = useDroneKyc({ adminCanSkip });
+  const { verifyThen, panel: idCheckPanel, kycBusy, kycMessage } = useDroneKyc({ adminCanSkip, locale });
 
   /** The first thing "Book and pay" does: the ID check. The booking itself is made once it has passed. */
   function submit() {
@@ -211,6 +220,11 @@ export function DroneBookingWizard({
         email,
         verificationId,
       });
+      if ("error" in result) {
+        setError(result.error);
+        setLoading(false);
+        return;
+      }
       // Someone else paid for the last drone first: the popup, with everything still filled in.
       if ("slotTaken" in result) {
         setSlotTaken(true);
@@ -220,7 +234,7 @@ export function DroneBookingWizard({
       rememberDraft();
       router.push(`/rent/b/${result.secureToken}/pay`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong — please try again.");
+      setError(t.common.somethingWrong);
       setLoading(false);
     }
   }
@@ -228,11 +242,12 @@ export function DroneBookingWizard({
   if (step === "duration") {
     return (
       <div className="space-y-6">
-        <StepHeader step={step} />
+        <StepHeader locale={locale} step={step} />
 
-        <DroneChoice models={models} value={model} onChange={setModel} unavailable={models.filter((m) => !availableModels.includes(m))} />
+        <DroneChoice locale={locale} models={models} value={model} onChange={setModel} unavailable={models.filter((m) => !availableModels.includes(m))} />
 
         <ControllerChoice
+          locale={locale}
           model={model}
           options={controllerOptions}
           value={controller}
@@ -241,13 +256,14 @@ export function DroneBookingWizard({
         />
 
         <ComboCard
+          locale={locale}
           pictureUrl={pictures[comboKey(model, controller, batteries)]}
           depositMyr={deposit}
-          alt={`${profile.shortName}, ${controllerLabel(model, controller)}, ${batteries} ${batteries === 1 ? "battery" : "batteries"}`}
+          alt={`${profile.shortName}, ${controllerName(controller)}, ${t.common.batteries(batteries)}`}
         />
 
         <div>
-          <p className="mb-2 text-sm font-medium">How long do you need it?</p>
+          <p className="mb-2 text-sm font-medium">{t.wizard.howLong}</p>
           <div className="grid grid-cols-3 gap-2">
             {DURATION_OPTIONS_HOURS.map((h) => (
               <button
@@ -257,7 +273,7 @@ export function DroneBookingWizard({
                 aria-pressed={durationHours === h}
                 className={`rounded-xl border py-3 text-center ${durationHours === h ? selectedClass : idleClass}`}
               >
-                <span className="block text-sm font-semibold">{h} hour{h === 1 ? "" : "s"}</span>
+                <span className="block text-sm font-semibold">{t.common.hours(h)}</span>
                 <span className={`block text-xs ${durationHours === h ? "opacity-80" : "text-zinc-500"}`}>{formatMyr(h * hourly)}</span>
               </button>
             ))}
@@ -265,7 +281,7 @@ export function DroneBookingWizard({
         </div>
 
         <div>
-          <p className="mb-2 text-sm font-medium">How many batteries?</p>
+          <p className="mb-2 text-sm font-medium">{t.wizard.howMany}</p>
           <div className="grid grid-cols-2 gap-2">
             {BATTERY_OPTIONS.map((n) => (
               <button
@@ -276,17 +292,17 @@ export function DroneBookingWizard({
                 className={`rounded-xl border px-3 py-3 text-center ${batteries === n ? selectedClass : idleClass}`}
               >
                 <span className="block text-sm font-semibold">
-                  {n} {n === 1 ? "battery" : "batteries"} · {formatMyr(profile.batteryFeeMyr[n])}
+                  {t.common.batteries(n)} · {formatMyr(profile.batteryFeeMyr[n])}
                 </span>
                 {profile.flightMinutes && (
-                  <span className={`block text-xs ${batteries === n ? "opacity-80" : "text-zinc-500"}`}>about {profile.flightMinutes[n]} min of flying</span>
+                  <span className={`block text-xs ${batteries === n ? "opacity-80" : "text-zinc-500"}`}>{t.wizard.flightNote(profile.flightMinutes[n])}</span>
                 )}
               </button>
             ))}
           </div>
         </div>
 
-        <TotalSummary totalMyr={rentalFee} depositMyr={deposit} />
+        <TotalSummary locale={locale} totalMyr={rentalFee} depositMyr={deposit} />
 
         <button
           type="button"
@@ -296,7 +312,7 @@ export function DroneBookingWizard({
           }}
           className={`w-full ${primaryButtonClass} h-12 rounded-full`}
         >
-          Choose a time
+          {t.wizard.chooseTime}
         </button>
       </div>
     );
@@ -305,12 +321,12 @@ export function DroneBookingWizard({
   if (step === "slot") {
     return (
       <div className="space-y-4">
-        <StepHeader step={step} onBack={() => setStep("duration")} />
+        <StepHeader locale={locale} step={step} onBack={() => setStep("duration")} />
         <p className="text-sm text-zinc-500">
-          {durationHours} hour{durationHours === 1 ? "" : "s"} · {formatMyr(rentalFee)} · pick a start time (Malaysia time)
+          {t.wizard.pickStart(t.common.hours(durationHours), formatMyr(rentalFee))}
         </p>
 
-        <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1" role="group" aria-label="Day">
+        <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1" role="group" aria-label={t.wizard.day}>
           {Array.from({ length: DAYS_AHEAD }, (_, i) => (
             <button
               key={i}
@@ -319,14 +335,14 @@ export function DroneBookingWizard({
               aria-pressed={dayOffset === i}
               className={`shrink-0 rounded-full border px-4 py-2 text-sm font-medium ${dayOffset === i ? selectedClass : idleClass}`}
             >
-              {dayLabel(now, i)}
+              {dayLabelFor(now, i, locale)}
             </button>
           ))}
         </div>
 
         {slots.length === 0 ? (
           <p className="rounded-xl border border-dashed border-zinc-300 p-5 text-center text-sm text-zinc-500 dark:border-zinc-700">
-            No more start times today for {durationHours} hour{durationHours === 1 ? "" : "s"}. Try another day.
+            {t.wizard.noMoreTimes(t.common.hours(durationHours))}
           </p>
         ) : (
           <div className="grid grid-cols-3 gap-2">
@@ -354,14 +370,14 @@ export function DroneBookingWizard({
             })}
           </div>
         )}
-        {unavailable === null && slots.length > 0 && <p className="text-center text-xs text-zinc-400">Checking availability…</p>}
+        {unavailable === null && slots.length > 0 && <p className="text-center text-xs text-zinc-400">{t.wizard.checking}</p>}
         {windNote && (
           <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-center text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-            Too windy to fly at the greyed-out times: up to {Math.round(windNote.worst * 10) / 10} m/s forecast, and the {profile.shortName} can fly in {windNote.limit} m/s at most.
+            {t.wizard.tooWindy(`${Math.round(windNote.worst * 10) / 10} m/s`, profile.shortName, `${windNote.limit} m/s`)}
           </p>
         )}
         {unavailable && slots.length > 0 && unavailable.size === slots.length && !windNote && (
-          <p className="text-center text-xs text-zinc-500">Fully booked this day. Try another day or another shop.</p>
+          <p className="text-center text-xs text-zinc-500">{t.wizard.fullyBooked}</p>
         )}
 
         <button
@@ -370,7 +386,7 @@ export function DroneBookingWizard({
           onClick={() => setStep("contact")}
           className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}
         >
-          Continue
+          {t.wizard.continue}
         </button>
       </div>
     );
@@ -378,9 +394,10 @@ export function DroneBookingWizard({
 
   return (
     <div className="space-y-5">
-      <StepHeader step={step} onBack={() => setStep("slot")} />
+      <StepHeader locale={locale} step={step} onBack={() => setStep("slot")} />
       {slotTaken && (
         <SlotTakenDialog
+          locale={locale}
           onChooseAnother={() => {
             setSlotTaken(false);
             setSelectedStart(null);
@@ -393,36 +410,34 @@ export function DroneBookingWizard({
         <div className="space-y-1 rounded-2xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">
           {models.length > 1 && (
             <div className="flex justify-between gap-4">
-              <span className="text-zinc-500">Drone</span>
+              <span className="text-zinc-500">{t.common.drone}</span>
               <span className="font-medium">{profile.shortName}</span>
             </div>
           )}
           {controllerOptions.length > 1 && (
             <div className="flex justify-between gap-4">
-              <span className="text-zinc-500">Flying with</span>
-              <span className="font-medium">{controllerLabel(model, controller)}</span>
+              <span className="text-zinc-500">{t.common.flyingWith}</span>
+              <span className="font-medium">{controllerName(controller)}</span>
             </div>
           )}
           <div className="flex justify-between gap-4">
-            <span className="text-zinc-500">Start</span>
-            <span className="font-medium">{formatMalaysiaTime(selectedStart, "en")}</span>
+            <span className="text-zinc-500">{t.common.start}</span>
+            <span className="font-medium">{formatMalaysiaTime(selectedStart, locale)}</span>
           </div>
           <div className="flex justify-between gap-4">
-            <span className="text-zinc-500">Length</span>
-            <span className="font-medium">
-              {durationHours} hour{durationHours === 1 ? "" : "s"}
-            </span>
+            <span className="text-zinc-500">{t.common.length}</span>
+            <span className="font-medium">{t.common.hours(durationHours)}</span>
           </div>
           <div className="flex justify-between gap-4">
-            <span className="text-zinc-500">Batteries</span>
+            <span className="text-zinc-500">{t.common.batteriesLabel}</span>
             <span className="font-medium">{batteries}</span>
           </div>
           <div className="flex justify-between gap-4">
-            <span className="text-zinc-500">Pay now</span>
+            <span className="text-zinc-500">{t.wizard.payNow}</span>
             <span className="font-medium">{formatMyr(rentalFee)}</span>
           </div>
           <div className="flex justify-between gap-4">
-            <span className="text-zinc-500">Deposit hold</span>
+            <span className="text-zinc-500">{t.common.depositHold}</span>
             <span className="font-medium">{formatMyr(deposit)}</span>
           </div>
         </div>
@@ -438,7 +453,7 @@ export function DroneBookingWizard({
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Full name"
+          placeholder={t.common.fullName}
           autoComplete="name"
           required
           className={`w-full ${inputClass} py-3 text-base`}
@@ -446,7 +461,7 @@ export function DroneBookingWizard({
         <input
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          placeholder="Phone number"
+          placeholder={t.common.phone}
           type="tel"
           inputMode="tel"
           autoComplete="tel"
@@ -456,7 +471,7 @@ export function DroneBookingWizard({
         <input
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
+          placeholder={t.common.email}
           type="email"
           autoComplete="email"
           required
@@ -473,12 +488,12 @@ export function DroneBookingWizard({
             disabled={loading || kycBusy || !name || !phone || !email}
             className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}
           >
-            {loading || kycBusy ? "Booking…" : `Book and pay ${formatMyr(rentalFee)}`}
+            {loading || kycBusy ? t.wizard.booking : t.wizard.bookAndPay(formatMyr(rentalFee))}
           </button>
         )}
-        <p className="text-center text-xs text-zinc-400">You&apos;ll pay on the next page. Nothing is charged until then.</p>
+        <p className="text-center text-xs text-zinc-400">{t.wizard.payNext}</p>
         <p className="text-center text-xs text-zinc-400">
-          By booking you agree to the <Link href="/legal/terms" target="_blank" className="underline underline-offset-2">Terms</Link>, the <Link href="/legal/refunds" target="_blank" className="underline underline-offset-2">Refund policy</Link> and the <Link href="/legal/privacy" target="_blank" className="underline underline-offset-2">Privacy policy</Link>.
+          <AgreeLine locale={locale} />
         </p>
       </form>
     </div>

@@ -4,6 +4,8 @@ import { useState, type ReactNode } from "react";
 import { DiditSdk } from "@didit-protocol/sdk-web";
 import { confirmDroneKycAction, skipDroneKycAction, startDroneKycAction } from "@/app/rent/kycActions";
 import { primaryButtonClass } from "@/components/formStyles";
+import { droneText } from "@/lib/i18n/drone";
+import type { Locale } from "@/lib/i18n/locale";
 
 type Pending = { verificationId: string; sessionUrl: string };
 
@@ -12,7 +14,8 @@ type Pending = { verificationId: string; sessionUrl: string };
  * customer completes Didit's window), `proceed` is called with the check's id. While the customer still has to do the check,
  * `panel` is what to show instead of the submit button.
  */
-export function useDroneKyc({ adminCanSkip = false }: { adminCanSkip?: boolean } = {}) {
+export function useDroneKyc({ adminCanSkip = false, locale = "en" }: { adminCanSkip?: boolean; locale?: Locale } = {}) {
+  const t = droneText(locale).kyc;
   const [pending, setPending] = useState<Pending | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -23,6 +26,10 @@ export function useDroneKyc({ adminCanSkip = false }: { adminCanSkip?: boolean }
     setMessage(null);
     try {
       const start = await startDroneKycAction(details);
+      if ("error" in start) {
+        setMessage(start.error);
+        return;
+      }
       if (start.verified) {
         await proceed(start.verificationId);
         return;
@@ -30,8 +37,8 @@ export function useDroneKyc({ adminCanSkip = false }: { adminCanSkip?: boolean }
       setPending({ verificationId: start.verificationId, sessionUrl: start.sessionUrl });
       // Held in state as a function-returning-function so React doesn't call it.
       setOnPassed(() => proceed);
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } catch {
+      setMessage(t.generic);
     } finally {
       setBusy(false);
     }
@@ -54,17 +61,19 @@ export function useDroneKyc({ adminCanSkip = false }: { adminCanSkip?: boolean }
       if (result.type === "completed") {
         try {
           const confirmed = await confirmDroneKycAction(verificationId);
-          if (confirmed.verified) {
+          if ("error" in confirmed) {
+            setMessage(confirmed.error);
+          } else if (confirmed.verified) {
             setPending(null);
             await passed(verificationId);
           } else {
-            setMessage("We couldn't approve your ID. Please try again with a clear photo of your ID and your face in good light.");
+            setMessage(t.notApproved);
           }
-        } catch (err) {
-          setMessage(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+        } catch {
+          setMessage(t.generic);
         }
       } else if (result.type !== "cancelled") {
-        setMessage(result.error?.message ?? "The ID check didn't finish. Please try again.");
+        setMessage(result.error?.message ?? t.notFinished);
       }
     };
     DiditSdk.shared.startVerification({ url: sessionUrl });
@@ -87,12 +96,10 @@ export function useDroneKyc({ adminCanSkip = false }: { adminCanSkip?: boolean }
 
   const panel: ReactNode = pending ? (
     <div className="space-y-3 rounded-2xl border border-zinc-200 p-4 text-center dark:border-zinc-800">
-      <p className="text-base font-semibold text-black dark:text-zinc-50">Verify your ID</p>
-      <p className="text-sm text-zinc-500">
-        Before we hold a drone for you, we check it&apos;s really you: a photo of your MyKad or passport and a quick selfie. It takes about a minute.
-      </p>
+      <p className="text-base font-semibold text-black dark:text-zinc-50">{t.title}</p>
+      <p className="text-sm text-zinc-500">{t.text}</p>
       <button type="button" onClick={openDidit} disabled={busy} className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}>
-        Verify my ID
+        {t.button}
       </button>
       {(process.env.NODE_ENV !== "production" || adminCanSkip) && (
         <button type="button" onClick={skipForTesting} disabled={busy} className="w-full rounded-full border border-dashed border-zinc-400 py-3 text-sm font-medium text-zinc-500">

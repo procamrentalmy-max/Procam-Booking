@@ -2,8 +2,15 @@
 // The business details below are shown on the pages only when they are filled in.
 
 import { RETURN_GRACE_MINUTES } from "@/lib/droneRental/slots";
+import { INTL_TAGS, type Locale } from "@/lib/i18n/locale";
 
-export const LEGAL_UPDATED = "13 October 2026";
+/** When the legal pages last changed. */
+export const LEGAL_UPDATED_ISO = "2026-10-13";
+
+/** That date in the visitor's language ("13 October 2026", "13 Oktober 2026", "2026年10月13日"). */
+export function legalUpdatedLabel(locale: Locale): string {
+  return new Date(`${LEGAL_UPDATED_ISO}T12:00:00Z`).toLocaleDateString(INTL_TAGS[locale], { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+}
 
 export const BUSINESS = {
   /** The name customers know. */

@@ -3,6 +3,8 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getWalkInRequestByToken, requestController, viewOf } from "@/lib/droneRental/walkInRequests";
 import { controllerLabel, depositMyrFor, formatMyr, modelProfile, rentalFeeMyr } from "@/lib/droneRental/pricingRules";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
+import { getLocale } from "@/lib/i18n/getLocale";
+import { droneText } from "@/lib/i18n/drone";
 
 // Per-customer and time-sensitive (the merchant confirms, the order expires) — must never be cached.
 export const dynamic = "force-dynamic";
@@ -23,6 +25,8 @@ function Message({ title, children }: { title: string; children: React.ReactNode
  */
 export default async function WalkInCustomerPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  const locale = await getLocale();
+  const t = droneText(locale);
   const request = await getWalkInRequestByToken(token);
   if (!request) notFound();
 
@@ -44,49 +48,45 @@ export default async function WalkInCustomerPage({ params }: { params: Promise<{
       {(view === "SUBMITTED" || (view === "ACCEPTED" && !request.booking_id)) && <AutoRefresh seconds={3} />}
 
       <div className="text-center">
-        <p className="text-xs uppercase tracking-wide text-zinc-400">{shop?.name ?? "Drone rental"}</p>
-        <h1 className="mt-1 text-2xl font-semibold text-black dark:text-zinc-50">Your order</h1>
+        <p className="text-xs uppercase tracking-wide text-zinc-400">{shop?.name ?? t.waiting.fallbackTitle}</p>
+        <h1 className="mt-1 text-2xl font-semibold text-black dark:text-zinc-50">{t.waiting.yourOrder}</h1>
       </div>
 
       <div className="space-y-1 rounded-2xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">
         <div className="flex justify-between gap-4">
-          <span className="text-zinc-500">Drone</span>
+          <span className="text-zinc-500">{t.common.drone}</span>
           <span className="text-right font-medium">{modelProfile(request.drone_model).shortName}</span>
         </div>
         <div className="flex justify-between gap-4">
-          <span className="text-zinc-500">Flying with</span>
-          <span className="text-right font-medium">{controllerLabel(request.drone_model, controller)}</span>
+          <span className="text-zinc-500">{t.common.flyingWith}</span>
+          <span className="text-right font-medium">{controller === "NONE" ? t.common.phoneOnly : controllerLabel(request.drone_model, controller)}</span>
         </div>
         <div className="flex justify-between gap-4">
-          <span className="text-zinc-500">Length</span>
-          <span className="font-medium">
-            {hours} hour{hours === 1 ? "" : "s"}
-          </span>
+          <span className="text-zinc-500">{t.common.length}</span>
+          <span className="font-medium">{t.common.hours(hours)}</span>
         </div>
         <div className="flex justify-between gap-4">
-          <span className="text-zinc-500">Batteries</span>
+          <span className="text-zinc-500">{t.common.batteriesLabel}</span>
           <span className="font-medium">{batteries}</span>
         </div>
         <div className="flex justify-between gap-4 border-t border-zinc-100 pt-1 dark:border-zinc-800">
-          <span className="text-zinc-500">Rental fee</span>
+          <span className="text-zinc-500">{t.common.rentalFee}</span>
           <span className="font-semibold">{formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model, controller))}</span>
         </div>
         <div className="flex justify-between gap-4">
-          <span className="text-zinc-500">Deposit hold</span>
+          <span className="text-zinc-500">{t.common.depositHold}</span>
           <span className="font-medium">{formatMyr(depositMyrFor(request.drone_model, controller))}</span>
         </div>
       </div>
 
       {view === "SUBMITTED" && (
-        <Message title={`Thanks, ${request.customer_name ?? ""}!`}>
-          Waiting for the shop to confirm your order. This page moves on to payment by itself, so keep it open.
-        </Message>
+        <Message title={t.waiting.thanks(request.customer_name ?? "")}>{t.waiting.waiting}</Message>
       )}
-      {view === "ACCEPTED" && !request.booking_id && <Message title="Confirmed. One moment…">Getting your payment page ready.</Message>}
-      {view === "DECLINED" && <Message title="The shop couldn't take this order">Please check with the staff.</Message>}
-      {view === "CANCELLED" && <Message title="This order was cancelled">Please ask the staff.</Message>}
+      {view === "ACCEPTED" && !request.booking_id && <Message title={t.waiting.confirmedTitle}>{t.waiting.confirmedText}</Message>}
+      {view === "DECLINED" && <Message title={t.waiting.declinedTitle}>{t.waiting.declinedText}</Message>}
+      {view === "CANCELLED" && <Message title={t.waiting.cancelledTitle}>{t.waiting.cancelledText}</Message>}
       {(view === "EXPIRED" || view === "WAITING") && (
-        <Message title="This order wasn't confirmed in time">Please ask the staff, or scan the shop&apos;s QR code again.</Message>
+        <Message title={t.waiting.expiredTitle}>{t.waiting.expiredText}</Message>
       )}
     </div>
   );

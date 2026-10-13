@@ -29,7 +29,10 @@ export class NoDroneAvailableError extends Error {
 
 /** The wind forecast for the rental is stronger than the drone can fly in. */
 export class TooWindyError extends Error {
-  constructor(windMps: number, limitMps: number) {
+  constructor(
+    public readonly windMps: number,
+    public readonly limitMps: number
+  ) {
     super(`Too windy to fly then: ${formatWind(windMps)} forecast, and this drone's limit is ${formatWind(limitMps)}.`);
     this.name = "TooWindyError";
   }

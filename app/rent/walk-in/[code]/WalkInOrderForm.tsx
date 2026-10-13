@@ -24,11 +24,14 @@ import {
 import type { WalkInOptions } from "@/lib/droneRental/walkInRequests";
 import { submitWalkInOrderAction } from "./actions";
 import { useDroneKyc } from "@/components/droneRental/useDroneKyc";
+import { droneText } from "@/lib/i18n/drone";
+import type { Locale } from "@/lib/i18n/locale";
 
 const selectedClass = "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black";
 const idleClass = "border-zinc-300 dark:border-zinc-700";
 
-export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false }: { code: string; options: WalkInOptions; pictures: Record<string, string>; adminCanSkip?: boolean }) {
+export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false, locale = "en" }: { code: string; options: WalkInOptions; pictures: Record<string, string>; adminCanSkip?: boolean; locale?: Locale }) {
+  const t = droneText(locale);
   const router = useRouter();
   // Every drone is listed; only those with a length on offer right now can be picked, the rest are greyed out.
   const models = ENABLED_DRONE_MODELS;
@@ -53,7 +56,7 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const { verifyThen, panel: idCheckPanel, kycBusy, kycMessage } = useDroneKyc({ adminCanSkip });
+  const { verifyThen, panel: idCheckPanel, kycBusy, kycMessage } = useDroneKyc({ adminCanSkip, locale });
 
   /** The first thing sending the order does: the ID check. The order is sent once it has passed. */
   function submit() {
@@ -81,9 +84,10 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false 
       }}
       className="space-y-6"
     >
-      <DroneChoice models={models} value={model} onChange={setModel} unavailable={models.filter((m) => !pickableModels.includes(m))} />
+      <DroneChoice locale={locale} models={models} value={model} onChange={setModel} unavailable={models.filter((m) => !pickableModels.includes(m))} />
 
       <ControllerChoice
+        locale={locale}
         model={model}
         options={controllerOptions}
         value={controller}
@@ -92,7 +96,7 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false 
       />
 
       <div>
-        <p className="mb-2 text-sm font-medium">How long do you need it?</p>
+        <p className="mb-2 text-sm font-medium">{t.wizard.howLong}</p>
         <div className={`grid gap-2 ${durationsMinutes.length > 3 ? "grid-cols-4" : "grid-cols-3"}`}>
           {durationsMinutes.map((m) => (
             <button
@@ -102,7 +106,7 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false 
               aria-pressed={durationMinutes === m}
               className={`rounded-xl border py-3 text-center ${durationMinutes === m ? selectedClass : idleClass}`}
             >
-              <span className="block text-sm font-semibold">{m / 60}h</span>
+              <span className="block text-sm font-semibold">{t.common.shortHours(m / 60)}</span>
               <span className={`block text-xs ${durationMinutes === m ? "opacity-80" : "text-zinc-500"}`}>{formatMyr((m / 60) * hourly)}</span>
             </button>
           ))}
@@ -110,7 +114,7 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false 
       </div>
 
       <div>
-        <p className="mb-2 text-sm font-medium">How many batteries?</p>
+        <p className="mb-2 text-sm font-medium">{t.wizard.howMany}</p>
         <div className="grid grid-cols-2 gap-2">
           {BATTERY_OPTIONS.map((n) => (
             <button
@@ -121,10 +125,10 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false 
               className={`rounded-xl border px-3 py-3 text-center ${batteries === n ? selectedClass : idleClass}`}
             >
               <span className="block text-sm font-semibold">
-                {n} {n === 1 ? "battery" : "batteries"} · {formatMyr(profile.batteryFeeMyr[n])}
+                {t.common.batteries(n)} · {formatMyr(profile.batteryFeeMyr[n])}
               </span>
               {profile.flightMinutes && (
-                <span className={`block text-xs ${batteries === n ? "opacity-80" : "text-zinc-500"}`}>about {profile.flightMinutes[n]} min of flying</span>
+                <span className={`block text-xs ${batteries === n ? "opacity-80" : "text-zinc-500"}`}>{t.wizard.flightNote(profile.flightMinutes[n])}</span>
               )}
             </button>
           ))}
@@ -132,19 +136,20 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false 
       </div>
 
       <ComboCard
+        locale={locale}
         pictureUrl={pictures[comboKey(model, controller, batteries)]}
         depositMyr={depositMyrFor(model, controller)}
-        alt={`${profile.shortName}, ${controllerLabel(model, controller)}, ${batteries} ${batteries === 1 ? "battery" : "batteries"}`}
+        alt={`${profile.shortName}, ${controller === "NONE" ? t.common.phoneOnly : controllerLabel(model, controller)}, ${t.common.batteries(batteries)}`}
       />
-      <TotalSummary totalMyr={rentalFeeMyr(durationMinutes, batteries, model, controller)} depositMyr={depositMyrFor(model, controller)} />
+      <TotalSummary locale={locale} totalMyr={rentalFeeMyr(durationMinutes, batteries, model, controller)} depositMyr={depositMyrFor(model, controller)} />
 
       <div className="space-y-3">
-        <p className="text-sm font-medium">Your details</p>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" autoComplete="name" required className={`w-full ${inputClass} py-3 text-base`} />
+        <p className="text-sm font-medium">{t.walkIn.yourDetails}</p>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.common.fullName} autoComplete="name" required className={`w-full ${inputClass} py-3 text-base`} />
         <input
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          placeholder="Phone number"
+          placeholder={t.common.phone}
           type="tel"
           autoComplete="tel"
           inputMode="tel"
@@ -154,7 +159,7 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false 
         <input
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
+          placeholder={t.common.email}
           type="email"
           autoComplete="email"
           required
@@ -169,10 +174,10 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false 
       )}
       {idCheckPanel ?? (
         <button type="submit" disabled={loading || kycBusy || !name || !phone || !email} className={`w-full ${primaryButtonClass} h-12 rounded-full text-base disabled:opacity-50`}>
-          {loading || kycBusy ? "Sending…" : "Send my order to the shop"}
+          {loading || kycBusy ? t.walkIn.sending : t.walkIn.send}
         </button>
       )}
-      <p className="text-center text-xs text-zinc-400">The staff confirm your order, then you pay on this phone.</p>
+      <p className="text-center text-xs text-zinc-400">{t.walkIn.note}</p>
     </form>
   );
 }
