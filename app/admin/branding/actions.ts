@@ -34,6 +34,7 @@ async function trimPadding(buffer: Buffer, contentType: string): Promise<Buffer>
 }
 
 export async function uploadLogoAction(formData: FormData) {
+  if (!isAdmin(await getAuthContext())) throw new Error("Not authorized");
   const file = formData.get("logo");
   if (!(file instanceof File) || file.size === 0) throw new Error("Choose a logo file.");
   const ext = ALLOWED_TYPES[file.type];
@@ -69,6 +70,7 @@ export async function uploadLogoAction(formData: FormData) {
 }
 
 export async function removeLogoAction() {
+  if (!isAdmin(await getAuthContext())) throw new Error("Not authorized");
   const supabase = createServiceRoleClient();
   const { data: current } = await supabase.from("site_settings").select("logo_path").eq("id", 1).maybeSingle();
 
@@ -98,6 +100,7 @@ function slotOf(formData: FormData): LandingImageSlot {
 
 /** A picture for the landing page (the top of the page, or beside "What is in the kit"), stored like the logo. */
 export async function uploadLandingImageAction(formData: FormData) {
+  if (!isAdmin(await getAuthContext())) throw new Error("Not authorized");
   const slot = slotOf(formData);
   const file = formData.get("picture");
   if (!(file instanceof File) || file.size === 0) throw new Error("Choose a picture.");
@@ -133,6 +136,7 @@ export async function uploadLandingImageAction(formData: FormData) {
 
 /** Takes a landing picture away: the top of the page goes back to the drawn drone, the kit section to text only. */
 export async function removeLandingImageAction(formData: FormData) {
+  if (!isAdmin(await getAuthContext())) throw new Error("Not authorized");
   const slot = slotOf(formData);
   const column = LANDING_IMAGE_COLUMN[slot];
   const supabase = createServiceRoleClient();

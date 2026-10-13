@@ -5,6 +5,7 @@ import { z } from "zod";
 import { uuidSchema } from "@/lib/zod-helpers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { getAuthContext, isAdmin } from "@/lib/auth/session";
 import { productImagePath, uploadProductImage, deleteProductImage } from "@/lib/storage";
 
 const categorySchema = z.enum(["DRONE", "CAMERA"]);
@@ -103,6 +104,7 @@ const ALLOWED_IMAGE_TYPES: Record<string, string> = {
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export async function updateProductImageAction(formData: FormData) {
+  if (!isAdmin(await getAuthContext())) throw new Error("Not authorized");
   const id = uuidSchema.parse(formData.get("id"));
   const file = formData.get("image");
   if (!(file instanceof File) || file.size === 0) throw new Error("Choose a picture.");
@@ -134,6 +136,7 @@ export async function updateProductImageAction(formData: FormData) {
 }
 
 export async function removeProductImageAction(formData: FormData) {
+  if (!isAdmin(await getAuthContext())) throw new Error("Not authorized");
   const id = uuidSchema.parse(formData.get("id"));
   const supabase = createServiceRoleClient();
 
