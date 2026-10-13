@@ -23,7 +23,7 @@ export default function PrivacyPage() {
         <LegalList
           items={[
             "Your name, phone number and email, to make and manage your booking.",
-            "An identity check: a photo of your ID and a live selfie, taken in the check from our verification provider, Didit. We receive the result of the check (passed or not) and the details needed to match you to the booking. We do not keep our own copy of your ID photo or selfie.",
+            "Your ID. The shop staff look at your photo ID when you collect the drone to check it matches your booking. We do not scan or keep a copy of it.",
             "Payment information. Your card details go straight to our payment processor, Stripe. We never see or store your card number. We keep a Stripe reference to your payment and saved card so we can release your deposit, and charge late fees, battery swaps or damage you agreed to.",
             "Photos of the drone and its accessories at hand-over and return, and notes about their condition. They show equipment, not you.",
             "Booking details: what you rented, when, from which shop, what you paid, and any late fee or damage review.",
@@ -48,7 +48,7 @@ export default function PrivacyPage() {
         <LegalList
           items={[
             "The shop that rents you the drone sees your name, phone number and booking so that they can hand over the drone to the right person.",
-            "Stripe (payments), Didit (identity check), Supabase (our database) and Vercel (our website hosting) process data for us under their own security and privacy terms. Some of them store data outside Malaysia.",
+            "Stripe (payments), Supabase (our database) and Vercel (our website hosting) process data for us under their own security and privacy terms. Some of them store data outside Malaysia.",
             "A weather service gets only the location of the shop to check the wind, never anything about you.",
             "The authorities, where the law requires, or to protect our equipment and rights, for example in a dispute or a case of theft.",
           ]}
@@ -64,8 +64,8 @@ export default function PrivacyPage() {
       <LegalSection title="6. Your rights">
         <p>
           Under the PDPA you can ask to see the personal data we hold about you, ask us to correct it, and ask us to stop using it for something that is not needed for your booking. Contact us through the{" "}
-          <Link href="/legal/contact" className="underline underline-offset-2">Contact page</Link>. We may need to check who you are first, and we may have to keep some records the law requires. If you cannot agree to us using the data we need for an
-          identity check or a payment, we cannot rent you a drone.
+          <Link href="/legal/contact" className="underline underline-offset-2">Contact page</Link>. We may need to check who you are first, and we may have to keep some records the law requires. If you cannot agree to us using the data we need for a
+          booking or a payment, we cannot rent you a drone.
         </p>
       </LegalSection>
 

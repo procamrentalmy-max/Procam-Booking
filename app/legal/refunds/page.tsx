@@ -29,7 +29,7 @@ export default function RefundsPage() {
             "the last drone for your time was taken by someone who paid just before you. This is refunded automatically and you are asked to choose another time;",
             "the wind forecast is above the drone's limit, or the shop judges the weather or the place unsafe to fly, and you are not able to rebook;",
             "the shop cannot give you the drone you booked, or the drone, battery or controller is faulty at hand-over;",
-            "the identity check fails or the details do not match the person collecting;",
+            "the shop cannot confirm who you are, or your ID does not match the booking;",
             "we cancel for any other reason.",
           ]}
         />
