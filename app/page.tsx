@@ -154,8 +154,7 @@ export default async function Home() {
       <main>
         <section className="mx-auto grid max-w-5xl items-center gap-10 px-6 pb-16 pt-10 md:grid-cols-[1.2fr_1fr] md:pb-24 md:pt-16">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">{t.eyebrow}</p>
-            <h1 className="mt-4 text-4xl font-semibold leading-[1.08] tracking-tight text-white sm:text-5xl md:text-6xl">
+            <h1 className="text-4xl font-semibold leading-[1.08] tracking-tight text-white sm:text-5xl md:text-6xl">
               {t.headline}
             </h1>
             <p className="mt-5 max-w-md text-base leading-relaxed text-zinc-400">{t.sub}</p>

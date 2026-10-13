@@ -21,7 +21,6 @@ export const ms: Dictionary = {
   home: {
     title: "ProCam",
     nav: { drones: "Dron", compare: "Bandingkan", howItWorks: "Cara ia berfungsi" },
-    eyebrow: "Sewaan dron · Kajang · Port Dickson",
     headline: "Sewa dron. Terbang hari ini.",
     sub: "DJI Neo atau Neo 2 dengan bateri, sedia di kedai terdekat anda. Terbangkannya dari telefon, atau tambah alat kawalan atau gogal. Pilih masa, ambil, terbang, dan pulangkan.",
     ctaPrimary: "Tempah dron",

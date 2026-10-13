@@ -21,7 +21,6 @@ export const zh: Dictionary = {
   home: {
     title: "ProCam",
     nav: { drones: "无人机", compare: "对比", howItWorks: "租用流程" },
-    eyebrow: "无人机租赁 · 加影 · 波德申",
     headline: "租一台无人机，今天就起飞。",
     sub: "DJI Neo 或 Neo 2 配电池，在离您最近的门店等您。可用手机飞行，也可加租遥控器或飞行眼镜。选好时间，取机，飞行，再归还。",
     ctaPrimary: "预订无人机",
