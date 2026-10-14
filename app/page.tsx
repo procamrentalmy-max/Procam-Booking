@@ -176,7 +176,7 @@ export default async function Home() {
           </div>
           {pictures.hero ? (
             // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local optimizable asset
-            <img src={pictures.hero} alt="" className="w-full rounded-3xl border border-zinc-800 object-cover" />
+            <img src={pictures.hero} alt="" className="w-full rounded-3xl border border-zinc-800 object-cover object-bottom" />
           ) : (
             <div className="flex justify-center rounded-3xl border border-zinc-800 bg-zinc-950 p-6 md:p-8">
               <DroneIllustration />

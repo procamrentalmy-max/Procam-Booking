@@ -13,7 +13,7 @@ export function ComboCard({ pictureUrl, depositMyr, alt, locale = "en", onDark =
     <div className={`overflow-hidden rounded-2xl border ${onDark ? "border-zinc-800" : "border-zinc-200 dark:border-zinc-800"}`}>
       {pictureUrl && (
         // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local optimizable asset
-        <img src={pictureUrl} alt={alt} className={`aspect-[4/3] w-full object-cover ${onDark ? "bg-zinc-900" : "bg-zinc-100 dark:bg-zinc-900"}`} />
+        <img src={pictureUrl} alt={alt} className={`aspect-[4/3] w-full object-cover object-bottom ${onDark ? "bg-zinc-900" : "bg-zinc-100 dark:bg-zinc-900"}`} />
       )}
       <div className="flex items-baseline justify-between gap-4 px-4 py-3">
         <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">{t.common.deposit}</span>
