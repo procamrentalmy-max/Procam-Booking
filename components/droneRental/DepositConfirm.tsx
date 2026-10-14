@@ -5,6 +5,7 @@ import { PaymentForm } from "@/components/PaymentForm";
 import { startDepositConfirmationAction } from "@/app/rent/b/[token]/pay/actions";
 import { droneText } from "@/lib/i18n/drone";
 import type { Locale } from "@/lib/i18n/locale";
+import { FaqLink } from "@/components/droneRental/FaqLink";
 
 /**
  * Shown on a paid booking whose deposit hold didn't go on by itself (the bank refused it or wants the customer to approve it).
@@ -50,6 +51,7 @@ export function DepositConfirm({ token, depositLabel, returnUrl, locale = "en" }
           </button>
         </>
       )}
+      <FaqLink locale={locale} />
     </div>
   );
 }

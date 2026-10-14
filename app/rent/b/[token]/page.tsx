@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
+import { FaqLink } from "@/components/droneRental/FaqLink";
 import { controllerProfileFor, formatMyr, includesController, modelProfile, storedController } from "@/lib/droneRental/pricingRules";
 import { generateQrDataUrl } from "@/lib/qr";
 import { requestOrigin } from "@/lib/requestOrigin";
@@ -134,6 +135,8 @@ export default async function DroneBookingDashboardPage({ params, searchParams }
         <Row label={t.common.rentalFee} value={formatMyr(booking.rental_fee_myr)} />
         <Row label={t.booking.depositRefundable} value={formatMyr(booking.deposit_myr)} />
       </div>
+
+      <FaqLink locale={locale} />
     </div>
   );
 }

@@ -34,6 +34,9 @@ export const SHOPS = [
   { name: "Port Dickson Beach", address: "Port Dickson Beach, Port Dickson, Negeri Sembilan" },
 ];
 
+/** The longest rental the online booking page offers, in hours (the duration buttons are built from this). */
+export const ONLINE_MAX_HOURS = 6;
+
 /** A customer who cancels at least this many hours before the start gets the rental fee back in full. */
 export const FREE_CANCELLATION_HOURS = 24;
 

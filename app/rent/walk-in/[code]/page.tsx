@@ -8,6 +8,7 @@ import { WalkInOrderForm } from "./WalkInOrderForm";
 import { getAuthContext, isAdmin } from "@/lib/auth/session";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { droneText } from "@/lib/i18n/drone";
+import { FaqLink } from "@/components/droneRental/FaqLink";
 
 // Which lengths are offered depends on which drones are free right now — never cache this.
 export const dynamic = "force-dynamic";
@@ -46,6 +47,8 @@ export default async function WalkInOrderPage({ params }: { params: Promise<{ co
       ) : (
         <WalkInOrderForm locale={locale} code={code} options={options} pictures={pictures} adminCanSkip={isAdmin(await getAuthContext())} />
       )}
+
+      <FaqLink locale={locale} />
     </div>
   );
 }

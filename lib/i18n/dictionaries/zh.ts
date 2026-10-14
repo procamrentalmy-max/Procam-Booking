@@ -24,7 +24,7 @@ export const zh: Dictionary = {
     headline: "租一台无人机，今天就起飞。",
     sub: "DJI Neo 或 Neo 2 配电池，在离您最近的门店等您。可用手机飞行，也可加租遥控器或飞行眼镜。选好时间，取机，飞行，再归还。",
     ctaPrimary: "预订无人机",
-    ctaSecondary: "租用流程",
+    ctaSecondary: "查看套餐",
     compare: {
       title: "DJI Neo 或 DJI Neo 2",
       sub: "两款无人机，同样的门店。这里的价格是用您自己的手机飞行的价格，遥控器会另外加价（见下表）。押金只是信用卡冻结，不是扣款。",
@@ -88,6 +88,8 @@ export const zh: Dictionary = {
     terms: "条款",
     refunds: "退款",
     privacy: "隐私",
+    faq: "常见问题",
+    faqLine: "有疑问？查看常见问题",
     contact: "联系我们",
   },
   landing: {

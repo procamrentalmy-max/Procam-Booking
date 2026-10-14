@@ -165,12 +165,12 @@ export default async function Home() {
               >
                 {t.ctaPrimary}
               </Link>
-              <a
-                href="#how"
+              <Link
+                href="/rent"
                 className="inline-flex h-12 items-center rounded-full border border-zinc-700 px-7 text-sm font-semibold text-zinc-200 transition hover:border-zinc-500 hover:text-white"
               >
                 {t.ctaSecondary}
-              </a>
+              </Link>
             </div>
           </div>
           {pictures.hero ? (
@@ -218,6 +218,11 @@ export default async function Home() {
               </li>
             ))}
           </ol>
+          <p className="mt-6 text-sm text-zinc-400">
+            <Link href="/legal/faq" className="underline underline-offset-4 hover:text-zinc-200">
+              {t.faqLine}
+            </Link>
+          </p>
         </section>
 
         <section className="mx-auto max-w-5xl px-6 pb-16 md:pb-24">
@@ -266,6 +271,9 @@ export default async function Home() {
             </Link>
             <Link href="/legal/privacy" className="hover:text-zinc-300">
               {t.privacy}
+            </Link>
+            <Link href="/legal/faq" className="hover:text-zinc-300">
+              {t.faq}
             </Link>
             <Link href="/legal/contact" className="hover:text-zinc-300">
               {t.contact}

@@ -12,6 +12,7 @@ export default async function LegalLayout({ children }: { children: React.ReactN
     { href: "/legal/terms", label: t.nav.terms },
     { href: "/legal/refunds", label: t.nav.refunds },
     { href: "/legal/privacy", label: t.nav.privacy },
+    { href: "/legal/faq", label: t.nav.faq },
     { href: "/legal/contact", label: t.nav.contact },
   ];
   return (

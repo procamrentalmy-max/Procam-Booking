@@ -1,10 +1,11 @@
+import { faqEn, faqMs, faqZh } from "./faq";
 import { DEFAULT_LOCALE, type Locale } from "./locale";
 
 /**
  * The Terms, Refund & Cancellation, Privacy and Contact pages, in English, Bahasa Melayu and Chinese. English is the master and
  * the other two are typed against it. A paragraph is `{ p }`, a bullet list is `{ ul }`. Placeholders in {braces} are filled in
  * by the page: {neo2Dep} {neoDep} {rcDep} {goggDep} {holdDays} {grace} {freeHours} {neo2Wind} {neoWind} {business}, and
- * {link:terms} {link:refunds} {link:privacy} {link:contact} become links named by `links`.
+ * {link:terms} {link:refunds} {link:privacy} {link:contact} {link:faq} become links named by `links`. The FAQ page is in ./faq.ts.
  *
  * The Malay and Chinese were written by Claude, not a lawyer or a native-speaking translator: have both checked before relying on them.
  */
@@ -15,8 +16,8 @@ export type LegalPage = { title: string; description: string; sections: LegalSec
 export const legalEn = {
   updated: (date: string) => `Last updated ${date}.`,
   navLabel: "Legal pages",
-  nav: { terms: "Terms", refunds: "Refunds", privacy: "Privacy", contact: "Contact" },
-  links: { terms: "Terms & Conditions", refunds: "Refund & Cancellation Policy", privacy: "Privacy Policy", contact: "Contact page" },
+  nav: { terms: "Terms", refunds: "Refunds", privacy: "Privacy", faq: "FAQ", contact: "Contact" },
+  links: { terms: "Terms & Conditions", refunds: "Refund & Cancellation Policy", privacy: "Privacy Policy", contact: "Contact page", faq: "FAQ" },
   terms: {
     title: "Terms & Conditions",
     description: "The terms for renting a DJI drone from ProCam Rental: booking, payment, deposit, use, late returns and damage.",
@@ -300,6 +301,7 @@ export const legalEn = {
       },
     ],
   } as LegalPage,
+  faq: faqEn,
   contact: {
     title: "Contact",
     description: "How to reach ProCam Rental and where to collect your drone.",
@@ -308,6 +310,7 @@ export const legalEn = {
     emailLabel: "Email",
     phoneLabel: "Phone / WhatsApp",
     staffNote: "You can also ask the staff at the shop where you collect your drone.",
+    faqNote: "Quick answers to common questions are in the {link:faq}.",
     shopsTitle: "Our shops",
     businessTitle: "The business",
     business: (name: string) => `${name}, Malaysia.`,
@@ -321,8 +324,8 @@ export type LegalText = typeof legalEn;
 export const legalMs: LegalText = {
   updated: (date) => `Dikemas kini kali terakhir pada ${date}.`,
   navLabel: "Halaman undang-undang",
-  nav: { terms: "Terma", refunds: "Bayaran balik", privacy: "Privasi", contact: "Hubungi kami" },
-  links: { terms: "Terma & Syarat", refunds: "Dasar Bayaran Balik & Pembatalan", privacy: "Dasar Privasi", contact: "halaman Hubungi Kami" },
+  nav: { terms: "Terma", refunds: "Bayaran balik", privacy: "Privasi", faq: "Soalan lazim", contact: "Hubungi kami" },
+  links: { terms: "Terma & Syarat", refunds: "Dasar Bayaran Balik & Pembatalan", privacy: "Dasar Privasi", contact: "halaman Hubungi Kami", faq: "Soalan Lazim" },
   terms: {
     title: "Terma & Syarat",
     description: "Terma untuk menyewa dron DJI daripada ProCam Rental: tempahan, bayaran, deposit, penggunaan, pemulangan lewat dan kerosakan.",
@@ -606,6 +609,7 @@ export const legalMs: LegalText = {
       },
     ],
   },
+  faq: faqMs,
   contact: {
     title: "Hubungi Kami",
     description: "Cara menghubungi ProCam Rental dan di mana untuk mengambil dron anda.",
@@ -614,6 +618,7 @@ export const legalMs: LegalText = {
     emailLabel: "E-mel",
     phoneLabel: "Telefon / WhatsApp",
     staffNote: "Anda juga boleh bertanya kepada kakitangan di kedai tempat anda mengambil dron.",
+    faqNote: "Jawapan ringkas kepada soalan yang kerap ditanya ada dalam {link:faq}.",
     shopsTitle: "Kedai kami",
     businessTitle: "Perniagaan",
     business: (name) => `${name}, Malaysia.`,
@@ -625,8 +630,8 @@ export const legalMs: LegalText = {
 export const legalZh: LegalText = {
   updated: (date) => `最后更新于 ${date}。`,
   navLabel: "法律页面",
-  nav: { terms: "条款", refunds: "退款", privacy: "隐私", contact: "联系我们" },
-  links: { terms: "条款与条件", refunds: "退款与取消政策", privacy: "隐私政策", contact: "联系我们页面" },
+  nav: { terms: "条款", refunds: "退款", privacy: "隐私", faq: "常见问题", contact: "联系我们" },
+  links: { terms: "条款与条件", refunds: "退款与取消政策", privacy: "隐私政策", contact: "联系我们页面", faq: "常见问题" },
   terms: {
     title: "条款与条件",
     description: "向 ProCam Rental 租用 DJI 无人机的条款：预订、付款、押金、使用、逾期归还和损坏。",
@@ -908,6 +913,7 @@ export const legalZh: LegalText = {
       },
     ],
   },
+  faq: faqZh,
   contact: {
     title: "联系我们",
     description: "如何联系 ProCam Rental，以及在哪里取机。",
@@ -916,6 +922,7 @@ export const legalZh: LegalText = {
     emailLabel: "电子邮箱",
     phoneLabel: "电话 / WhatsApp",
     staffNote: "您也可以向取机门店的店员询问。",
+    faqNote: "常见问题的简短解答见{link:faq}。",
     shopsTitle: "我们的门店",
     businessTitle: "公司信息",
     business: (name) => `${name}，马来西亚。`,

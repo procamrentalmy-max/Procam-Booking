@@ -5,6 +5,7 @@ import { controllerLabel, depositMyrFor, formatMyr, modelProfile, rentalFeeMyr }
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { droneText } from "@/lib/i18n/drone";
+import { FaqLink } from "@/components/droneRental/FaqLink";
 
 // Per-customer and time-sensitive (the merchant confirms, the order expires) — must never be cached.
 export const dynamic = "force-dynamic";
@@ -88,6 +89,8 @@ export default async function WalkInCustomerPage({ params }: { params: Promise<{
       {(view === "EXPIRED" || view === "WAITING") && (
         <Message title={t.waiting.expiredTitle}>{t.waiting.expiredText}</Message>
       )}
+
+      <FaqLink locale={locale} />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import { formatMalaysiaTime, type Locale } from "@/lib/i18n/locale";
 import { dayLabelFor, droneText } from "@/lib/i18n/drone";
 import { AgreeLine } from "@/components/droneRental/AgreeLine";
+import { FaqLink } from "@/components/droneRental/FaqLink";
 import { ControllerChoice } from "@/components/droneRental/ControllerChoice";
 import { ComboCard, TotalSummary } from "@/components/droneRental/ComboCard";
 import { DroneChoice } from "@/components/droneRental/DroneChoice";
@@ -28,10 +29,11 @@ import {
   rentalFeeMyr,
 } from "@/lib/droneRental/pricingRules";
 import { formatSlotTime, generateDaySlots } from "@/lib/droneRental/hours";
+import { ONLINE_MAX_HOURS } from "@/lib/legal";
 import { getUnavailableDroneStartsAction, createDroneBookingAction } from "@/app/rent/[shopId]/actions";
 import { useDroneKyc } from "@/components/droneRental/useDroneKyc";
 
-const DURATION_OPTIONS_HOURS = [1, 2, 3, 4, 5, 6];
+const DURATION_OPTIONS_HOURS = Array.from({ length: ONLINE_MAX_HOURS }, (_, i) => i + 1);
 const DAYS_AHEAD = 7;
 
 /**
@@ -495,6 +497,7 @@ export function DroneBookingWizard({
         <p className="text-center text-xs text-zinc-400">
           <AgreeLine locale={locale} />
         </p>
+        <FaqLink locale={locale} />
       </form>
     </div>
   );

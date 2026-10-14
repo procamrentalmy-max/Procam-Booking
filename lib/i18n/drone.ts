@@ -44,6 +44,8 @@ export const droneEn = {
       return m === 0 ? `${h}h` : `${h}h ${m}m`;
     },
     /** "By booking you agree to the {terms}, the {refunds} and the {privacy}." with the three names as links. */
+    /** The link to the FAQ page. */
+    faq: "Questions? Read the FAQ",
     agree: "By booking you agree to the {terms}, the {refunds} and the {privacy}.",
     agreeTerms: "Terms",
     agreeRefunds: "Refund policy",
@@ -254,6 +256,7 @@ export const droneMs: DroneText = {
       if (h === 0) return `${m} min`;
       return m === 0 ? `${h}j` : `${h}j ${m}m`;
     },
+    faq: "Ada soalan? Baca Soalan Lazim",
     agree: "Dengan menempah, anda bersetuju dengan {terms}, {refunds} dan {privacy}.",
     agreeTerms: "Terma",
     agreeRefunds: "Dasar bayaran balik",
@@ -460,6 +463,7 @@ export const droneZh: DroneText = {
       if (h === 0) return `${m} 分钟`;
       return m === 0 ? `${h} 小时` : `${h} 小时 ${m} 分钟`;
     },
+    faq: "有疑问？查看常见问题",
     agree: "预订即表示您同意{terms}、{refunds}和{privacy}。",
     agreeTerms: "条款",
     agreeRefunds: "退款政策",

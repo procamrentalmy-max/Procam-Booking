@@ -24,7 +24,7 @@ export const ms: Dictionary = {
     headline: "Sewa dron. Terbang hari ini.",
     sub: "DJI Neo atau Neo 2 dengan bateri, sedia di kedai terdekat anda. Terbangkannya dari telefon, atau tambah alat kawalan atau gogal. Pilih masa, ambil, terbang, dan pulangkan.",
     ctaPrimary: "Tempah dron",
-    ctaSecondary: "Cara ia berfungsi",
+    ctaSecondary: "Lihat pakej",
     compare: {
       title: "DJI Neo atau DJI Neo 2",
       sub: "Dua dron, kedai yang sama. Harga ini untuk menerbangkan dari telefon anda sendiri; alat kawalan menambah harga (lihat di bawah). Deposit ialah tahanan kad, bukan caj.",
@@ -88,6 +88,8 @@ export const ms: Dictionary = {
     terms: "Terma",
     refunds: "Bayaran balik",
     privacy: "Privasi",
+    faq: "Soalan lazim",
+    faqLine: "Ada soalan? Baca Soalan Lazim",
     contact: "Hubungi kami",
   },
   landing: {

@@ -13,6 +13,7 @@ import { formatMalaysiaTime } from "@/lib/i18n/locale";
 import { durationLabel, droneText } from "@/lib/i18n/drone";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { AgreeLine } from "@/components/droneRental/AgreeLine";
+import { FaqLink } from "@/components/droneRental/FaqLink";
 import { devBypassDronePaymentAction, devBypassCashChoiceAction, adminSkipPaymentAction } from "./actions";
 import { getAuthContext, isAdmin } from "@/lib/auth/session";
 
@@ -139,6 +140,7 @@ export default async function DroneBookingPayPage({
       <p className="-mt-2 text-xs text-zinc-400">
         <AgreeLine locale={locale} />
       </p>
+      <FaqLink locale={locale} className="-mt-2 text-xs text-zinc-400" />
 
       {cashChosen ? (
         <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-center dark:border-amber-800 dark:bg-amber-950">

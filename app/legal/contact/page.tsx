@@ -1,6 +1,7 @@
 import { BUSINESS, legalUpdatedLabel, registeredNameDiffers, SHOPS } from "@/lib/legal";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { legalText } from "@/lib/i18n/legal";
+import { renderLegalText } from "../LegalDoc";
 import { LegalSection, LegalTitle } from "../LegalSection";
 
 export async function generateMetadata() {
@@ -29,6 +30,7 @@ export default async function ContactPage() {
           </p>
         )}
         <p>{c.staffNote}</p>
+        <p>{renderLegalText(c.faqNote, locale)}</p>
       </LegalSection>
 
       <LegalSection title={c.shopsTitle}>

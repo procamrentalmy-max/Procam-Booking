@@ -22,7 +22,7 @@ export const en = {
     headline: "Rent a drone. Fly today.",
     sub: "A DJI Neo or Neo 2 with batteries, ready at your nearest shop. Fly it from your phone, or add a controller or goggles. Pick a time, collect it, fly, and bring it back.",
     ctaPrimary: "Book a drone",
-    ctaSecondary: "How it works",
+    ctaSecondary: "Check packages",
     compare: {
       title: "DJI Neo or DJI Neo 2",
       sub: "Two drones, same shops. These prices are for flying from your own phone; a controller adds to them (see below). The deposit is a card hold, not a charge.",
@@ -86,6 +86,8 @@ export const en = {
     terms: "Terms",
     refunds: "Refunds",
     privacy: "Privacy",
+    faq: "FAQ",
+    faqLine: "Questions? Read the FAQ",
     contact: "Contact",
   },
   landing: {
