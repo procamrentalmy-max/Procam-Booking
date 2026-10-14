@@ -87,7 +87,7 @@ function nearestShop(shops: ShopMarker[], origin: LatLng): ShopMarker | null {
 
 type LocationStatus = "idle" | "requesting" | "granted" | "denied" | "unavailable" | "unsupported";
 
-export function ShopMapPicker({ initialShops, locale = "en" }: { initialShops: ShopMarker[]; locale?: Locale }) {
+export function ShopMapPicker({ initialShops, locale = "en", carry }: { initialShops: ShopMarker[]; locale?: Locale; /** The package picked on the landing page, as an address query, passed on to the booking page. */ carry?: string }) {
   const t = droneText(locale).shops;
   const mapDivRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
@@ -333,7 +333,7 @@ export function ShopMapPicker({ initialShops, locale = "en" }: { initialShops: S
               {selected && (
                 <div className="mt-3 flex gap-2">
                   <Link
-                    href={`/rent/${shop.id}`}
+                    href={carry ? `/rent/${shop.id}?${carry}` : `/rent/${shop.id}`}
                     className="flex h-11 flex-1 items-center justify-center rounded-full bg-black text-sm font-semibold text-white dark:bg-white dark:text-black"
                   >
                     {t.book}

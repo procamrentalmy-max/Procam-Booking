@@ -24,7 +24,14 @@ export const zh: Dictionary = {
     headline: "租一台无人机，今天就起飞。",
     sub: "DJI Neo 或 Neo 2 配电池，在离您最近的门店等您。可用手机飞行，也可加租遥控器或飞行眼镜。选好时间，取机，飞行，再归还。",
     ctaPrimary: "预订无人机",
-    ctaSecondary: "查看套餐",
+    ctaSecondary: "查看价格",
+    price: {
+      title: "查看价格",
+      sub: "选择一个套餐，看看需要多少钱。接下来选择门店，然后选择时间。",
+      hint: "先选一架无人机。全部选好后会显示价格。",
+      cta: "选择地点",
+      next: "接下来选择门店，然后选择时间。",
+    },
     compare: {
       title: "DJI Neo 或 DJI Neo 2",
       sub: "两款无人机，同样的门店。这里的价格是用您自己的手机飞行的价格，遥控器会另外加价（见下表）。押金只是信用卡冻结，不是扣款。",

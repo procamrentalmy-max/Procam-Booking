@@ -10,10 +10,11 @@ import { AgreeLine } from "@/components/droneRental/AgreeLine";
 import { FaqLink } from "@/components/droneRental/FaqLink";
 import { ControllerChoice } from "@/components/droneRental/ControllerChoice";
 import { ComboCard, TotalSummary } from "@/components/droneRental/ComboCard";
+import type { PackagePreset } from "@/lib/droneRental/packagePreset";
 import { DroneChoice } from "@/components/droneRental/DroneChoice";
+import { BatteryChoice, DurationChoice } from "@/components/droneRental/PackageChoices";
 import { SlotTakenDialog } from "@/components/droneRental/SlotTakenDialog";
 import {
-  BATTERY_OPTIONS,
   DEFAULT_BATTERIES,
   DRONE_MODEL_PROFILES,
   type BatteryCount,
@@ -29,11 +30,9 @@ import {
   rentalFeeMyr,
 } from "@/lib/droneRental/pricingRules";
 import { formatSlotTime, generateDaySlots } from "@/lib/droneRental/hours";
-import { ONLINE_MAX_HOURS } from "@/lib/legal";
 import { getUnavailableDroneStartsAction, createDroneBookingAction } from "@/app/rent/[shopId]/actions";
 import { useDroneKyc } from "@/components/droneRental/useDroneKyc";
 
-const DURATION_OPTIONS_HOURS = Array.from({ length: ONLINE_MAX_HOURS }, (_, i) => i + 1);
 const DAYS_AHEAD = 7;
 
 /**
@@ -48,7 +47,7 @@ type Step = "duration" | "slot" | "contact";
 const selectedClass = "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black";
 const idleClass = "border-zinc-300 dark:border-zinc-700";
 
-function StepHeader({ step, onBack, locale }: { step: Step; onBack?: () => void; locale: Locale }) {
+function StepHeader({ step, onBack, locale, shopsHref = "/rent" }: { step: Step; onBack?: () => void; locale: Locale; /** Where "Other shops" goes: the shop list, keeping the package picked on the landing page. */ shopsHref?: string }) {
   const t = droneText(locale).common;
   const n = step === "duration" ? 1 : step === "slot" ? 2 : 3;
   return (
@@ -58,7 +57,7 @@ function StepHeader({ step, onBack, locale }: { step: Step; onBack?: () => void;
           {t.back}
         </button>
       ) : (
-        <Link href="/rent" className="-ml-1 px-1 py-1 text-sm underline underline-offset-2">
+        <Link href={shopsHref} className="-ml-1 px-1 py-1 text-sm underline underline-offset-2">
           {t.otherShops}
         </Link>
       )}
@@ -81,6 +80,8 @@ export function DroneBookingWizard({
   retry = false,
   adminCanSkip = false,
   locale = "en",
+  preset = null,
+  shopsHref = "/rent",
 }: {
   shopId: string;
   models: DroneModel[];
@@ -93,15 +94,24 @@ export function DroneBookingWizard({
   adminCanSkip?: boolean;
   /** The visitor's language. */
   locale?: Locale;
+  /** A package picked on the landing page. When this shop can supply all of it the booking opens at the times; otherwise at the package step with a note. */
+  preset?: PackagePreset | null;
+  /** The shop list address, with the package carried along, for the "Other shops" link. */
+  shopsHref?: string;
 }) {
   const t = droneText(locale);
   const router = useRouter();
-  const [step, setStep] = useState<Step>("duration");
-  const [model, setModel] = useState<DroneModel>(availableModels.includes("NEO2") ? "NEO2" : (availableModels[0] ?? models[0]));
-  const [durationHours, setDurationHours] = useState(1);
-  const [batteries, setBatteries] = useState<BatteryCount>(DEFAULT_BATTERIES);
+  // The package from the landing page: used as it is when this shop has the drone and the controller, and ignored where it does not.
+  const presetModel = preset && availableModels.includes(preset.model) ? preset.model : null;
+  const presetController = preset && presetModel && (preset.controller === "NONE" || controllers.includes(preset.controller)) ? preset.controller : null;
+  const presetFits = !!preset && presetModel === preset.model && presetController === preset.controller;
+  const [presetNote, setPresetNote] = useState(!!preset && !presetFits);
+  const [step, setStep] = useState<Step>(presetFits ? "slot" : "duration");
+  const [model, setModel] = useState<DroneModel>(presetModel ?? (availableModels.includes("NEO2") ? "NEO2" : (availableModels[0] ?? models[0])));
+  const [durationHours, setDurationHours] = useState(preset?.hours ?? 1);
+  const [batteries, setBatteries] = useState<BatteryCount>(preset?.batteries ?? DEFAULT_BATTERIES);
   // How they will fly it: their own phone, or a controller the shop has. Only choices this shop can actually offer are shown.
-  const [pickedController, setPickedController] = useState<ControllerKind>("NONE");
+  const [pickedController, setPickedController] = useState<ControllerKind>(presetController ?? "NONE");
   const [now, setNow] = useState(() => new Date());
   const [dayOffset, setDayOffset] = useState(0);
   const [slots, setSlots] = useState<Date[]>([]);
@@ -244,7 +254,9 @@ export function DroneBookingWizard({
   if (step === "duration") {
     return (
       <div className="space-y-6">
-        <StepHeader locale={locale} step={step} />
+        <StepHeader locale={locale} step={step} shopsHref={shopsHref} />
+
+        {presetNote && <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">{t.wizard.presetMissed}</p>}
 
         <DroneChoice locale={locale} models={models} value={model} onChange={setModel} unavailable={models.filter((m) => !availableModels.includes(m))} />
 
@@ -264,45 +276,9 @@ export function DroneBookingWizard({
           alt={`${profile.shortName}, ${controllerName(controller)}, ${t.common.batteries(batteries)}`}
         />
 
-        <div>
-          <p className="mb-2 text-sm font-medium">{t.wizard.howLong}</p>
-          <div className="grid grid-cols-3 gap-2">
-            {DURATION_OPTIONS_HOURS.map((h) => (
-              <button
-                key={h}
-                type="button"
-                onClick={() => setDurationHours(h)}
-                aria-pressed={durationHours === h}
-                className={`rounded-xl border py-3 text-center ${durationHours === h ? selectedClass : idleClass}`}
-              >
-                <span className="block text-sm font-semibold">{t.common.hours(h)}</span>
-                <span className={`block text-xs ${durationHours === h ? "opacity-80" : "text-zinc-500"}`}>{formatMyr(h * hourly)}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        <DurationChoice locale={locale} value={durationHours} hourly={hourly} onChange={setDurationHours} />
 
-        <div>
-          <p className="mb-2 text-sm font-medium">{t.wizard.howMany}</p>
-          <div className="grid grid-cols-2 gap-2">
-            {BATTERY_OPTIONS.map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setBatteries(n)}
-                aria-pressed={batteries === n}
-                className={`rounded-xl border px-3 py-3 text-center ${batteries === n ? selectedClass : idleClass}`}
-              >
-                <span className="block text-sm font-semibold">
-                  {t.common.batteries(n)} · {formatMyr(profile.batteryFeeMyr[n])}
-                </span>
-                {profile.flightMinutes && (
-                  <span className={`block text-xs ${batteries === n ? "opacity-80" : "text-zinc-500"}`}>{t.wizard.flightNote(profile.flightMinutes[n])}</span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
+        <BatteryChoice locale={locale} model={model} value={batteries} onChange={setBatteries} />
 
         <TotalSummary locale={locale} totalMyr={rentalFee} depositMyr={deposit} />
 
@@ -310,6 +286,7 @@ export function DroneBookingWizard({
           type="button"
           onClick={() => {
             setSelectedStart(null);
+            setPresetNote(false);
             setStep("slot");
           }}
           className={`w-full ${primaryButtonClass} h-12 rounded-full`}

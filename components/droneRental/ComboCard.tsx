@@ -7,34 +7,35 @@ import type { Locale } from "@/lib/i18n/locale";
  * nothing else: the price is already on the length and battery buttons and in the total below. A combination without an uploaded
  * picture shows just the deposit.
  */
-export function ComboCard({ pictureUrl, depositMyr, alt, locale = "en" }: { pictureUrl?: string; depositMyr: number; alt: string; locale?: Locale }) {
+export function ComboCard({ pictureUrl, depositMyr, alt, locale = "en", onDark = false }: { pictureUrl?: string; depositMyr: number; alt: string; locale?: Locale; onDark?: boolean }) {
   const t = droneText(locale);
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800">
+    <div className={`overflow-hidden rounded-2xl border ${onDark ? "border-zinc-800" : "border-zinc-200 dark:border-zinc-800"}`}>
       {pictureUrl && (
         // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local optimizable asset
-        <img src={pictureUrl} alt={alt} className="aspect-[4/3] w-full bg-zinc-100 object-cover dark:bg-zinc-900" />
+        <img src={pictureUrl} alt={alt} className={`aspect-[4/3] w-full object-cover ${onDark ? "bg-zinc-900" : "bg-zinc-100 dark:bg-zinc-900"}`} />
       )}
       <div className="flex items-baseline justify-between gap-4 px-4 py-3">
         <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">{t.common.deposit}</span>
-        <span className="text-lg font-semibold tabular-nums text-black dark:text-zinc-50">{formatMyr(depositMyr)}</span>
+        <span className={`text-lg font-semibold tabular-nums ${onDark ? "text-white" : "text-black dark:text-zinc-50"}`}>{formatMyr(depositMyr)}</span>
       </div>
     </div>
   );
 }
 
 /** The bottom line of the order: the total to pay and the deposit held. */
-export function TotalSummary({ totalMyr, depositMyr, locale = "en" }: { totalMyr: number; depositMyr: number; locale?: Locale }) {
+export function TotalSummary({ totalMyr, depositMyr, locale = "en", onDark = false }: { totalMyr: number; depositMyr: number; locale?: Locale; onDark?: boolean }) {
   const t = droneText(locale);
+  const strong = onDark ? "text-white" : "text-black dark:text-zinc-50";
   return (
-    <div className="space-y-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+    <div className={`space-y-2 border-t pt-4 ${onDark ? "border-zinc-800" : "border-zinc-200 dark:border-zinc-800"}`}>
       <div className="flex items-baseline justify-between gap-4">
         <span className="text-sm font-medium text-zinc-500">{t.common.total}</span>
-        <span className="text-2xl font-semibold tabular-nums text-black dark:text-zinc-50">{formatMyr(totalMyr)}</span>
+        <span className={`text-2xl font-semibold tabular-nums ${strong}`}>{formatMyr(totalMyr)}</span>
       </div>
       <div className="flex items-baseline justify-between gap-4">
         <span className="text-sm font-medium text-zinc-500">{t.common.deposit}</span>
-        <span className="text-base font-semibold tabular-nums text-black dark:text-zinc-50">{formatMyr(depositMyr)}</span>
+        <span className={`text-base font-semibold tabular-nums ${strong}`}>{formatMyr(depositMyr)}</span>
       </div>
     </div>
   );

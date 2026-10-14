@@ -6,11 +6,15 @@ import { Brand } from "@/components/Brand";
 import { getAuthContext, isAdmin } from "@/lib/auth/session";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { droneText } from "@/lib/i18n/drone";
+import { packageQuery, parsePackagePreset } from "@/lib/droneRental/packagePreset";
 import { ENABLED_DRONE_MODELS, isDroneModel, type ControllerKind, type DroneModel } from "@/lib/droneRental/pricingRules";
 
-export default async function ShopBookingPage({ params, searchParams }: { params: Promise<{ shopId: string }>; searchParams: Promise<{ retry?: string }> }) {
+export default async function ShopBookingPage({ params, searchParams }: { params: Promise<{ shopId: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { shopId } = await params;
-  const { retry } = await searchParams;
+  const query = await searchParams;
+  const retry = Array.isArray(query.retry) ? query.retry[0] : query.retry;
+  // A package picked on the landing page, carried through the shop list.
+  const preset = parsePackagePreset(query);
   const supabase = createServiceRoleClient();
 
   const { data: shop } = await supabase
@@ -36,14 +40,14 @@ export default async function ShopBookingPage({ params, searchParams }: { params
   const t = droneText(locale);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col gap-5 px-6 py-6">
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-5 px-6 py-6">
       <Brand logoUrl={logoUrl} size={22} />
       <div>
         <p className="text-xs uppercase tracking-wide text-zinc-400">{t.pay.collectFrom}</p>
         <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">{shop.name}</h1>
         <p className="mt-0.5 text-sm text-zinc-500">{shop.address}</p>
       </div>
-      <DroneBookingWizard locale={locale} adminCanSkip={adminCanSkip} shopId={shop.id} models={models} availableModels={availableModels.length ? availableModels : ["NEO2"]} controllers={controllers} pictures={pictures} retry={retry === "1"} />
+      <DroneBookingWizard locale={locale} adminCanSkip={adminCanSkip} shopId={shop.id} models={models} availableModels={availableModels.length ? availableModels : ["NEO2"]} controllers={controllers} pictures={pictures} retry={retry === "1"} preset={preset} shopsHref={preset ? `/rent?${packageQuery(preset)}` : "/rent"} />
     </div>
   );
 }

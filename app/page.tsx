@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
-import { getLandingImageUrls, getLogoUrl } from "@/lib/branding";
+import { getComboPictureUrls, getLandingImageUrls, getLogoUrl } from "@/lib/branding";
+import { PackagePicker } from "@/components/droneRental/PackagePicker";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { Brand } from "@/components/Brand";
 import { Fragment } from "react";
@@ -95,7 +96,7 @@ export default async function Home() {
   const locale = await getLocale();
   const dict = getDictionary(locale);
   const t = dict.home;
-  const [logoUrl, pictures] = await Promise.all([getLogoUrl(), getLandingImageUrls()]);
+  const [logoUrl, pictures, comboPictures] = await Promise.all([getLogoUrl(), getLandingImageUrls(), getComboPictureUrls()]);
 
   // Every price in the tables comes from the same pricing rules the booking flow charges with, so this page can't drift from them.
   const c = t.compare;
@@ -165,12 +166,12 @@ export default async function Home() {
               >
                 {t.ctaPrimary}
               </Link>
-              <Link
-                href="/rent"
+              <a
+                href="#price"
                 className="inline-flex h-12 items-center rounded-full border border-zinc-700 px-7 text-sm font-semibold text-zinc-200 transition hover:border-zinc-500 hover:text-white"
               >
                 {t.ctaSecondary}
-              </Link>
+              </a>
             </div>
           </div>
           {pictures.hero ? (
@@ -181,6 +182,12 @@ export default async function Home() {
               <DroneIllustration />
             </div>
           )}
+        </section>
+
+        <section id="price" className="mx-auto max-w-5xl scroll-mt-6 px-6 pb-16 md:pb-24">
+          <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t.price.title}</h2>
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-400">{t.price.sub}</p>
+          <PackagePicker locale={locale} pictures={comboPictures} text={{ hint: t.price.hint, cta: t.price.cta, next: t.price.next }} />
         </section>
 
         <section id="compare" className="scroll-mt-6 border-y border-zinc-800 bg-zinc-950">

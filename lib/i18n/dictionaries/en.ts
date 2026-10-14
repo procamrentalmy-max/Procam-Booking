@@ -22,7 +22,14 @@ export const en = {
     headline: "Rent a drone. Fly today.",
     sub: "A DJI Neo or Neo 2 with batteries, ready at your nearest shop. Fly it from your phone, or add a controller or goggles. Pick a time, collect it, fly, and bring it back.",
     ctaPrimary: "Book a drone",
-    ctaSecondary: "Check packages",
+    ctaSecondary: "Check price",
+    price: {
+      title: "Check the price",
+      sub: "Choose a package to see what it costs. Next you pick the shop, then the time.",
+      hint: "Pick a drone to start. The price shows once you have chosen everything.",
+      cta: "Choose the location",
+      next: "Next you choose the shop, then the time.",
+    },
     compare: {
       title: "DJI Neo or DJI Neo 2",
       sub: "Two drones, same shops. These prices are for flying from your own phone; a controller adds to them (see below). The deposit is a card hold, not a charge.",
