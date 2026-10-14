@@ -23,6 +23,7 @@ export const en = {
     sub: "A DJI Neo or Neo 2 with batteries, ready at your nearest shop. Fly it from your phone, or add a controller or goggles. Pick a time, collect it, fly, and bring it back.",
     ctaPrimary: "Book a drone",
     ctaSecondary: "Check price",
+    prefer: { label: "Which do you prefer?", added: "Added to your package.", see: "Check the price" },
     price: {
       title: "Check the price",
       sub: "Choose a package to see what it costs. Next you pick the shop, then the time.",

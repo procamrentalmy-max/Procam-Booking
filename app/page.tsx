@@ -3,6 +3,8 @@ import { getLocale } from "@/lib/i18n/getLocale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getComboPictureUrls, getLandingImageUrls, getLogoUrl } from "@/lib/branding";
 import { PackagePicker } from "@/components/droneRental/PackagePicker";
+import { PackageProvider } from "@/components/droneRental/PackageContext";
+import { TablePreference } from "@/components/droneRental/TablePreference";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { Brand } from "@/components/Brand";
 import { Fragment } from "react";
@@ -152,6 +154,7 @@ export default async function Home() {
         </div>
       </header>
 
+      <PackageProvider>
       <main>
         <section className="mx-auto grid max-w-5xl items-center gap-10 px-6 pb-16 pt-10 md:grid-cols-[1.2fr_1fr] md:pb-24 md:pt-16">
           <div>
@@ -196,19 +199,29 @@ export default async function Home() {
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-400">{c.sub}</p>
             <CompareTable heads={[c.neo, c.neo2]} groups={droneGroups} label={c.title} />
             <p className="mt-3 text-xs text-zinc-500">{c.source}</p>
+            <TablePreference kind="drone" locale={locale} text={t.prefer} />
 
             <h2 id="fly" className="mt-16 scroll-mt-6 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
               {fly.title}
             </h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-400">{fly.sub}</p>
             <CompareTable heads={[fly.phone, fly.rc, fly.goggles]} groups={flyGroups} label={fly.option} />
+            <TablePreference kind="fly" locale={locale} text={t.prefer} />
 
-            <Link
-              href="/rent"
-              className="mt-8 inline-flex h-12 items-center rounded-full bg-white px-7 text-sm font-semibold text-black transition hover:bg-zinc-200"
-            >
-              {t.ctaPrimary}
-            </Link>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                href="/rent"
+                className="inline-flex h-12 items-center rounded-full bg-white px-7 text-sm font-semibold text-black transition hover:bg-zinc-200"
+              >
+                {t.ctaPrimary}
+              </Link>
+              <a
+                href="#price"
+                className="inline-flex h-12 items-center rounded-full border border-zinc-700 px-7 text-sm font-semibold text-zinc-200 transition hover:border-zinc-500 hover:text-white"
+              >
+                {t.ctaSecondary}
+              </a>
+            </div>
           </div>
         </section>
 
@@ -249,12 +262,20 @@ export default async function Home() {
                 </li>
               ))}
             </ul>
-            <Link
-              href="/rent"
-              className="inline-flex h-12 w-fit items-center justify-center rounded-full bg-white px-7 text-sm font-semibold text-black transition hover:bg-zinc-200"
-            >
-              {t.ctaPrimary}
-            </Link>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/rent"
+                className="inline-flex h-12 w-fit items-center justify-center rounded-full bg-white px-7 text-sm font-semibold text-black transition hover:bg-zinc-200"
+              >
+                {t.ctaPrimary}
+              </Link>
+              <a
+                href="#price"
+                className="inline-flex h-12 w-fit items-center justify-center rounded-full border border-zinc-700 px-7 text-sm font-semibold text-zinc-200 transition hover:border-zinc-500 hover:text-white"
+              >
+                {t.ctaSecondary}
+              </a>
+            </div>
           </div>
         </section>
 
@@ -265,6 +286,7 @@ export default async function Home() {
           </div>
         </section>
       </main>
+      </PackageProvider>
 
       <footer className="border-t border-zinc-800">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-6 text-xs text-zinc-600">

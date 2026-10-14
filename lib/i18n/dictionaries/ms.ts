@@ -25,6 +25,7 @@ export const ms: Dictionary = {
     sub: "DJI Neo atau Neo 2 dengan bateri, sedia di kedai terdekat anda. Terbangkannya dari telefon, atau tambah alat kawalan atau gogal. Pilih masa, ambil, terbang, dan pulangkan.",
     ctaPrimary: "Tempah dron",
     ctaSecondary: "Semak harga",
+    prefer: { label: "Yang mana anda pilih?", added: "Ditambah ke pakej anda.", see: "Semak harga" },
     price: {
       title: "Semak harga",
       sub: "Pilih pakej untuk melihat kosnya. Seterusnya anda memilih kedai, kemudian masa.",

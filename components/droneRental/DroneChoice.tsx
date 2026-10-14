@@ -16,10 +16,13 @@ export function DroneChoice({
   unavailable = [],
   locale = "en",
   onDark = false,
+  label,
 }: {
   locale?: Locale;
   /** The landing page is always dark. */
   onDark?: boolean;
+  /** Replaces "Which drone?". */
+  label?: string;
   models: readonly DroneModel[];
   /** Null while nothing has been picked yet (the landing page starts that way). */
   value: DroneModel | null;
@@ -31,7 +34,7 @@ export function DroneChoice({
   const st = choiceStyles(onDark);
   return (
     <div>
-      <p className="mb-2 text-sm font-medium">{t.choice.whichDrone}</p>
+      <p className="mb-2 text-sm font-medium">{label ?? t.choice.whichDrone}</p>
       <div className="grid grid-cols-2 gap-2">
         {models.map((m) => {
           const off = unavailable.includes(m);

@@ -25,6 +25,7 @@ export const zh: Dictionary = {
     sub: "DJI Neo 或 Neo 2 配电池，在离您最近的门店等您。可用手机飞行，也可加租遥控器或飞行眼镜。选好时间，取机，飞行，再归还。",
     ctaPrimary: "预订无人机",
     ctaSecondary: "查看价格",
+    prefer: { label: "您更喜欢哪一个？", added: "已加入您的套餐。", see: "查看价格" },
     price: {
       title: "查看价格",
       sub: "选择一个套餐，看看需要多少钱。接下来选择门店，然后选择时间。",

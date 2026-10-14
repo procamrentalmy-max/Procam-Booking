@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { packageQuery } from "@/lib/droneRental/packagePreset";
 import {
@@ -11,7 +10,6 @@ import {
   depositMyrFor,
   hourlyRateFor,
   rentalFeeMyr,
-  type BatteryCount,
   type ControllerKind,
   type DroneModel,
 } from "@/lib/droneRental/pricingRules";
@@ -21,20 +19,18 @@ import { ComboCard, TotalSummary } from "./ComboCard";
 import { ControllerChoice } from "./ControllerChoice";
 import { DroneChoice } from "./DroneChoice";
 import { BatteryChoice, DurationChoice } from "./PackageChoices";
+import { usePackage } from "./PackageContext";
 
 export type PackagePickerText = { hint: string; cta: string; next: string };
 
 /**
  * The landing page's "Check the price": the same choices as the first step of the booking page (drone, how you fly it, batteries, how
- * long), asked one after the other, nothing chosen to begin with. Once all four are chosen the price shows, with a button to choose the
+ * long), asked one after the other, nothing chosen to begin with (the choices under the comparison tables on the page fill in the same package). Once all four are chosen the price shows, with a button to choose the
  * location. The package then travels in the address to the shop list and on to the booking page, which opens at the times.
  */
 export function PackagePicker({ locale, pictures, text }: { locale: Locale; pictures: Record<string, string>; text: PackagePickerText }) {
   const t = droneText(locale);
-  const [model, setModel] = useState<DroneModel | null>(null);
-  const [controller, setController] = useState<ControllerKind | null>(null);
-  const [batteries, setBatteries] = useState<BatteryCount | null>(null);
-  const [hours, setHours] = useState<number | null>(null);
+  const { model, controller, batteries, hours, setModel, setController, setBatteries, setHours } = usePackage();
 
   const profile = model ? DRONE_MODEL_PROFILES[model] : null;
   const controllerName = (m: DroneModel, kind: ControllerKind) => (kind === "NONE" ? t.common.phoneOnly : controllerLabel(m, kind));

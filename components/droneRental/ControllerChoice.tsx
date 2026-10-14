@@ -23,10 +23,13 @@ export function ControllerChoice({
   unavailable = [],
   locale = "en",
   onDark = false,
+  label,
 }: {
   locale?: Locale;
   /** The landing page is always dark. */
   onDark?: boolean;
+  /** Replaces "How will you fly it?". */
+  label?: string;
   model: string;
   options: readonly ControllerKind[];
   /** Null while nothing has been picked yet (the landing page starts that way). */
@@ -39,7 +42,7 @@ export function ControllerChoice({
   const st = choiceStyles(onDark);
   return (
     <div>
-      <p className="mb-2 text-sm font-medium">{t.choice.howFly}</p>
+      <p className="mb-2 text-sm font-medium">{label ?? t.choice.howFly}</p>
       <div className={`grid gap-2 ${options.length > 2 ? "grid-cols-3" : "grid-cols-2"}`}>
         {options.map((o) => {
           const off = unavailable.includes(o);
