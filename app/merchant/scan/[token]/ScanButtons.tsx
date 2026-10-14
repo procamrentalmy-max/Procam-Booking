@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { primaryButtonClass } from "@/components/formStyles";
+import { pressableClass, primaryButtonClass } from "@/components/formStyles";
 import { acceptCheckInAction } from "./actions";
 
 /** Accept order moves straight on to the handover. Cancel changes nothing — it just leaves, so the same QR can be scanned again. */
@@ -34,7 +34,7 @@ export function ScanButtons({ token }: { token: string }) {
       </button>
       <Link
         href="/merchant"
-        className="flex h-11 w-full items-center justify-center rounded-xl border border-zinc-300 text-sm font-semibold dark:border-zinc-700"
+        className={`flex h-11 w-full items-center justify-center rounded-xl border text-sm font-semibold ${pressableClass}`}
       >
         Cancel
       </Link>

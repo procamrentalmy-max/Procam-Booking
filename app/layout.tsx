@@ -15,6 +15,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "ProCam",
   description: "Action camera and underwater equipment rental for hotel and hostel guests.",
+  // The uploaded logo (Branding) on a white tile, served by app/brand-icon/route.ts
+  icons: { icon: [{ url: "/brand-icon", type: "image/png", sizes: "256x256" }], apple: [{ url: "/brand-icon", sizes: "256x256" }] },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

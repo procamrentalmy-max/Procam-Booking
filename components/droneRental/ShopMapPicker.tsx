@@ -5,6 +5,7 @@ import Link from "next/link";
 import { getShopsWithAvailabilityAction } from "@/app/rent/actions";
 import { formatMalaysiaTime, type Locale } from "@/lib/i18n/locale";
 import { droneText, type DroneText } from "@/lib/i18n/drone";
+import { pressableClass } from "@/components/formStyles";
 
 export type ShopMarker = {
   id: string;
@@ -313,7 +314,7 @@ export function ShopMapPicker({ initialShops, locale = "en", carry }: { initialS
           return (
             <div
               key={shop.id}
-              className={`rounded-xl border p-3 text-sm ${selected ? "border-black dark:border-white" : "border-zinc-200 dark:border-zinc-800"}`}
+              className={`rounded-xl border p-3 text-sm ${selected ? "border-black bg-white dark:border-white dark:bg-zinc-800" : "cursor-pointer border-zinc-300 bg-zinc-50 shadow-sm transition hover:border-black hover:bg-white dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-white"}`}
             >
               <button type="button" onClick={() => focusShop(shop, userLocation)} className="w-full text-left" aria-pressed={selected}>
                 <div className="flex items-center justify-between gap-2">
@@ -343,7 +344,7 @@ export function ShopMapPicker({ initialShops, locale = "en", carry }: { initialS
                       href={shop.googleMapsUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex h-11 items-center justify-center rounded-full border border-zinc-300 px-4 text-sm font-medium dark:border-zinc-700"
+                      className={`flex h-11 items-center justify-center rounded-full border px-4 text-sm font-medium ${pressableClass}`}
                     >
                       {t.directions}
                     </a>

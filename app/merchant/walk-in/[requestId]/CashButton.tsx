@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { markWalkInPaidCashAction } from "./actions";
+import { pressableClass } from "@/components/formStyles";
 
 /** For a customer who would rather pay at the counter: the merchant takes the rental fee in cash and the order moves on to handover. */
 export function CashButton({ requestId, amount }: { requestId: string; amount: string }) {
@@ -31,7 +32,7 @@ export function CashButton({ requestId, amount }: { requestId: string; amount: s
         type="button"
         disabled={busy}
         onClick={run}
-        className="h-12 w-full rounded-xl border border-zinc-300 bg-white text-sm font-semibold text-black disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+        className={`h-12 w-full rounded-xl border text-sm font-semibold disabled:opacity-50 ${pressableClass}`}
       >
         {busy ? "Saving…" : `Customer paid ${amount} in cash`}
       </button>

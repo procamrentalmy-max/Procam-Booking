@@ -187,10 +187,12 @@ export default async function Home() {
           )}
         </section>
 
-        <section id="price" className="mx-auto max-w-5xl scroll-mt-6 px-6 pb-16 md:pb-24">
-          <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t.price.title}</h2>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-400">{t.price.sub}</p>
-          <PackagePicker locale={locale} pictures={comboPictures} text={{ hint: t.price.hint, cta: t.price.cta, next: t.price.next }} />
+        <section id="price" className="scroll-mt-6 border-y border-slate-700 bg-slate-800">
+          <div className="mx-auto max-w-5xl px-6 py-12 md:py-16">
+            <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t.price.title}</h2>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-300">{t.price.sub}</p>
+            <PackagePicker locale={locale} pictures={comboPictures} text={{ hint: t.price.hint, cta: t.price.cta, next: t.price.next }} />
+          </div>
         </section>
 
         <section id="compare" className="scroll-mt-6 border-y border-zinc-800 bg-zinc-950">

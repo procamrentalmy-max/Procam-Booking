@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { inputClass, primaryButtonClass } from "@/components/formStyles";
+import { inputClass, pressableClass, primaryButtonClass } from "@/components/formStyles";
 import { formatMalaysiaTime, type Locale } from "@/lib/i18n/locale";
 import { dayLabelFor, droneText } from "@/lib/i18n/drone";
 import { AgreeLine } from "@/components/droneRental/AgreeLine";
@@ -45,7 +45,7 @@ const DRAFT_KEY = "procam-booking-draft";
 type Step = "duration" | "slot" | "contact";
 
 const selectedClass = "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black";
-const idleClass = "border-zinc-300 dark:border-zinc-700";
+const idleClass = pressableClass;
 
 function StepHeader({ step, onBack, locale, shopsHref = "/rent" }: { step: Step; onBack?: () => void; locale: Locale; /** Where "Other shops" goes: the shop list, keeping the package picked on the landing page. */ shopsHref?: string }) {
   const t = droneText(locale).common;

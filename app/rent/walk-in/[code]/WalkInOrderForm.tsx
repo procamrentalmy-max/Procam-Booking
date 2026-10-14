@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { inputClass, primaryButtonClass } from "@/components/formStyles";
+import { inputClass, pressableClass, primaryButtonClass } from "@/components/formStyles";
 import { ControllerChoice } from "@/components/droneRental/ControllerChoice";
 import { ComboCard, TotalSummary } from "@/components/droneRental/ComboCard";
 import { DroneChoice } from "@/components/droneRental/DroneChoice";
@@ -28,7 +28,7 @@ import { droneText } from "@/lib/i18n/drone";
 import type { Locale } from "@/lib/i18n/locale";
 
 const selectedClass = "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black";
-const idleClass = "border-zinc-300 dark:border-zinc-700";
+const idleClass = pressableClass;
 
 export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false, locale = "en" }: { code: string; options: WalkInOptions; pictures: Record<string, string>; adminCanSkip?: boolean; locale?: Locale }) {
   const t = droneText(locale);

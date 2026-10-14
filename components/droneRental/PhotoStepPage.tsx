@@ -2,7 +2,7 @@
 
 import { CameraCaptureField } from "@/components/CameraCaptureField";
 import { en } from "@/lib/i18n/dictionaries/en";
-import { primaryButtonClass } from "@/components/formStyles";
+import { pressableClass, primaryButtonClass } from "@/components/formStyles";
 import type { DronePhotoStep } from "@/lib/droneRental/photoSteps";
 
 /** "Step 3 of 8" and a title — shared by the photo pages and the final confirm page so they read as one sequence. */
@@ -53,7 +53,7 @@ export function PhotoStepPage({
 
       <div className="flex gap-3">
         {onBack && (
-          <button type="button" onClick={onBack} className="h-12 flex-1 rounded-full border border-zinc-300 text-sm font-medium dark:border-zinc-700">
+          <button type="button" onClick={onBack} className={`h-12 flex-1 rounded-full border text-sm font-medium ${pressableClass}`}>
             Back
           </button>
         )}

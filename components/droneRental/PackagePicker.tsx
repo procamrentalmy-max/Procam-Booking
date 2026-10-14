@@ -44,10 +44,10 @@ export function PackagePicker({ locale, pictures, text }: { locale: Locale; pict
         {model && controller && batteries && <DurationChoice onDark locale={locale} value={hours} hourly={hourlyRateFor(model, controller)} onChange={setHours} />}
       </div>
 
-      <div className="space-y-5 rounded-2xl border border-zinc-800 bg-black p-5 md:sticky md:top-6">
+      <div className="space-y-5 rounded-2xl border border-slate-600 bg-slate-900 p-5 md:sticky md:top-6">
         {model && controller && batteries && hours ? (
           <>
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-slate-300">
               {[DRONE_MODEL_PROFILES[model].shortName, controllerName(model, controller), t.common.batteries(batteries), t.common.hours(hours)].join(" · ")}
             </p>
             <ComboCard
@@ -64,10 +64,10 @@ export function PackagePicker({ locale, pictures, text }: { locale: Locale; pict
             >
               {text.cta}
             </Link>
-            <p className="text-center text-xs text-zinc-500">{text.next}</p>
+            <p className="text-center text-xs text-slate-400">{text.next}</p>
           </>
         ) : (
-          <p className="text-sm leading-relaxed text-zinc-500">{text.hint}</p>
+          <p className="text-sm leading-relaxed text-slate-300">{text.hint}</p>
         )}
       </div>
     </div>

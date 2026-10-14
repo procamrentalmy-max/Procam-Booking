@@ -10,13 +10,13 @@ import type { Locale } from "@/lib/i18n/locale";
 export function ComboCard({ pictureUrl, depositMyr, alt, locale = "en", onDark = false }: { pictureUrl?: string; depositMyr: number; alt: string; locale?: Locale; onDark?: boolean }) {
   const t = droneText(locale);
   return (
-    <div className={`overflow-hidden rounded-2xl border ${onDark ? "border-zinc-800" : "border-zinc-200 dark:border-zinc-800"}`}>
+    <div className={`overflow-hidden rounded-2xl border ${onDark ? "border-slate-700" : "border-zinc-200 dark:border-zinc-800"}`}>
       {pictureUrl && (
         // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local optimizable asset
         <img src={pictureUrl} alt={alt} className={`aspect-[4/3] w-full object-cover object-bottom ${onDark ? "bg-zinc-900" : "bg-zinc-100 dark:bg-zinc-900"}`} />
       )}
       <div className="flex items-baseline justify-between gap-4 px-4 py-3">
-        <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">{t.common.deposit}</span>
+        <span className={`text-xs font-medium uppercase tracking-wider ${onDark ? "text-slate-300" : "text-zinc-500"}`}>{t.common.deposit}</span>
         <span className={`text-lg font-semibold tabular-nums ${onDark ? "text-white" : "text-black dark:text-zinc-50"}`}>{formatMyr(depositMyr)}</span>
       </div>
     </div>
@@ -28,13 +28,13 @@ export function TotalSummary({ totalMyr, depositMyr, locale = "en", onDark = fal
   const t = droneText(locale);
   const strong = onDark ? "text-white" : "text-black dark:text-zinc-50";
   return (
-    <div className={`space-y-2 border-t pt-4 ${onDark ? "border-zinc-800" : "border-zinc-200 dark:border-zinc-800"}`}>
+    <div className={`space-y-2 border-t pt-4 ${onDark ? "border-slate-600" : "border-zinc-200 dark:border-zinc-800"}`}>
       <div className="flex items-baseline justify-between gap-4">
-        <span className="text-sm font-medium text-zinc-500">{t.common.total}</span>
+        <span className={`text-sm font-medium ${onDark ? "text-slate-300" : "text-zinc-500"}`}>{t.common.total}</span>
         <span className={`text-2xl font-semibold tabular-nums ${strong}`}>{formatMyr(totalMyr)}</span>
       </div>
       <div className="flex items-baseline justify-between gap-4">
-        <span className="text-sm font-medium text-zinc-500">{t.common.deposit}</span>
+        <span className={`text-sm font-medium ${onDark ? "text-slate-300" : "text-zinc-500"}`}>{t.common.deposit}</span>
         <span className={`text-base font-semibold tabular-nums ${strong}`}>{formatMyr(depositMyr)}</span>
       </div>
     </div>

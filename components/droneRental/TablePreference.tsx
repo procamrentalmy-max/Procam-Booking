@@ -16,7 +16,7 @@ export function TablePreference({ kind, locale, text }: { kind: "drone" | "fly";
   const pkg = usePackage();
   const chosen = kind === "drone" ? pkg.model : pkg.controller;
   return (
-    <div className="mt-6 max-w-md">
+    <div className="mt-6 max-w-md rounded-2xl border border-slate-600 bg-slate-800 p-5">
       {kind === "drone" ? (
         <DroneChoice onDark locale={locale} label={text.label} models={ENABLED_DRONE_MODELS} value={pkg.model} onChange={pkg.setModel} />
       ) : (
@@ -31,7 +31,7 @@ export function TablePreference({ kind, locale, text }: { kind: "drone" | "fly";
         />
       )}
       {chosen && (
-        <p className="mt-3 text-sm text-zinc-400">
+        <p className="mt-3 text-sm text-slate-300">
           {text.added}{" "}
           <a href="#price" className="font-medium text-white underline underline-offset-4 hover:text-zinc-200">
             {text.see}

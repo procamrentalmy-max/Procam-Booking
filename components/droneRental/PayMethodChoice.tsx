@@ -1,6 +1,7 @@
 "use client";
 
 import type { DrPaidBy } from "@/lib/db/types";
+import { pressableClass } from "@/components/formStyles";
 
 /** Card or cash for one payment. Each payment on a booking (the rental fee, a swap, a late fee) is chosen on its own. */
 export function PayMethodChoice({ label, value, onChange }: { label: string; value: DrPaidBy; onChange: (next: DrPaidBy) => void }) {
@@ -20,7 +21,7 @@ export function PayMethodChoice({ label, value, onChange }: { label: string; val
             aria-checked={value === o.key}
             onClick={() => onChange(o.key)}
             className={`h-11 rounded-xl border text-sm font-semibold ${
-              value === o.key ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black" : "border-zinc-300 text-zinc-600 dark:border-zinc-700 dark:text-zinc-400"
+              value === o.key ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black" : pressableClass
             }`}
           >
             {o.text}

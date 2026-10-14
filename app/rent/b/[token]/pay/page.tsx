@@ -16,6 +16,7 @@ import { AgreeLine } from "@/components/droneRental/AgreeLine";
 import { FaqLink } from "@/components/droneRental/FaqLink";
 import { devBypassDronePaymentAction, devBypassCashChoiceAction, adminSkipPaymentAction } from "./actions";
 import { getAuthContext, isAdmin } from "@/lib/auth/session";
+import { pressableClass } from "@/components/formStyles";
 
 /** Only ever a same-origin relative path (e.g. /merchant/pickup/<id> for a walk-in) — never an absolute/protocol-relative URL, so this can't be turned into an open redirect via the `next` query param. */
 function safeNextPath(next: string | undefined): string | null {
@@ -153,13 +154,13 @@ export default async function DroneBookingPayPage({
             <div className="grid grid-cols-2 gap-2 text-center text-sm font-semibold">
               <Link
                 href={withQuery("")}
-                className={`rounded-full border py-2.5 ${!payingCash ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black" : "border-zinc-300 text-zinc-600 dark:border-zinc-700 dark:text-zinc-400"}`}
+                className={`rounded-full border py-2.5 ${!payingCash ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black" : pressableClass}`}
               >
                 {t.pay.payCard}
               </Link>
               <Link
                 href={withQuery("method=cash")}
-                className={`rounded-full border py-2.5 ${payingCash ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black" : "border-zinc-300 text-zinc-600 dark:border-zinc-700 dark:text-zinc-400"}`}
+                className={`rounded-full border py-2.5 ${payingCash ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black" : pressableClass}`}
               >
                 {t.pay.payCash}
               </Link>

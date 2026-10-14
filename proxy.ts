@@ -1,8 +1,24 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE_OPTIONS } from "@/lib/supabase/cookieOptions";
+import { DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/i18n/locale";
 
 const PROTECTED_PREFIXES = ["/admin", "/staff", "/merchant", "/post-login"];
+
+/**
+ * A page opened from outside the site (a QR code, a link in a message, a bookmark, a typed address) is a fresh visit and always lands in
+ * English, even if the same browser picked another language last time. Moving around inside the site, or switching the language with the
+ * EN / BM / 中 switch, keeps the language. Coming back from the bank's or Stripe's payment check (`redirect_status` in the address) is the
+ * customer's own visit carrying on, so it keeps their language too.
+ */
+function isFreshEntry(request: NextRequest): boolean {
+  if (request.method !== "GET") return false;
+  if (request.headers.get("sec-fetch-dest") !== "document") return false;
+  const site = request.headers.get("sec-fetch-site");
+  if (site === "same-origin" || site === "same-site") return false;
+  if (request.nextUrl.searchParams.has("redirect_status")) return false;
+  return true;
+}
 
 /**
  * Refreshes the Supabase auth cookie on every request and gates the
@@ -12,6 +28,11 @@ const PROTECTED_PREFIXES = ["/admin", "/staff", "/merchant", "/post-login"];
  * deliberately skips to stay cheap.
  */
 export async function proxy(request: NextRequest) {
+  // Land in English: the page being rendered must see English too, not just the browser afterwards.
+  const picked = request.cookies.get(LOCALE_COOKIE)?.value;
+  const resetLanguage = !!picked && picked !== DEFAULT_LOCALE && isFreshEntry(request);
+  if (resetLanguage) request.cookies.set(LOCALE_COOKIE, DEFAULT_LOCALE);
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -48,6 +69,8 @@ export async function proxy(request: NextRequest) {
     url.searchParams.set("next", request.nextUrl.pathname);
     return NextResponse.redirect(url);
   }
+
+  if (resetLanguage) response.cookies.set(LOCALE_COOKIE, DEFAULT_LOCALE, { path: "/", maxAge: 31536000, sameSite: "lax" });
 
   return response;
 }

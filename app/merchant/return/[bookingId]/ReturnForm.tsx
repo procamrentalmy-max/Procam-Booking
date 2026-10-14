@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { dronePhotoSteps } from "@/lib/droneRental/photoSteps";
 import { PhotoStepPage, StepTitle } from "@/components/droneRental/PhotoStepPage";
-import { inputClass, primaryButtonClass } from "@/components/formStyles";
+import { inputClass, pressableClass, primaryButtonClass } from "@/components/formStyles";
 import {
   DRONE_MODEL_PROFILES,
   computeDepositCapture,
@@ -52,7 +52,7 @@ function ItemVerdict({
             type="button"
             onClick={() => onOutcome(o.value)}
             className={`h-11 rounded-xl border text-sm font-semibold ${
-              outcome === o.value ? o.active : "border-zinc-300 text-zinc-700 dark:border-zinc-700 dark:text-zinc-300"
+              outcome === o.value ? o.active : pressableClass
             }`}
           >
             {o.label}

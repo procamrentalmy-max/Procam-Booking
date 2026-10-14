@@ -7,6 +7,7 @@ import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
 import { batteryLabel, describeDue, formatClock, formatDayLabel, formatDuration, pickupDay } from "@/lib/droneRental/format";
 import { walkInView } from "@/lib/droneRental/walkIn";
 import { modelProfile } from "@/lib/droneRental/pricingRules";
+import { pressableClass } from "@/components/formStyles";
 
 const NO_SHOPS = "00000000-0000-0000-0000-000000000000";
 
@@ -334,7 +335,7 @@ export default async function MerchantHomePage() {
                     </Link>
                     <Link
                       href={`/merchant/battery-swap/${b.id}`}
-                      className="flex h-12 items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 text-sm font-semibold dark:border-zinc-700 dark:bg-zinc-900"
+                      className={`flex h-12 items-center justify-center rounded-xl border px-4 text-sm font-semibold ${pressableClass}`}
                     >
                       Swap battery
                     </Link>

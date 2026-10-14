@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { primaryButtonClass } from "@/components/formStyles";
+import { pressableBase, primaryButtonClass } from "@/components/formStyles";
 import { confirmWalkInOrderAction, declineWalkInOrderAction } from "./actions";
 
 /**
@@ -46,7 +46,7 @@ export function WalkInButtons({ requestId, droneFree }: { requestId: string; dro
         type="button"
         disabled={busy !== null}
         onClick={() => run("decline")}
-        className="h-11 w-full rounded-xl border border-zinc-300 text-sm font-semibold text-red-700 disabled:opacity-50 dark:border-zinc-700 dark:text-red-400"
+        className={`h-11 w-full rounded-xl border text-sm font-semibold text-red-700 disabled:opacity-50 dark:text-red-400 ${pressableBase}`}
       >
         {busy === "decline" ? "Declining…" : "Decline"}
       </button>

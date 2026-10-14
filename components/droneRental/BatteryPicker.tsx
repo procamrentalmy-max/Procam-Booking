@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { pressableClass } from "@/components/formStyles";
 
 export type BatteryOption = { id: string; label: string };
 
@@ -57,7 +58,7 @@ export function BatteryPicker({
               aria-pressed={on}
               onClick={() => onPick(o.id)}
               className={`h-14 rounded-xl border text-lg font-bold ${
-                on ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black" : "border-zinc-300 text-zinc-800 dark:border-zinc-700 dark:text-zinc-200"
+                on ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black" : pressableClass
               }`}
             >
               {o.label}
