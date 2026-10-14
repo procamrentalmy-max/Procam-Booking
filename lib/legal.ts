@@ -16,16 +16,19 @@ export const BUSINESS = {
   /** The name customers know. */
   brand: "ProCam Rental",
   /** The business name exactly as registered with SSM (shown on the Contact page when set). */
-  registeredName: null as string | null,
+  registeredName: "PROCAM RENTAL" as string | null,
   /** The SSM registration number. */
-  ssmNumber: null as string | null,
+  ssmNumber: "202603270563 (TR0351009-A)" as string | null,
   /** Where customers write to. */
-  supportEmail: null as string | null,
+  supportEmail: "procamrental.my@gmail.com" as string | null,
   /** Where customers call or WhatsApp. */
-  supportPhone: null as string | null,
+  supportPhone: "+60 17-978 4866" as string | null,
 };
 
 /** Shops customers collect from. Addresses on the booking pages come from the database; these are for the Contact page. */
+/** The registered name only needs spelling out when it differs from the brand (ignoring capitals). */
+export const registeredNameDiffers = (): boolean => !!BUSINESS.registeredName && BUSINESS.registeredName.toLowerCase() !== BUSINESS.brand.toLowerCase();
+
 export const SHOPS = [
   { name: "Country Heights, Kajang", address: "Country Heights, 43000 Kajang, Selangor" },
   { name: "Port Dickson Beach", address: "Port Dickson Beach, Port Dickson, Negeri Sembilan" },

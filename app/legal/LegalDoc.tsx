@@ -1,14 +1,14 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { CONTROLLER_PROFILES, DRONE_MODEL_PROFILES } from "@/lib/droneRental/pricingRules";
-import { BUSINESS, FREE_CANCELLATION_HOURS, HOLD_DAYS, LATE_GRACE_MINUTES, legalUpdatedLabel } from "@/lib/legal";
+import { BUSINESS, FREE_CANCELLATION_HOURS, HOLD_DAYS, LATE_GRACE_MINUTES, legalUpdatedLabel, registeredNameDiffers } from "@/lib/legal";
 import { legalText, type LegalPage } from "@/lib/i18n/legal";
 import type { Locale } from "@/lib/i18n/locale";
 import { LegalList, LegalSection, LegalTitle } from "./LegalSection";
 
 /** The numbers and names the legal text refers to, taken from the live pricing rules so the pages never disagree with the booking page. */
 function legalValues(): Record<string, string> {
-  const registered = BUSINESS.registeredName ? ` (${BUSINESS.registeredName}${BUSINESS.ssmNumber ? `, SSM ${BUSINESS.ssmNumber}` : ""})` : "";
+  const registered = registeredNameDiffers() ? ` (${BUSINESS.registeredName}${BUSINESS.ssmNumber ? `, SSM ${BUSINESS.ssmNumber}` : ""})` : BUSINESS.ssmNumber ? ` (SSM ${BUSINESS.ssmNumber})` : "";
   return {
     business: `${BUSINESS.brand}${registered}`,
     neo2Dep: `RM${DRONE_MODEL_PROFILES.NEO2.depositDroneMyr}`,

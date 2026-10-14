@@ -1,4 +1,4 @@
-import { BUSINESS, legalUpdatedLabel, SHOPS } from "@/lib/legal";
+import { BUSINESS, legalUpdatedLabel, registeredNameDiffers, SHOPS } from "@/lib/legal";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { legalText } from "@/lib/i18n/legal";
 import { LegalSection, LegalTitle } from "../LegalSection";
@@ -43,7 +43,7 @@ export default async function ContactPage() {
 
       <LegalSection title={c.businessTitle}>
         <p>
-          {BUSINESS.registeredName ? c.businessRegistered(BUSINESS.registeredName, BUSINESS.brand) : c.business(BUSINESS.brand)}
+          {registeredNameDiffers() && BUSINESS.registeredName ? c.businessRegistered(BUSINESS.registeredName, BUSINESS.brand) : c.business(BUSINESS.brand)}
           {BUSINESS.ssmNumber && <> {c.ssm(BUSINESS.ssmNumber)}</>}
         </p>
       </LegalSection>
