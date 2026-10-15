@@ -11,6 +11,7 @@ import { FaqLink } from "@/components/droneRental/FaqLink";
 import { ControllerChoice } from "@/components/droneRental/ControllerChoice";
 import { ComboCard, TotalSummary } from "@/components/droneRental/ComboCard";
 import type { PackagePreset } from "@/lib/droneRental/packagePreset";
+import type { CompareTables } from "@/lib/droneRental/compareTables";
 import { DroneChoice } from "@/components/droneRental/DroneChoice";
 import { BatteryChoice, DurationChoice } from "@/components/droneRental/PackageChoices";
 import { SlotTakenDialog } from "@/components/droneRental/SlotTakenDialog";
@@ -82,6 +83,7 @@ export function DroneBookingWizard({
   locale = "en",
   preset = null,
   shopsHref = "/rent",
+  tables,
 }: {
   shopId: string;
   models: DroneModel[];
@@ -98,6 +100,8 @@ export function DroneBookingWizard({
   preset?: PackagePreset | null;
   /** The shop list address, with the package carried along, for the "Other shops" link. */
   shopsHref?: string;
+  /** The comparison tables behind the Compare buttons beside the drone and the way-to-fly choices. */
+  tables?: CompareTables;
 }) {
   const t = droneText(locale);
   const router = useRouter();
@@ -258,7 +262,7 @@ export function DroneBookingWizard({
 
         {presetNote && <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">{t.wizard.presetMissed}</p>}
 
-        <DroneChoice locale={locale} models={models} value={model} onChange={setModel} unavailable={models.filter((m) => !availableModels.includes(m))} />
+        <DroneChoice locale={locale} models={models} value={model} onChange={setModel} unavailable={models.filter((m) => !availableModels.includes(m))} compare={tables?.drone} />
 
         <ControllerChoice
           locale={locale}
@@ -267,6 +271,7 @@ export function DroneBookingWizard({
           value={controller}
           onChange={setPickedController}
           unavailable={controllerOptions.filter((o) => !selectableControllers.includes(o))}
+          compare={tables?.fly}
         />
 
         <ComboCard

@@ -80,11 +80,12 @@ export const zh: Dictionary = {
         { label: "控制距离，Neo 2", phone: "500 米", rc: "1 公里", goggles: "1 公里" },
       ],
     },
-    stepsTitle: "三个步骤",
+    stepsTitle: "租用流程",
     steps: [
       { title: "选择门店", text: "在地图上选择取机门店，或点击“离我最近”。" },
       { title: "选择时间", text: "选一个空闲的时段并支付租金。" },
       { title: "取机起飞", text: "向门店出示预订二维码。时间到后在同一门店归还全部物品。" },
+      { title: "电池用完了？", text: "到门店换一块充满电的电池。每次更换按电池价格收费。" },
     ],
     kitPoints: [
       "在门店把用过的电池**换成**充满电的电池。",

@@ -46,6 +46,12 @@ export const droneEn = {
     /** "By booking you agree to the {terms}, the {refunds} and the {privacy}." with the three names as links. */
     /** The link to the FAQ page. */
     faq: "Questions? Read the FAQ",
+    /** The Compare button beside a choice, and the view it opens (just the comparison table, with a Choose button under each column). */
+    compare: "Compare",
+    compareClose: "Close",
+    chooseThis: "Choose this",
+    chosen: "Chosen",
+    notAtShop: "Not at this shop",
     agree: "By booking you agree to the {terms}, the {refunds} and the {privacy}.",
     agreeTerms: "Terms",
     agreeRefunds: "Refund policy",
@@ -262,6 +268,11 @@ export const droneMs: DroneText = {
       return m === 0 ? `${h}j` : `${h}j ${m}m`;
     },
     faq: "Ada soalan? Baca Soalan Lazim",
+    compare: "Bandingkan",
+    compareClose: "Tutup",
+    chooseThis: "Pilih ini",
+    chosen: "Dipilih",
+    notAtShop: "Tiada di kedai ini",
     agree: "Dengan menempah, anda bersetuju dengan {terms}, {refunds} dan {privacy}.",
     agreeTerms: "Terma",
     agreeRefunds: "Dasar bayaran balik",
@@ -472,6 +483,11 @@ export const droneZh: DroneText = {
       return m === 0 ? `${h} 小时` : `${h} 小时 ${m} 分钟`;
     },
     faq: "有疑问？查看常见问题",
+    compare: "对比",
+    compareClose: "关闭",
+    chooseThis: "选这个",
+    chosen: "已选择",
+    notAtShop: "本店没有",
     agree: "预订即表示您同意{terms}、{refunds}和{privacy}。",
     agreeTerms: "条款",
     agreeRefunds: "退款政策",

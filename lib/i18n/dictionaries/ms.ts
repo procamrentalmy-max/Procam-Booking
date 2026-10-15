@@ -80,11 +80,12 @@ export const ms: Dictionary = {
         { label: "Jarak kawalan, Neo 2", phone: "500 m", rc: "1 km", goggles: "1 km" },
       ],
     },
-    stepsTitle: "Tiga langkah",
+    stepsTitle: "Cara ia berfungsi",
     steps: [
       { title: "Pilih kedai", text: "Pilih kedai pengambilan di peta, atau tekan Terdekat dengan saya." },
       { title: "Pilih masa", text: "Pilih mana-mana slot yang kosong dan bayar yuran sewa." },
       { title: "Ambil dan terbang", text: "Tunjukkan kod QR tempahan anda kepada kedai. Pulangkan semuanya di sana apabila masa tamat." },
+      { title: "Bateri habis?", text: "Tukar di kedai dengan bateri yang dicas penuh. Setiap pertukaran dicaj mengikut harga bateri." },
     ],
     kitPoints: [
       "**Tukar** bateri yang telah digunakan dengan yang **dicas penuh** di kedai.",

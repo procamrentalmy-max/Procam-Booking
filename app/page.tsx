@@ -4,11 +4,11 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getComboPictureUrls, getLandingImageUrls, getLogoUrl } from "@/lib/branding";
 import { PackagePicker } from "@/components/droneRental/PackagePicker";
 import { PackageProvider } from "@/components/droneRental/PackageContext";
+import { CompareTable } from "@/components/droneRental/CompareTable";
+import { buildCompareTables } from "@/lib/droneRental/compareTables";
 import { TablePreference } from "@/components/droneRental/TablePreference";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { Brand } from "@/components/Brand";
-import { Fragment } from "react";
-import { CONTROLLER_PROFILES, DRONE_MODEL_PROFILES, depositMyrFor, formatMyr, hourlyRateFor } from "@/lib/droneRental/pricingRules";
 
 /** The page is always dark (white and grey on black) whatever the visitor's theme, so it uses fixed colors rather than dark: variants. */
 
@@ -45,96 +45,16 @@ function DroneIllustration() {
   );
 }
 
-type TableGroup = { title: string; rows: string[][] };
-
-/** A comparison table: one column per choice, rows grouped under a small heading. Each row is the label followed by one cell per column. */
-function CompareTable({ heads, groups, label }: { heads: string[]; groups: TableGroup[]; label: string }) {
-  return (
-    <div className="mt-8 overflow-x-auto rounded-2xl border border-zinc-800 bg-black">
-      <table className="w-full min-w-[26rem] border-collapse text-left text-sm">
-        <thead>
-          <tr className="border-b border-zinc-800">
-            <th scope="col" className="px-4 py-4 md:px-6">
-              <span className="sr-only">{label}</span>
-            </th>
-            {heads.map((h) => (
-              <th key={h} scope="col" className="px-4 py-4 align-bottom text-base font-semibold text-white md:px-6 md:text-lg">
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {groups.map((g) => (
-            <Fragment key={g.title}>
-              {g.title && (
-                <tr className="border-b border-zinc-800 bg-zinc-950">
-                  <th colSpan={heads.length + 1} className="px-4 pb-2 pt-4 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 md:px-6">
-                    {g.title}
-                  </th>
-                </tr>
-              )}
-              {g.rows.map(([rowLabel, ...cells]) => (
-                <tr key={rowLabel} className="border-b border-zinc-900 last:border-b-0">
-                  <th scope="row" className="px-4 py-3.5 text-left font-normal text-zinc-400 md:px-6">
-                    {rowLabel}
-                  </th>
-                  {cells.map((cell, i) => (
-                    <td key={i} className="px-4 py-3.5 font-medium text-zinc-100 md:px-6">
-                      {cell === "✓" ? <span className="text-emerald-400" aria-label="Yes">✓</span> : cell === "✗" ? <span className="text-zinc-500" aria-label="No">✗</span> : cell}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </Fragment>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 export default async function Home() {
   const locale = await getLocale();
   const dict = getDictionary(locale);
   const t = dict.home;
   const [logoUrl, pictures, comboPictures] = await Promise.all([getLogoUrl(), getLandingImageUrls(), getComboPictureUrls()]);
 
-  // Every price in the tables comes from the same pricing rules the booking flow charges with, so this page can't drift from them.
+  // Every price in the tables comes from the same pricing rules the booking flow charges with (lib/droneRental/compareTables.ts).
+  const tables = buildCompareTables(t);
   const c = t.compare;
   const fly = t.fly;
-  const neo = DRONE_MODEL_PROFILES.NEO;
-  const neo2 = DRONE_MODEL_PROFILES.NEO2;
-  const both = (pick: (p: typeof neo) => number) => [formatMyr(pick(neo)), formatMyr(pick(neo2))];
-  const droneGroups: TableGroup[] = [
-    {
-      title: c.priceGroup,
-      rows: [
-        [c.priceRows.perHour, formatMyr(hourlyRateFor("NEO", "NONE")), formatMyr(hourlyRateFor("NEO2", "NONE"))],
-        [c.priceRows.battery1, ...both((p) => p.batteryFeeMyr[1])],
-        [c.priceRows.battery2, ...both((p) => p.batteryFeeMyr[2])],
-        [c.priceRows.swap1, ...both((p) => p.batteryFeeMyr[1])],
-        [c.priceRows.swap2, ...both((p) => p.batteryFeeMyr[2])],
-        [c.priceRows.late, formatMyr(hourlyRateFor("NEO", "NONE")), formatMyr(hourlyRateFor("NEO2", "NONE"))],
-        [c.priceRows.deposit, formatMyr(depositMyrFor("NEO", "NONE")), formatMyr(depositMyrFor("NEO2", "NONE"))],
-      ],
-    },
-    { title: c.specsGroup, rows: c.specs.map((r) => [r.label, r.neo, r.neo2]) },
-  ];
-
-  const rc = CONTROLLER_PROFILES.RC_N3;
-  const gog = CONTROLLER_PROFILES.GOGGLES_N3;
-  const flyGroups: TableGroup[] = [
-    {
-      title: "",
-      rows: [
-        [fly.extraHour, "—", `+${formatMyr(rc.hourlyMyr)}`, `+${formatMyr(gog.hourlyMyr)}`],
-        [fly.extraDeposit, "—", `+${formatMyr(rc.depositMyr)}`, `+${formatMyr(gog.depositMyr)}`],
-        [fly.needsPhone, "✓", "✓", "✗"],
-        ...fly.rows.map((r) => [r.label, r.phone, r.rc, r.goggles]),
-      ],
-    },
-  ];
 
   return (
     <div className="min-h-screen bg-black text-zinc-50">
@@ -187,11 +107,31 @@ export default async function Home() {
           )}
         </section>
 
+        <section id="how" className="mx-auto max-w-5xl scroll-mt-6 px-6 pb-12 md:pb-16">
+          <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t.stepsTitle}</h2>
+          <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {t.steps.map((step, i) => (
+              <li key={step.title} className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 text-sm font-medium text-zinc-300">
+                  {i + 1}
+                </span>
+                <p className="mt-4 text-base font-semibold text-white">{step.title}</p>
+                <p className="mt-1 text-sm leading-relaxed text-zinc-400">{step.text}</p>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-6 text-sm text-zinc-400">
+            <Link href="/legal/faq" className="underline underline-offset-4 hover:text-zinc-200">
+              {t.faqLine}
+            </Link>
+          </p>
+        </section>
+
         <section id="price" className="scroll-mt-6 border-y border-slate-700 bg-slate-800">
           <div className="mx-auto max-w-5xl px-6 py-12 md:py-16">
             <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t.price.title}</h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-300">{t.price.sub}</p>
-            <PackagePicker locale={locale} pictures={comboPictures} text={{ hint: t.price.hint, cta: t.price.cta, next: t.price.next }} />
+            <PackagePicker locale={locale} pictures={comboPictures} text={{ hint: t.price.hint, cta: t.price.cta, next: t.price.next }} tables={tables} />
           </div>
         </section>
 
@@ -199,7 +139,7 @@ export default async function Home() {
           <div className="mx-auto max-w-5xl px-6 py-12 md:py-16">
             <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{c.title}</h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-400">{c.sub}</p>
-            <CompareTable heads={[c.neo, c.neo2]} groups={droneGroups} label={c.title} />
+            <CompareTable heads={tables.drone.heads} groups={tables.drone.groups} label={tables.drone.label} />
             <p className="mt-3 text-xs text-zinc-500">{c.source}</p>
             <TablePreference kind="drone" locale={locale} text={t.prefer} />
 
@@ -207,7 +147,7 @@ export default async function Home() {
               {fly.title}
             </h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-400">{fly.sub}</p>
-            <CompareTable heads={[fly.phone, fly.rc, fly.goggles]} groups={flyGroups} label={fly.option} />
+            <CompareTable heads={tables.fly.heads} groups={tables.fly.groups} label={tables.fly.label} />
             <TablePreference kind="fly" locale={locale} text={t.prefer} />
 
             <div className="mt-8 flex flex-wrap gap-3">
@@ -225,26 +165,6 @@ export default async function Home() {
               </a>
             </div>
           </div>
-        </section>
-
-        <section id="how" className="mx-auto max-w-5xl scroll-mt-6 px-6 py-16 md:py-24">
-          <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t.stepsTitle}</h2>
-          <ol className="mt-8 grid gap-4 sm:grid-cols-3">
-            {t.steps.map((step, i) => (
-              <li key={step.title} className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 text-sm font-medium text-zinc-300">
-                  {i + 1}
-                </span>
-                <p className="mt-4 text-base font-semibold text-white">{step.title}</p>
-                <p className="mt-1 text-sm leading-relaxed text-zinc-400">{step.text}</p>
-              </li>
-            ))}
-          </ol>
-          <p className="mt-6 text-sm text-zinc-400">
-            <Link href="/legal/faq" className="underline underline-offset-4 hover:text-zinc-200">
-              {t.faqLine}
-            </Link>
-          </p>
         </section>
 
         <section className="mx-auto max-w-5xl px-6 pb-16 md:pb-24">

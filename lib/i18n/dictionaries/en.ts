@@ -78,11 +78,12 @@ export const en = {
         { label: "Control range, Neo 2", phone: "500 m", rc: "1 km", goggles: "1 km" },
       ],
     },
-    stepsTitle: "Three steps",
+    stepsTitle: "How it works",
     steps: [
       { title: "Pick a shop", text: "Choose a pickup shop on the map, or tap Nearest to me." },
       { title: "Choose a time", text: "Pick any free slot and pay the rental fee." },
       { title: "Collect and fly", text: "Show your booking QR to the shop. Return everything there when your time is up." },
+      { title: "Battery finished?", text: "Change it at the shop for a fully charged one. Each swap is charged at the battery price." },
     ],
     kitPoints: [
       "**Swap** used batteries for **fully charged** ones at the shop.",

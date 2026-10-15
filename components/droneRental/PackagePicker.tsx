@@ -15,6 +15,7 @@ import {
 } from "@/lib/droneRental/pricingRules";
 import { droneText } from "@/lib/i18n/drone";
 import type { Locale } from "@/lib/i18n/locale";
+import type { CompareTables } from "@/lib/droneRental/compareTables";
 import { ComboCard, TotalSummary } from "./ComboCard";
 import { ControllerChoice } from "./ControllerChoice";
 import { DroneChoice } from "./DroneChoice";
@@ -28,7 +29,7 @@ export type PackagePickerText = { hint: string; cta: string; next: string };
  * long), asked one after the other, nothing chosen to begin with (the choices under the comparison tables on the page fill in the same package). Once all four are chosen the price shows, with a button to choose the
  * location. The package then travels in the address to the shop list and on to the booking page, which opens at the times.
  */
-export function PackagePicker({ locale, pictures, text }: { locale: Locale; pictures: Record<string, string>; text: PackagePickerText }) {
+export function PackagePicker({ locale, pictures, text, tables }: { locale: Locale; pictures: Record<string, string>; text: PackagePickerText; tables: CompareTables }) {
   const t = droneText(locale);
   const { model, controller, batteries, hours, setModel, setController, setBatteries, setHours } = usePackage();
 
@@ -38,8 +39,8 @@ export function PackagePicker({ locale, pictures, text }: { locale: Locale; pict
   return (
     <div className="mt-8 grid gap-8 md:grid-cols-2 md:items-start">
       <div className="space-y-6">
-        <DroneChoice onDark locale={locale} models={ENABLED_DRONE_MODELS} value={model} onChange={setModel} />
-        {profile && model && <ControllerChoice onDark locale={locale} model={model} options={profile.controllerOptions} value={controller} onChange={setController} />}
+        <DroneChoice onDark locale={locale} models={ENABLED_DRONE_MODELS} value={model} onChange={setModel} compare={tables.drone} />
+        {profile && model && <ControllerChoice onDark locale={locale} model={model} options={profile.controllerOptions} value={controller} onChange={setController} compare={tables.fly} />}
         {model && controller && <BatteryChoice onDark locale={locale} model={model} value={batteries} onChange={setBatteries} />}
         {model && controller && batteries && <DurationChoice onDark locale={locale} value={hours} hourly={hourlyRateFor(model, controller)} onChange={setHours} />}
       </div>
