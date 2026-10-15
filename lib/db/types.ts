@@ -622,6 +622,9 @@ export type DrBatteryRow = {
 };
 
 export type DrBookingRow = {
+  /** The customer ticked "WhatsApp me about my booking" (see lib/whatsapp), and the language they were using. */
+  whatsapp_opt_in: boolean;
+  locale: string | null;
   id: string;
   human_id: string;
   secure_token: string;
@@ -740,6 +743,8 @@ export type DrDepositAuthorizationRow = {
 export type DrWalkInStatus = "WAITING" | "SUBMITTED" | "ACCEPTED" | "DECLINED" | "CANCELLED";
 
 export type DrWalkInRequestRow = {
+  whatsapp_opt_in: boolean;
+  locale: string | null;
   id: string;
   public_token: string;
   shop_id: string;
@@ -777,6 +782,20 @@ export type DrComboPictureRow = {
 export type TutorialSectionRow = { id: string; title: string; position: number; created_at: string };
 /** One photo or video under a tutorial header; the file is in the branding storage bucket under tutorial/. */
 export type TutorialMediaRow = { id: string; section_id: string; kind: "image" | "video"; file_path: string; caption: string | null; position: number; created_at: string };
+
+/** One WhatsApp message about a booking and what happened to it (Admin > WhatsApp). */
+export type WaMessageRow = {
+  id: string;
+  booking_id: string;
+  kind: string;
+  to_phone: string;
+  locale: string;
+  status: "PENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED" | "DRY_RUN";
+  provider_message_id: string | null;
+  error: string | null;
+  created_at: string;
+  updated_at: string;
+};
 
 /** One step of the drone booking flow reached by one visit (Admin > Drone Funnel). */
 export type DrFunnelEventRow = { id: string; session_id: string; step: string; shop_id: string | null; created_at: string };
@@ -824,6 +843,7 @@ export interface Database {
       tutorial_sections: TableDef<TutorialSectionRow>;
       tutorial_media: TableDef<TutorialMediaRow>;
       dr_funnel_events: TableDef<DrFunnelEventRow>;
+      wa_messages: TableDef<WaMessageRow>;
       photo_orders: TableDef<PhotoOrderRow>;
       photo_order_files: TableDef<PhotoOrderFileRow>;
       demand_signals: TableDef<DemandSignalRow>;

@@ -6,6 +6,7 @@ import { findOrCreateCustomer } from "@/lib/droneRental/createBooking";
 import { claimVerification, releaseVerification } from "@/lib/droneRental/kyc";
 import { droneText, fieldError } from "@/lib/i18n/drone";
 import { getLocale } from "@/lib/i18n/getLocale";
+import { createServiceRoleClient } from "@/lib/supabase/service";
 import { uuidSchema } from "@/lib/zod-helpers";
 import { CONTROLLER_KINDS, ENABLED_DRONE_MODELS, type ControllerKind, type DroneModel } from "@/lib/droneRental/pricingRules";
 
@@ -19,6 +20,7 @@ const schema = z.object({
   phone: z.string().trim().regex(/^[0-9+\-()\s]{6,30}$/, "Enter a valid phone number"),
   email: z.string().trim().email("Enter a valid email").max(200),
   verificationId: uuidSchema,
+  whatsapp: z.boolean().optional(),
 });
 
 export type SubmitOrderResult = { ok: true; token: string } | { ok: false; message: string };
@@ -36,6 +38,8 @@ export async function submitWalkInOrderAction(input: {
   email: string;
   /** The passed ID check this order relies on (see lib/droneRental/kyc.ts). */
   verificationId: string;
+  /** Ticked "WhatsApp me about my booking" (see lib/whatsapp). */
+  whatsapp?: boolean;
 }): Promise<SubmitOrderResult> {
   const t = droneText(await getLocale()).errors;
   const reasons = { shop_not_found: t.shopNotFound, length_unavailable: t.lengthUnavailable, too_many_open: t.tooManyOpen, too_windy: t.tooWindyNow, shop_closed: t.shopClosedNow } as const;
@@ -56,7 +60,11 @@ export async function submitWalkInOrderAction(input: {
     phone: d.phone,
     email: d.email,
   });
-  if (result.ok) return { ok: true, token: result.publicToken };
+  if (result.ok) {
+    // Kept on the order until the staff confirm it and the booking is made (see acceptWalkInRequest).
+    if (d.whatsapp) await createServiceRoleClient().from("dr_walkin_requests").update({ whatsapp_opt_in: true, locale: await getLocale() }).eq("public_token", result.publicToken);
+    return { ok: true, token: result.publicToken };
+  }
   await releaseVerification(d.verificationId);
   return { ok: false, message: reasons[result.reason] };
 }

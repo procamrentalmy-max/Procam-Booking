@@ -6,6 +6,7 @@ import { expireUncollectedPickups } from "@/lib/photoPrint/expirePickups";
 import { PENDING_PAYMENT_TIMEOUT_MINUTES } from "@/lib/state-machine/booking";
 import { logAudit } from "@/lib/audit";
 import { expireStalePendingDroneBookings } from "@/lib/droneRental/expire";
+import { sendDueWhatsAppMessages } from "@/lib/whatsapp/notify";
 
 /**
  * Four time-driven jobs that don't belong on any request path:
@@ -122,5 +123,13 @@ export async function GET(req: Request) {
     result.errors.push(`expire drone bookings: ${(err as Error).message}`);
   }
 
-  return NextResponse.json({ ...result, expiredDroneBookings });
+  // WhatsApp reminders (pickup, return, late, deposit nudge): only for customers who asked for them, and only when WhatsApp is connected.
+  let whatsappChecked = 0;
+  try {
+    whatsappChecked = (await sendDueWhatsAppMessages()).checked;
+  } catch (err) {
+    result.errors.push(`whatsapp: ${(err as Error).message}`);
+  }
+
+  return NextResponse.json({ ...result, expiredDroneBookings, whatsappChecked });
 }

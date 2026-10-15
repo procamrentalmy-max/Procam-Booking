@@ -9,6 +9,7 @@ import { dayLabelFor, droneText } from "@/lib/i18n/drone";
 import { AgreeLine } from "@/components/droneRental/AgreeLine";
 import { FaqLink } from "@/components/droneRental/FaqLink";
 import { trackStep } from "@/components/FunnelBeacon";
+import { WhatsAppOptIn } from "@/components/droneRental/WhatsAppOptIn";
 import { ControllerChoice } from "@/components/droneRental/ControllerChoice";
 import { ComboCard, TotalSummary } from "@/components/droneRental/ComboCard";
 import type { PackagePreset } from "@/lib/droneRental/packagePreset";
@@ -130,6 +131,7 @@ export function DroneBookingWizard({
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [whatsapp, setWhatsapp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [slotTaken, setSlotTaken] = useState(false);
@@ -245,6 +247,7 @@ export function DroneBookingWizard({
         phone,
         email,
         verificationId,
+        whatsapp,
       });
       if ("error" in result) {
         setError(result.error);
@@ -471,6 +474,7 @@ export function DroneBookingWizard({
           required
           className={`w-full ${inputClass} py-3 text-base`}
         />
+        <WhatsAppOptIn checked={whatsapp} onChange={setWhatsapp} locale={locale} />
         {(error ?? kycMessage) && (
           <p role="alert" className="text-center text-sm text-red-600">
             {error ?? kycMessage}

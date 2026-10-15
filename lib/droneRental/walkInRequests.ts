@@ -219,6 +219,8 @@ export async function acceptWalkInRequest(requestId: string, staffId: string): P
       createdByStaffId: staffId,
     });
     await supabase.from("dr_walkin_requests").update({ booking_id: booking.id }).eq("id", request.id);
+    // The WhatsApp choice they made on their phone goes with the booking.
+    if (request.whatsapp_opt_in) await supabase.from("dr_bookings").update({ whatsapp_opt_in: true, locale: request.locale === "ms" || request.locale === "zh" ? request.locale : "en" }).eq("id", booking.id);
     return { bookingId: booking.id, bookingToken: booking.secure_token };
   } catch (err) {
     await supabase.from("dr_walkin_requests").update({ status: "SUBMITTED", drone_id: null }).eq("id", request.id).eq("status", "ACCEPTED").is("booking_id", null);

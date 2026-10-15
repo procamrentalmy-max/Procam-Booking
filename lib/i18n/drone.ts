@@ -48,6 +48,9 @@ export const droneEn = {
     faq: "Questions? Read the FAQ",
     /** The Compare button beside a choice, and the view it opens (just the comparison table, with a Choose button under each column). */
     compare: "Compare",
+    /** The tick box on the details form: the customer agrees to WhatsApp messages about their booking. */
+    whatsapp: "WhatsApp me about my booking",
+    whatsappNote: "ProCam Rental sends the confirmation, reminders and how to swap a battery. Reply STOP any time to stop.",
     compareClose: "Close",
     chooseThis: "Choose this",
     chosen: "Chosen",
@@ -295,6 +298,8 @@ export const droneMs: DroneText = {
     },
     faq: "Ada soalan? Baca Soalan Lazim",
     compare: "Bandingkan",
+    whatsapp: "WhatsApp saya tentang tempahan saya",
+    whatsappNote: "ProCam Rental menghantar pengesahan, peringatan dan cara menukar bateri. Balas STOP pada bila-bila masa untuk berhenti.",
     compareClose: "Tutup",
     chooseThis: "Pilih ini",
     chosen: "Dipilih",
@@ -535,6 +540,8 @@ export const droneZh: DroneText = {
     },
     faq: "有疑问？查看常见问题",
     compare: "对比",
+    whatsapp: "通过 WhatsApp 通知我预订的情况",
+    whatsappNote: "ProCam Rental 会发送确认、提醒和更换电池的方法。随时回复 STOP 即可停止。",
     compareClose: "关闭",
     chooseThis: "选这个",
     chosen: "已选择",

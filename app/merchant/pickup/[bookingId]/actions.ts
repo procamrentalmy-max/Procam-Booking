@@ -11,6 +11,7 @@ import { dronePhotoSteps } from "@/lib/droneRental/photoSteps";
 import { modelProfile, storedController } from "@/lib/droneRental/pricingRules";
 import { checklistForRental } from "@/lib/droneRental/checklist";
 import { needsDepositConfirmation } from "@/lib/droneRental/payment";
+import { notifyBooking } from "@/lib/whatsapp/notify";
 
 export type PickupResult = {
   /** When the customer has to bring everything back (the rental's end), as an ISO string. */
@@ -151,6 +152,8 @@ export async function submitPickupAction(formData: FormData): Promise<PickupResu
     .eq("id", bookingId);
   if (updateError) throw new Error("Couldn't record the handover: " + updateError.message);
   await supabase.from("dr_drones").update({ status: "RENTED" }).eq("id", booking.drone_id);
+  // WhatsApp: enjoy your flight, the return time, how to swap a battery and the tutorial (only if they asked for WhatsApp messages).
+  await notifyBooking(bookingId, "HANDOVER_DONE");
 
   return { returnBy: window.end.toISOString(), shortenedByMinutes: window.shortenedByMinutes };
 }

@@ -3,6 +3,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { buildShopFleetSnapshot } from "./snapshot";
 import { findEligibleDrone } from "./slots";
 import { isDroneModel, storedController, DEFAULT_DRONE_MODEL } from "./pricingRules";
+import { notifyBooking } from "@/lib/whatsapp/notify";
 
 /**
  * An unpaid booking holds nothing. The slot (a drone, and a controller if one was asked for) goes to whoever PAYS first: when a
@@ -69,6 +70,13 @@ export async function isSlotStillFree(bookingId: string): Promise<boolean> {
 
 /** Claims the slot for a booking whose payment has just gone through (see the note at the top), confirming it. Safe to run twice. */
 export async function claimBookingSlot(bookingId: string): Promise<ClaimResult> {
+  const result = await claimBookingSlotNow(bookingId);
+  // The WhatsApp confirmation (only if the customer asked for it; sent at most once, so a repeat run does nothing).
+  if (result.claimed) await notifyBooking(bookingId, "BOOKING_CONFIRMED");
+  return result;
+}
+
+async function claimBookingSlotNow(bookingId: string): Promise<ClaimResult> {
   const supabase = createServiceRoleClient();
 
   for (let attempt = 0; attempt < 5; attempt++) {

@@ -12,6 +12,7 @@ import { claimVerification, releaseVerification } from "@/lib/droneRental/kyc";
 import { getShopWindForecast } from "@/lib/droneRental/wind";
 import { droneText, fieldError } from "@/lib/i18n/drone";
 import { getLocale } from "@/lib/i18n/getLocale";
+import { createServiceRoleClient } from "@/lib/supabase/service";
 import { formatWind } from "@/lib/droneRental/windRules";
 import { isTooWindy, maxWindForWindow, windLimitFor } from "@/lib/droneRental/windRules";
 
@@ -64,6 +65,8 @@ const createBookingSchema = z.object({
   phone: z.string().trim().regex(/^[0-9+\-()\s]{6,30}$/, "Enter a valid phone number"),
   email: z.string().trim().email("Enter a valid email"),
   verificationId: uuidSchema,
+  /** Ticked "WhatsApp me about my booking". */
+  whatsapp: z.boolean().optional(),
 });
 
 export async function createDroneBookingAction(input: {
@@ -79,6 +82,8 @@ export async function createDroneBookingAction(input: {
   email: string;
   /** The passed ID check this booking relies on (see lib/droneRental/kyc.ts). */
   verificationId: string;
+  /** Ticked "WhatsApp me about my booking" (see lib/whatsapp). */
+  whatsapp?: boolean;
 }): Promise<{ secureToken: string; startTime: string; endTime: string } | { slotTaken: true } | { error: string }> {
   // Refusals are returned, not thrown: a thrown message never reaches the customer on the live site.
   const t = droneText(await getLocale()).errors;
@@ -103,6 +108,8 @@ export async function createDroneBookingAction(input: {
       model: data.model,
       controller: data.controller,
     });
+    // The WhatsApp choice and the language they are using, for the messages (lib/whatsapp). Stored only when they ticked the box.
+    if (data.whatsapp) await createServiceRoleClient().from("dr_bookings").update({ whatsapp_opt_in: true, locale: await getLocale() }).eq("id", booking.id);
     return { secureToken: booking.secure_token, startTime: booking.start_time, endTime: booking.end_time };
   } catch (err) {
     await releaseVerification(data.verificationId);

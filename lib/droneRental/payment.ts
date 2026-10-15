@@ -1,4 +1,5 @@
 import "server-only";
+import { notifyBooking } from "@/lib/whatsapp/notify";
 import { randomUUID } from "node:crypto";
 import { getStripe, toCents } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/service";
@@ -252,6 +253,8 @@ export async function confirmDroneBookingAfterPayment(bookingId: string): Promis
   if (!claim.claimed) {
     await cancelLostBooking(bookingId);
     await refundDroneRentalFee(bookingId);
+    // Tell the customer, if they asked for WhatsApp messages: it was cancelled and refunded.
+    await notifyBooking(bookingId, "BOOKING_CANCELLED");
     return;
   }
   try {
