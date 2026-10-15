@@ -26,7 +26,7 @@ export const legalEn = {
         title: "1. Who we are and what we rent",
         blocks: [
           {
-            p: "{business} rents small DJI camera drones in Malaysia: the DJI Neo 2 and the original DJI Neo, with an optional RC-N3 controller or Goggles N3 with Motion 3 controller. You collect and return the drone at one of our partner shops in Kajang or Port Dickson. See our {link:contact} for the shops.",
+            p: "{business} rents small DJI camera drones in Malaysia: the DJI Neo 2 and the original DJI Neo, with an optional RC-N3 controller or Goggles N3 with Motion 3 controller. You collect and return the drone at any of our partner shops. The shop's name, address and map are on the booking page and in your booking confirmation.",
           },
           { p: "By making a booking you agree to these terms, our {link:refunds} and our {link:privacy}." },
         ],
@@ -312,6 +312,7 @@ export const legalEn = {
     staffNote: "You can also ask the staff at the shop where you collect your drone.",
     faqNote: "Quick answers to common questions are in the {link:faq}.",
     shopsTitle: "Our shops",
+    shops: "Collect and return your drone at any of our partner shops. The shop's name, address and map are on the booking page and in your booking confirmation.",
     businessTitle: "The business",
     business: (name: string) => `${name}, Malaysia.`,
     businessRegistered: (registered: string, brand: string) => `${registered}, trading as ${brand}, Malaysia.`,
@@ -334,7 +335,7 @@ export const legalMs: LegalText = {
         title: "1. Siapa kami dan apa yang kami sewakan",
         blocks: [
           {
-            p: "{business} menyewakan dron kamera DJI bersaiz kecil di Malaysia: DJI Neo 2 dan DJI Neo asal, dengan pilihan alat kawalan RC-N3 atau Goggles N3 dengan alat kawalan Motion 3. Anda mengambil dan memulangkan dron di salah satu kedai rakan kongsi kami di Kajang atau Port Dickson. Lihat {link:contact} kami untuk kedai-kedai tersebut.",
+            p: "{business} menyewakan dron kamera DJI bersaiz kecil di Malaysia: DJI Neo 2 dan DJI Neo asal, dengan pilihan alat kawalan RC-N3 atau Goggles N3 dengan alat kawalan Motion 3. Anda mengambil dan memulangkan dron di mana-mana kedai rakan kongsi kami. Nama, alamat dan peta kedai ada pada halaman tempahan dan dalam pengesahan tempahan anda.",
           },
           { p: "Dengan membuat tempahan, anda bersetuju dengan terma ini, {link:refunds} kami dan {link:privacy} kami." },
         ],
@@ -620,6 +621,7 @@ export const legalMs: LegalText = {
     staffNote: "Anda juga boleh bertanya kepada kakitangan di kedai tempat anda mengambil dron.",
     faqNote: "Jawapan ringkas kepada soalan yang kerap ditanya ada dalam {link:faq}.",
     shopsTitle: "Kedai kami",
+    shops: "Ambil dan pulangkan dron anda di mana-mana kedai rakan kongsi kami. Nama, alamat dan peta kedai ada pada halaman tempahan dan dalam pengesahan tempahan anda.",
     businessTitle: "Perniagaan",
     business: (name) => `${name}, Malaysia.`,
     businessRegistered: (registered, brand) => `${registered}, berniaga sebagai ${brand}, Malaysia.`,
@@ -640,7 +642,7 @@ export const legalZh: LegalText = {
         title: "1. 我们是谁，租什么",
         blocks: [
           {
-            p: "{business}在马来西亚出租小型 DJI 摄影无人机：DJI Neo 2 和原版 DJI Neo，可选加 RC-N3 遥控器或 Goggles N3 配 Motion 3 控制器。您在加影或波德申的合作门店取机和还机。门店信息请见我们的{link:contact}。",
+            p: "{business}在马来西亚出租小型 DJI 摄影无人机：DJI Neo 2 和原版 DJI Neo，可选加 RC-N3 遥控器或 Goggles N3 配 Motion 3 控制器。您可以在我们任何一家合作门店取机和还机。门店名称、地址和地图见预订页面和您的预订确认。",
           },
           { p: "预订即表示您同意本条款、我们的{link:refunds}和{link:privacy}。" },
         ],
@@ -924,6 +926,7 @@ export const legalZh: LegalText = {
     staffNote: "您也可以向取机门店的店员询问。",
     faqNote: "常见问题的简短解答见{link:faq}。",
     shopsTitle: "我们的门店",
+    shops: "您可以在我们任何一家合作门店取机和还机。门店名称、地址和地图见预订页面和您的预订确认。",
     businessTitle: "公司信息",
     business: (name) => `${name}，马来西亚。`,
     businessRegistered: (registered, brand) => `${registered}，以 ${brand} 名义经营，马来西亚。`,

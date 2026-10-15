@@ -1,4 +1,4 @@
-import { BUSINESS, legalUpdatedLabel, registeredNameDiffers, SHOPS } from "@/lib/legal";
+import { BUSINESS, legalUpdatedLabel, registeredNameDiffers } from "@/lib/legal";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { legalText } from "@/lib/i18n/legal";
 import { renderLegalText } from "../LegalDoc";
@@ -34,13 +34,7 @@ export default async function ContactPage() {
       </LegalSection>
 
       <LegalSection title={c.shopsTitle}>
-        {SHOPS.map((shop) => (
-          <p key={shop.name}>
-            <span className="font-medium text-black dark:text-zinc-200">{shop.name}</span>
-            <br />
-            {shop.address}
-          </p>
-        ))}
+        <p>{c.shops}</p>
       </LegalSection>
 
       <LegalSection title={c.businessTitle}>

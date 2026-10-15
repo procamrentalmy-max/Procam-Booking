@@ -25,14 +25,8 @@ export const BUSINESS = {
   supportPhone: "+60 17-978 4866" as string | null,
 };
 
-/** Shops customers collect from. Addresses on the booking pages come from the database; these are for the Contact page. */
 /** The registered name only needs spelling out when it differs from the brand (ignoring capitals). */
 export const registeredNameDiffers = (): boolean => !!BUSINESS.registeredName && BUSINESS.registeredName.toLowerCase() !== BUSINESS.brand.toLowerCase();
-
-export const SHOPS = [
-  { name: "Country Heights, Kajang", address: "Country Heights, 43000 Kajang, Selangor" },
-  { name: "Port Dickson Beach", address: "Port Dickson Beach, Port Dickson, Negeri Sembilan" },
-];
 
 /** The longest rental the online booking page offers, in hours (the duration buttons are built from this). */
 export const ONLINE_MAX_HOURS = 6;
