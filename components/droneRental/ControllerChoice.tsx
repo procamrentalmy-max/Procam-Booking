@@ -28,6 +28,7 @@ export function ControllerChoice({
   onDark = false,
   label,
   compare,
+  unavailableLabel,
 }: {
   locale?: Locale;
   /** The landing page is always dark. */
@@ -36,6 +37,8 @@ export function ControllerChoice({
   label?: string;
   /** The comparison table for a Compare button beside the label; without it there is no button. */
   compare?: CompareData<ControllerKind>;
+  /** What an unavailable choice says in the Compare view (default "Not at this shop"; the home page has no shop, so it says "Not available right now"). */
+  unavailableLabel?: string;
   model: string;
   options: readonly ControllerKind[];
   /** Null while nothing has been picked yet (the landing page starts that way). */
@@ -57,7 +60,7 @@ export function ControllerChoice({
           </button>
         )}
       </div>
-      {compare && <CompareDialog open={comparing} onClose={() => setComparing(false)} data={compare} value={value} unavailable={unavailable} onChoose={onChange} locale={locale} />}
+      {compare && <CompareDialog open={comparing} onClose={() => setComparing(false)} data={compare} value={value} unavailable={unavailable} onChoose={onChange} locale={locale} unavailableText={unavailableLabel} />}
       <div className={`grid gap-2 ${options.length > 2 ? "grid-cols-3" : "grid-cols-2"}`}>
         {options.map((o) => {
           const off = unavailable.includes(o);

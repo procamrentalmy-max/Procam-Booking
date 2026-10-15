@@ -7,6 +7,7 @@ import { PackageProvider } from "@/components/droneRental/PackageContext";
 import { CompareTable } from "@/components/droneRental/CompareTable";
 import { buildCompareTables } from "@/lib/droneRental/compareTables";
 import { hasTutorial } from "@/lib/tutorials";
+import { getUnavailableFleet } from "@/lib/droneRental/fleetAvailability";
 import { FunnelBeacon } from "@/components/FunnelBeacon";
 import { TablePreference } from "@/components/droneRental/TablePreference";
 import { LanguageToggle } from "@/components/LanguageToggle";
@@ -51,7 +52,7 @@ export default async function Home() {
   const locale = await getLocale();
   const dict = getDictionary(locale);
   const t = dict.home;
-  const [logoUrl, pictures, comboPictures, showTutorial] = await Promise.all([getLogoUrl(), getLandingImageUrls(), getComboPictureUrls(), hasTutorial()]);
+  const [logoUrl, pictures, comboPictures, showTutorial, fleet] = await Promise.all([getLogoUrl(), getLandingImageUrls(), getComboPictureUrls(), hasTutorial(), getUnavailableFleet()]);
 
   // Every price in the tables comes from the same pricing rules the booking flow charges with (lib/droneRental/compareTables.ts).
   const tables = buildCompareTables(t);
@@ -81,7 +82,7 @@ export default async function Home() {
         </div>
       </header>
 
-      <PackageProvider>
+      <PackageProvider unavailableModels={fleet.models} unavailableControllers={fleet.controllers}>
       <FunnelBeacon step="HOME" />
       <main>
         <section className="mx-auto grid max-w-5xl items-center gap-10 px-6 pb-16 pt-10 md:grid-cols-[1.2fr_1fr] md:pb-24 md:pt-16">

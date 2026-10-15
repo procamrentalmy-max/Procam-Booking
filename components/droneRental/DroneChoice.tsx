@@ -21,6 +21,7 @@ export function DroneChoice({
   onDark = false,
   label,
   compare,
+  unavailableLabel,
 }: {
   locale?: Locale;
   /** The landing page is always dark. */
@@ -29,6 +30,8 @@ export function DroneChoice({
   label?: string;
   /** The comparison table for a Compare button beside the label; without it there is no button. */
   compare?: CompareData<DroneModel>;
+  /** What an unavailable choice says in the Compare view (default "Not at this shop"; the home page has no shop, so it says "Not available right now"). */
+  unavailableLabel?: string;
   models: readonly DroneModel[];
   /** Null while nothing has been picked yet (the landing page starts that way). */
   value: DroneModel | null;
@@ -49,7 +52,7 @@ export function DroneChoice({
           </button>
         )}
       </div>
-      {compare && <CompareDialog open={comparing} onClose={() => setComparing(false)} data={compare} value={value} unavailable={unavailable} onChoose={onChange} locale={locale} />}
+      {compare && <CompareDialog open={comparing} onClose={() => setComparing(false)} data={compare} value={value} unavailable={unavailable} onChoose={onChange} locale={locale} unavailableText={unavailableLabel} />}
       <div className="grid grid-cols-2 gap-2">
         {models.map((m) => {
           const off = unavailable.includes(m);

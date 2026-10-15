@@ -18,6 +18,7 @@ export function CompareDialog<K extends string>({
   unavailable = [],
   onChoose,
   locale = "en",
+  unavailableText,
 }: {
   open: boolean;
   onClose: () => void;
@@ -25,6 +26,8 @@ export function CompareDialog<K extends string>({
   value: K | null;
   /** Columns that can't be chosen here (a drone or controller the shop has none of). */
   unavailable?: readonly string[];
+  /** What an unavailable column's button says; by default "Not at this shop". */
+  unavailableText?: string;
   onChoose: (key: K) => void;
   locale?: Locale;
 }) {
@@ -72,7 +75,7 @@ export function CompareDialog<K extends string>({
               },
               chooseText: t.chooseThis,
               chosenText: t.chosen,
-              unavailableText: t.notAtShop,
+              unavailableText: unavailableText ?? t.notAtShop,
             }}
           />
           {data.source && <p className="mt-3 text-xs text-zinc-500">{data.source}</p>}

@@ -33,7 +33,7 @@ export type PackagePickerText = { hint: string; cta: string; next: string };
  */
 export function PackagePicker({ locale, pictures, text, tables }: { locale: Locale; pictures: Record<string, string>; text: PackagePickerText; tables: CompareTables }) {
   const t = droneText(locale);
-  const { model, controller, batteries, hours, setModel, setController, setBatteries, setHours } = usePackage();
+  const { model, controller, batteries, hours, setModel, setController, setBatteries, setHours, unavailableModels, unavailableControllers } = usePackage();
 
   // Counted once the whole package is chosen and the price shows.
   const complete = model !== null && controller !== null && batteries !== null && hours !== null;
@@ -47,8 +47,8 @@ export function PackagePicker({ locale, pictures, text, tables }: { locale: Loca
   return (
     <div className="mt-8 grid gap-8 md:grid-cols-2 md:items-start">
       <div className="space-y-6">
-        <DroneChoice onDark locale={locale} models={ENABLED_DRONE_MODELS} value={model} onChange={setModel} compare={tables.drone} />
-        {profile && model && <ControllerChoice onDark locale={locale} model={model} options={profile.controllerOptions} value={controller} onChange={setController} compare={tables.fly} />}
+        <DroneChoice onDark locale={locale} models={ENABLED_DRONE_MODELS} value={model} onChange={setModel} compare={tables.drone} unavailable={unavailableModels} unavailableLabel={t.common.notAvailable} />
+        {profile && model && <ControllerChoice onDark locale={locale} model={model} options={profile.controllerOptions} value={controller} onChange={setController} compare={tables.fly} unavailable={unavailableControllers} unavailableLabel={t.common.notAvailable} />}
         {model && controller && <BatteryChoice onDark locale={locale} model={model} value={batteries} onChange={setBatteries} />}
         {model && controller && batteries && <DurationChoice onDark locale={locale} value={hours} hourly={hourlyRateFor(model, controller)} onChange={setHours} />}
       </div>

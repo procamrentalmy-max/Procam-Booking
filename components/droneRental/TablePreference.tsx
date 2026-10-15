@@ -4,6 +4,7 @@ import { DRONE_MODEL_PROFILES, ENABLED_DRONE_MODELS } from "@/lib/droneRental/pr
 import type { Locale } from "@/lib/i18n/locale";
 import { ControllerChoice } from "./ControllerChoice";
 import { DroneChoice } from "./DroneChoice";
+import { droneText } from "@/lib/i18n/drone";
 import { usePackage } from "./PackageContext";
 
 export type TablePreferenceText = { label: string; added: string; see: string };
@@ -14,11 +15,12 @@ export type TablePreferenceText = { label: string; added: string; see: string };
  */
 export function TablePreference({ kind, locale, text }: { kind: "drone" | "fly"; locale: Locale; text: TablePreferenceText }) {
   const pkg = usePackage();
+  const notAvailable = droneText(locale).common.notAvailable;
   const chosen = kind === "drone" ? pkg.model : pkg.controller;
   return (
     <div className="mt-6 max-w-md rounded-2xl border border-slate-600 bg-slate-800 p-5">
       {kind === "drone" ? (
-        <DroneChoice onDark locale={locale} label={text.label} models={ENABLED_DRONE_MODELS} value={pkg.model} onChange={pkg.setModel} />
+        <DroneChoice onDark locale={locale} label={text.label} models={ENABLED_DRONE_MODELS} value={pkg.model} onChange={pkg.setModel} unavailable={pkg.unavailableModels} unavailableLabel={notAvailable} />
       ) : (
         <ControllerChoice
           onDark
@@ -28,6 +30,8 @@ export function TablePreference({ kind, locale, text }: { kind: "drone" | "fly";
           options={DRONE_MODEL_PROFILES[pkg.model ?? "NEO2"].controllerOptions}
           value={pkg.controller}
           onChange={pkg.setController}
+          unavailable={pkg.unavailableControllers}
+          unavailableLabel={notAvailable}
         />
       )}
       {chosen && (
