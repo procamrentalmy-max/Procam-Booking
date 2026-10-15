@@ -234,7 +234,7 @@ describe("the three ways to fly: phone only, the RC-N3 or the Goggles N3 + Motio
 
   it("names the choice for the customer", () => {
     expect(controllerLabel("NEO2", "NONE")).toBe("Phone only");
-    expect(controllerLabel("NEO2", "RC_N3")).toBe("RC-N3");
+    expect(controllerLabel("NEO2", "RC_N3")).toBe("Controller (RC-N3)");
     expect(controllerLabel("NEO", "GOGGLES_N3")).toBe("Goggles N3 + Motion 3");
   });
 

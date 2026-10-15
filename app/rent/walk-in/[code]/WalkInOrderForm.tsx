@@ -89,16 +89,6 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false,
     >
       <DroneChoice locale={locale} models={models} value={model} onChange={setModel} unavailable={models.filter((m) => !pickableModels.includes(m))} compare={tables?.drone} />
 
-      <ControllerChoice
-        locale={locale}
-        model={model}
-        options={controllerOptions}
-        value={controller}
-        onChange={setPickedController}
-        unavailable={controllerOptions.filter((o) => !selectableControllers.includes(o))}
-        compare={tables?.fly}
-      />
-
       <div>
         <p className="mb-2 text-sm font-medium">{t.wizard.howLong}</p>
         <div className={`grid gap-2 ${durationsMinutes.length > 3 ? "grid-cols-4" : "grid-cols-3"}`}>
@@ -116,6 +106,16 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false,
           ))}
         </div>
       </div>
+
+      <ControllerChoice
+        locale={locale}
+        model={model}
+        options={controllerOptions}
+        value={controller}
+        onChange={setPickedController}
+        unavailable={controllerOptions.filter((o) => !selectableControllers.includes(o))}
+        compare={tables?.fly}
+      />
 
       <div>
         <p className="mb-2 text-sm font-medium">{t.wizard.howMany}</p>

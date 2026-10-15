@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE_OPTIONS } from "@/lib/supabase/cookieOptions";
 import { DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/i18n/locale";
+import { lockerGate } from "@/lib/features";
 
 const PROTECTED_PREFIXES = ["/admin", "/staff", "/merchant", "/post-login"];
 
@@ -28,6 +29,12 @@ function isFreshEntry(request: NextRequest): boolean {
  * deliberately skips to stay cheap.
  */
 export async function proxy(request: NextRequest) {
+  // The hotel-locker side is switched off for now (lib/features.ts): its pages show "paused", its admin pages go back to the dashboard.
+  const gate = lockerGate(request.nextUrl.pathname);
+  if (gate === "paused") return NextResponse.redirect(new URL("/paused", request.url));
+  if (gate === "admin-home") return NextResponse.redirect(new URL("/admin", request.url));
+  if (gate === "gone") return NextResponse.json({ error: "This service is paused." }, { status: 410 });
+
   // Land in English: the page being rendered must see English too, not just the browser afterwards.
   const picked = request.cookies.get(LOCALE_COOKIE)?.value;
   const resetLanguage = !!picked && picked !== DEFAULT_LOCALE && isFreshEntry(request);

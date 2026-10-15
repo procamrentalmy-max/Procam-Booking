@@ -67,7 +67,7 @@ export const en = {
       sub: "Pick how you fly when you book. The extras are added to the drone's price and deposit.",
       option: "Option",
       phone: "Phone only",
-      rc: "RC-N3",
+      rc: "Controller (RC-N3)",
       goggles: "Goggles N3 + Motion 3",
       priceGroup: "Price",
       getGroup: "What you get",

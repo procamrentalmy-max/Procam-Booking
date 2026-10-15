@@ -277,6 +277,8 @@ export function DroneBookingWizard({
 
         <DroneChoice locale={locale} models={models} value={model} onChange={setModel} unavailable={models.filter((m) => !availableModels.includes(m))} compare={tables?.drone} />
 
+        <DurationChoice locale={locale} value={durationHours} hourly={hourly} onChange={setDurationHours} />
+
         <ControllerChoice
           locale={locale}
           model={model}
@@ -293,8 +295,6 @@ export function DroneBookingWizard({
           depositMyr={deposit}
           alt={`${profile.shortName}, ${controllerName(controller)}, ${t.common.batteries(batteries)}`}
         />
-
-        <DurationChoice locale={locale} value={durationHours} hourly={hourly} onChange={setDurationHours} />
 
         <BatteryChoice locale={locale} model={model} value={batteries} onChange={setBatteries} />
 

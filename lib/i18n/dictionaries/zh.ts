@@ -69,7 +69,7 @@ export const zh: Dictionary = {
       sub: "预订时选择飞行方式。无论选哪款无人机，价格和押金都在无人机的基础上加上。",
       option: "选项",
       phone: "仅手机",
-      rc: "RC-N3",
+      rc: "遥控器（RC-N3）",
       goggles: "Goggles N3 + Motion 3",
       priceGroup: "价格",
       getGroup: "您得到什么",

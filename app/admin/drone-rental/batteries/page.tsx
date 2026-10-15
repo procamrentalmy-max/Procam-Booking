@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { modelProfile } from "@/lib/droneRental/pricingRules";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
+import { RankedBars } from "@/components/droneRental/DroneCharts";
 
 export const dynamic = "force-dynamic";
 
@@ -102,6 +103,26 @@ export default async function DroneBatteriesPage() {
           Least used: <span className="font-medium">{fewest.name}</span> ({fewest.uses}×). Rotating the batteries that are used least keeps the wear even.
         </p>
       )}
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-base font-semibold text-black dark:text-zinc-50">Ranking: most used first</h2>
+          <p className="text-xs text-zinc-500">How many times each battery has gone out with a customer. Gold, silver and bronze are the three most used; the least used ones sit at the bottom, ready to be rotated in.</p>
+        </div>
+        <RankedBars rows={sorted.map((r) => ({ label: r.name, value: r.uses, note: r.uses === 1 ? "1 time" : `${r.uses} times` }))} format={(n) => `${n}×`} emptyText="No batteries yet." />
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-base font-semibold text-black dark:text-zinc-50">Ranking: hours out with customers</h2>
+          <p className="text-xs text-zinc-500">The same batteries ordered by how long they have spent out, which is what actually wears them.</p>
+        </div>
+        <RankedBars
+          rows={[...rows].sort((a, b) => b.outMs - a.outMs || a.name.localeCompare(b.name, undefined, { numeric: true })).map((r) => ({ label: r.name, value: Math.round((r.outMs / HOUR_MS) * 10) / 10 }))}
+          format={(n) => `${n} h`}
+          emptyText="No batteries yet."
+        />
+      </section>
 
       <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
         <table className="w-full min-w-[40rem] text-left text-sm">

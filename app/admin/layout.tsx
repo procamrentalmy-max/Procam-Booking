@@ -8,6 +8,7 @@ import { BackToDashboard } from "@/components/BackToDashboard";
 const PAGE_TITLES: Record<string, string> = {
   "/admin/drone-rental": "Drone Rental",
   "/admin/drone-rental/sales": "Drone Sales",
+  "/admin/drone-rental/profit": "Drone Profit",
   "/admin/bookings": "Bookings",
   "/admin/damage-cases": "Damage Cases",
   "/admin/partners": "Partners",

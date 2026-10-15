@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HOTEL_LOCKERS_ENABLED } from "@/lib/features";
 
 type Section = { href: string; label: string; note: string };
 
@@ -10,6 +11,7 @@ const GROUPS: { title: string; sections: Section[] }[] = [
       { href: "/admin/drone-rental/damage", label: "Damage Review", note: "Tonight: type the amount to keep for each damaged item and capture it from the deposit" },
       { href: "/admin/drone-rental/batteries", label: "Drone Batteries", note: "Every battery by number, and how much each one has been used" },
       { href: "/admin/drone-rental/funnel", label: "Drone Funnel", note: "Where customers drop off between the home page and paying" },
+      { href: "/admin/drone-rental/profit", label: "Drone Profit", note: "Sales minus what each rental costs, against the 65% goal, with charts, payback and a forecast by day" },
       { href: "/admin/drone-rental/sales", label: "Drone Sales", note: "Drone revenue only: by month, shop, drone and rental length" },
     ],
   },
@@ -48,7 +50,7 @@ const GROUPS: { title: string; sections: Section[] }[] = [
 export default function AdminHome() {
   return (
     <div className="space-y-8 pt-4">
-      {GROUPS.map((group) => (
+      {GROUPS.filter((group) => HOTEL_LOCKERS_ENABLED || !group.title.startsWith("Hotel locker")).map((group) => (
         <section key={group.title}>
           <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">{group.title}</h2>
           <div className="grid gap-3 sm:grid-cols-2">

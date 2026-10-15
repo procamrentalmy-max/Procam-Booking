@@ -144,12 +144,12 @@ export const faqEn: FaqPage = {
       title: "Flying",
       items: [
         {
-          q: "Phone only, RC-N3 or goggles: which should I choose?",
+          q: "Phone only, controller or goggles: which should I choose?",
           blocks: [
             {
               ul: [
                 "Phone only: you fly with your own phone and the DJI Fly app. Cheapest, and fine for casual flying.",
-                "RC-N3: a proper controller that your phone clips into (you still need your phone). Longer control range.",
+                "Controller (RC-N3): a proper controller that your phone clips into (you still need your phone). Longer control range.",
                 "Goggles N3 with Motion 3: you fly by looking through the goggles and moving the Motion 3 controller. No phone needed.",
               ],
             },
@@ -357,12 +357,12 @@ export const faqMs: FaqPage = {
       title: "Menerbangkan dron",
       items: [
         {
-          q: "Telefon sahaja, RC-N3 atau goggles: yang mana patut saya pilih?",
+          q: "Telefon sahaja, alat kawalan atau goggles: yang mana patut saya pilih?",
           blocks: [
             {
               ul: [
                 "Telefon sahaja: anda terbang dengan telefon sendiri dan aplikasi DJI Fly. Paling murah, dan sesuai untuk penerbangan santai.",
-                "RC-N3: alat kawalan sebenar tempat telefon anda diklipkan (anda masih memerlukan telefon). Jarak kawalan lebih jauh.",
+                "Alat kawalan (RC-N3): alat kawalan sebenar tempat telefon anda diklipkan (anda masih memerlukan telefon). Jarak kawalan lebih jauh.",
                 "Goggles N3 dengan Motion 3: anda terbang dengan melihat melalui goggles dan menggerakkan alat kawalan Motion 3. Tidak perlu telefon.",
               ],
             },
@@ -570,12 +570,12 @@ export const faqZh: FaqPage = {
       title: "飞行",
       items: [
         {
-          q: "只用手机、RC-N3 还是 Goggles：该选哪个？",
+          q: "只用手机、遥控器还是 Goggles：该选哪个？",
           blocks: [
             {
               ul: [
                 "只用手机：用您自己的手机和 DJI Fly App 飞行。最便宜，适合休闲飞行。",
-                "RC-N3：把手机夹在上面的正规遥控器（仍需要您的手机）。控制距离更远。",
+                "遥控器（RC-N3）：把手机夹在上面的正规遥控器（仍需要您的手机）。控制距离更远。",
                 "Goggles N3 搭配 Motion 3：通过眼镜观看并移动 Motion 3 体感控制器来飞行，不需要手机。",
               ],
             },

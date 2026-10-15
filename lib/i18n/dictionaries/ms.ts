@@ -69,7 +69,7 @@ export const ms: Dictionary = {
       sub: "Anda pilih cara terbang semasa menempah. Harga dan deposit ditambah pada harga dron, apa-apa dron yang anda pilih.",
       option: "Pilihan",
       phone: "Telefon sahaja",
-      rc: "RC-N3",
+      rc: "Alat kawalan (RC-N3)",
       goggles: "Goggles N3 + Motion 3",
       priceGroup: "Harga",
       getGroup: "Apa yang anda dapat",
