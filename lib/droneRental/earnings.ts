@@ -49,15 +49,18 @@ export function cardFeeFor(payment: Payment): number {
 
 export const ZERO_EARNINGS: Earnings = { income: 0, costs: { platform: 0, payment: 0, kyc: 0 }, totalCosts: 0, net: 0, partner: 0, procam: 0 };
 
-/** The earnings from one booking, from the payments made on it. The identity check is charged once per booking. */
-export function earningsForBooking(payments: Payment[]): Earnings {
+/**
+ * The earnings from one booking, from the payments made on it. The identity check is charged once per booking, so a shop that only did a
+ * battery swap for another shop's customer passes `{ kyc: false }`: it did not do that customer's ID check.
+ */
+export function earningsForBooking(payments: Payment[], options: { kyc?: boolean } = {}): Earnings {
   const paid = payments.filter((p) => p.amount > 0);
   if (paid.length === 0) return ZERO_EARNINGS;
   const income = paid.reduce((sum, p) => sum + p.amount, 0);
   const costs = {
     platform: income * PLATFORM_RATE,
     payment: paid.reduce((sum, p) => sum + cardFeeFor(p), 0),
-    kyc: KYC_PER_BOOKING_MYR,
+    kyc: options.kyc === false ? 0 : KYC_PER_BOOKING_MYR,
   };
   const totalCosts = costs.platform + costs.payment + costs.kyc;
   const net = income - totalCosts;

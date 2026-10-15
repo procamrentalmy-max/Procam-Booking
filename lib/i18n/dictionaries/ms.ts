@@ -86,7 +86,7 @@ export const ms: Dictionary = {
       { title: "Pilih kedai", text: "Pilih kedai pengambilan di peta, atau tekan Terdekat dengan saya." },
       { title: "Pilih masa", text: "Pilih mana-mana slot yang kosong dan bayar yuran sewa." },
       { title: "Ambil dan terbang", text: "Tunjukkan kod QR tempahan anda kepada kedai. Pulangkan semuanya di sana apabila masa tamat." },
-      { title: "Bateri habis?", text: "Tukar di kedai dengan bateri yang dicas penuh. Setiap pertukaran dicaj mengikut harga bateri." },
+      { title: "Bateri habis?", text: "Buka pautan tempahan anda, pilih mana-mana kedai dan tukar dengan bateri yang dicas penuh. Setiap pertukaran dicaj mengikut harga bateri. Pulangkan semuanya ke kedai tempat anda menyewa." },
     ],
     kitPoints: [
       "**Tukar** bateri yang telah digunakan dengan yang **dicas penuh** di kedai.",

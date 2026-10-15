@@ -5,6 +5,7 @@ import { Brand } from "@/components/Brand";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { droneText } from "@/lib/i18n/drone";
 import Link from "next/link";
+import { FunnelBeacon } from "@/components/FunnelBeacon";
 import { packageQuery, parsePackagePreset } from "@/lib/droneRental/packagePreset";
 import { DRONE_MODEL_PROFILES, controllerLabel, depositMyrFor, formatMyr, rentalFeeMyr } from "@/lib/droneRental/pricingRules";
 
@@ -36,6 +37,7 @@ export default async function RentLandingPage({ searchParams }: { searchParams: 
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-5 px-6 py-6">
+      <FunnelBeacon step="SHOPS" />
       <Brand logoUrl={logoUrl} size={22} />
       <div>
         <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">{t.title}</h1>

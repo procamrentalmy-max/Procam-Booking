@@ -38,7 +38,7 @@ export async function submitWalkInOrderAction(input: {
   verificationId: string;
 }): Promise<SubmitOrderResult> {
   const t = droneText(await getLocale()).errors;
-  const reasons = { shop_not_found: t.shopNotFound, length_unavailable: t.lengthUnavailable, too_many_open: t.tooManyOpen, too_windy: t.tooWindyNow } as const;
+  const reasons = { shop_not_found: t.shopNotFound, length_unavailable: t.lengthUnavailable, too_many_open: t.tooManyOpen, too_windy: t.tooWindyNow, shop_closed: t.shopClosedNow } as const;
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { ok: false, message: fieldError(t, parsed.error.issues[0]?.path[0]) };
   const d = parsed.data;

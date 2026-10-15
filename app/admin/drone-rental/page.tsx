@@ -12,7 +12,9 @@ import {
   setDroneStatusAction,
   renameBatteryAction,
   assignMerchantShopsAction,
+  setShopHoursAction,
 } from "./actions";
+import { parseShopHours, WEEKDAY_NAMES } from "@/lib/droneRental/hours";
 
 const DRONE_STATUSES = ["AVAILABLE", "RENTED", "MAINTENANCE", "LOST", "RETIRED"] as const;
 
@@ -49,7 +51,7 @@ export default async function DroneRentalAdminPage() {
 
   const [{ data: shops }, { data: drones }, { data: batteries }, { data: controllers }, { data: merchants }, { data: assignments }, { data: recent }, { data: monthBookings }] =
     await Promise.all([
-      supabase.from("dr_shops").select("id,human_id,name,address,lat,lng,active").order("created_at", { ascending: true }),
+      supabase.from("dr_shops").select("id,human_id,name,address,lat,lng,active,hours").order("created_at", { ascending: true }),
       supabase.from("dr_drones").select("id,human_id,shop_id,status,serial_number,cost_price_myr,model_key").order("human_id"),
       supabase.from("dr_batteries").select("id,human_id,name,drone_id,status").order("human_id"),
       supabase.from("dr_controllers").select("id,human_id,shop_id,kind").order("human_id"),
@@ -342,6 +344,48 @@ export default async function DroneRentalAdminPage() {
           );
         })}
         {(merchants ?? []).length === 0 && <p className="text-sm text-zinc-400">No merchant accounts yet.</p>}
+      </section>
+
+      <section className="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+        <div>
+          <h2 className="text-sm font-semibold">Operating hours</h2>
+          <p className="text-xs text-zinc-500">
+            Each merchant works to the hours of the shop they are assigned to. Set them for each day, or tick Closed. Times are Malaysia time, on the hour or half hour. Customers can only book
+            times inside the hours (the rental has to end by closing), and the shop shows as closed outside them for swaps and walk-ins. Until you set them, a shop is open 08:00 to 22:00 every day.
+          </p>
+        </div>
+        {(shops ?? []).map((shop) => {
+          const hours = parseShopHours(shop.hours);
+          const merchantNames = (merchants ?? []).filter((m) => (assignedShopIdsByMerchant.get(m.id) ?? new Set<string>()).has(shop.id)).map((m) => m.name);
+          return (
+            <form key={shop.id} action={setShopHoursAction} className="space-y-2 border-t border-zinc-100 pt-4 first:border-t-0 first:pt-0 dark:border-zinc-900">
+              <input type="hidden" name="shopId" value={shop.id} />
+              <p className="text-sm font-medium">
+                {shop.name} <span className="font-normal text-zinc-500">{merchantNames.length ? `· merchant: ${merchantNames.join(", ")}` : "· no merchant assigned yet"}</span>
+              </p>
+              <div className="space-y-1.5">
+                {WEEKDAY_NAMES.map((dayName, day) => {
+                  const d = hours[day];
+                  return (
+                    <div key={dayName} className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className="w-24 shrink-0">{dayName}</span>
+                      <input type="time" step={1800} name={`open-${day}`} defaultValue={d?.open ?? "09:00"} aria-label={`${dayName} opens`} className={inputClass} />
+                      <span className="text-zinc-500">to</span>
+                      <input type="time" step={1800} name={`close-${day}`} defaultValue={d?.close ?? "18:00"} aria-label={`${dayName} closes`} className={inputClass} />
+                      <label className="flex items-center gap-1 text-zinc-600 dark:text-zinc-400">
+                        <input type="checkbox" name={`closed-${day}`} defaultChecked={d === null} />
+                        Closed
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+              <button type="submit" className={primaryButtonClass}>
+                Save hours
+              </button>
+            </form>
+          );
+        })}
       </section>
     </div>
   );

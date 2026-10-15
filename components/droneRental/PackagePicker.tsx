@@ -20,6 +20,8 @@ import { ComboCard, TotalSummary } from "./ComboCard";
 import { ControllerChoice } from "./ControllerChoice";
 import { DroneChoice } from "./DroneChoice";
 import { BatteryChoice, DurationChoice } from "./PackageChoices";
+import { useEffect } from "react";
+import { trackStep } from "@/components/FunnelBeacon";
 import { usePackage } from "./PackageContext";
 
 export type PackagePickerText = { hint: string; cta: string; next: string };
@@ -32,6 +34,12 @@ export type PackagePickerText = { hint: string; cta: string; next: string };
 export function PackagePicker({ locale, pictures, text, tables }: { locale: Locale; pictures: Record<string, string>; text: PackagePickerText; tables: CompareTables }) {
   const t = droneText(locale);
   const { model, controller, batteries, hours, setModel, setController, setBatteries, setHours } = usePackage();
+
+  // Counted once the whole package is chosen and the price shows.
+  const complete = model !== null && controller !== null && batteries !== null && hours !== null;
+  useEffect(() => {
+    if (complete) trackStep("PRICE");
+  }, [complete]);
 
   const profile = model ? DRONE_MODEL_PROFILES[model] : null;
   const controllerName = (m: DroneModel, kind: ControllerKind) => (kind === "NONE" ? t.common.phoneOnly : controllerLabel(m, kind));

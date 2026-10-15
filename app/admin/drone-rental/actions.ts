@@ -6,6 +6,7 @@ import { uuidSchema } from "@/lib/zod-helpers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { ENABLED_DRONE_MODELS, DRONE_MODEL_PROFILES } from "@/lib/droneRental/pricingRules";
 import { nextBatteryNames } from "@/lib/droneRental/batteryNames";
+import { isHalfHourTime, serializeShopHours, WEEKDAY_NAMES, type ShopHours } from "@/lib/droneRental/hours";
 
 const createShopSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -85,11 +86,11 @@ export async function createDroneAction(formData: FormData) {
   // Controllers are separate from drones (see createControllerAction): a customer picks the RC-N3, the goggles set or neither per rental.
 
   // Named by make (B1, B2... for the Neo 2, N1, N2... for the Neo; a parked GT50's would be A1, A2...), carrying on from the highest number already used
-  // for that letter in this shop, so each battery can carry a matching sticker; rename them from this page.
-  const { data: shopBatteries } = await supabase.from("dr_batteries").select("name").eq("shop_id", parsed.data.shopId);
-  const names = nextBatteryNames((shopBatteries ?? []).map((b) => b.name), 3, DRONE_MODEL_PROFILES[parsed.data.model].batteryPrefix);
+  // for that letter in ALL the shops, because batteries are swapped between shops and every sticker number must be different. Rename them from this page.
+  const { data: allBatteries } = await supabase.from("dr_batteries").select("name");
+  const names = nextBatteryNames((allBatteries ?? []).map((b) => b.name), 3, DRONE_MODEL_PROFILES[parsed.data.model].batteryPrefix);
   const { error: batteryError } = await supabase.from("dr_batteries").insert(names.map((name) => ({ drone_id: drone.id, name })));
-  if (batteryError) throw new Error(batteryError.code === "23505" ? "One of the new batteries' names is already taken in this shop. Rename it, then add the drone's batteries by hand." : batteryError.message);
+  if (batteryError) throw new Error(batteryError.code === "23505" ? "One of the new batteries' names is already taken by another battery. Rename it, then add the drone's batteries by hand." : batteryError.message);
 
   revalidatePath("/admin/drone-rental");
 }
@@ -135,7 +136,7 @@ export async function renameBatteryAction(formData: FormData) {
 
   const supabase = await createServerSupabaseClient();
   const { error } = await supabase.from("dr_batteries").update({ name: parsed.data.name }).eq("id", parsed.data.id);
-  if (error) throw new Error(error.code === "23505" ? "Another battery in this shop already has that name." : error.message);
+  if (error) throw new Error(error.code === "23505" ? "Another battery already has that name: every battery needs its own number." : error.message);
 
   revalidatePath("/admin/drone-rental");
 }
@@ -173,4 +174,29 @@ export async function assignMerchantShopsAction(formData: FormData) {
   }
 
   revalidatePath("/admin/drone-rental");
+}
+
+/**
+ * A shop's opening hours, one line per weekday (Sunday first): closed, or an opening and a closing time on the half hour, Malaysia time.
+ * The merchant assigned to the shop works to these hours: customers can only book inside them, and the shop shows as closed outside them.
+ */
+export async function setShopHoursAction(formData: FormData) {
+  const shopId = uuidSchema.parse(formData.get("shopId"));
+  const hours: ShopHours = [];
+  for (let day = 0; day < 7; day++) {
+    if (formData.get(`closed-${day}`)) {
+      hours.push(null);
+      continue;
+    }
+    const open = formData.get(`open-${day}`);
+    const close = formData.get(`close-${day}`);
+    if (!isHalfHourTime(open) || !isHalfHourTime(close)) throw new Error(`${WEEKDAY_NAMES[day]}: use times on the hour or half hour, for example 09:00 or 18:30.`);
+    if (open >= close) throw new Error(`${WEEKDAY_NAMES[day]}: closing must be after opening.`);
+    hours.push({ open, close });
+  }
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.from("dr_shops").update({ hours: serializeShopHours(hours) }).eq("id", shopId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/drone-rental");
+  revalidatePath("/rent", "layout");
 }

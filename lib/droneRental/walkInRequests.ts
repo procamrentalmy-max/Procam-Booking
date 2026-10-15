@@ -6,6 +6,8 @@ import { eligibleWalkInDrones, walkInDurationsForShop } from "./merchantBooking"
 import { findOrCreateCustomer, createMerchantInstantBooking, NoControllerAvailableError, NoDroneAvailableError } from "./createBooking";
 import { walkInExpiry, walkInView, type WalkInView } from "./walkIn";
 import { checkWind } from "./wind";
+import { isOpenNow } from "./hours";
+import { getShopHours } from "./shopHours";
 import { formatWind } from "./windRules";
 import type { DrWalkInRequestRow } from "@/lib/db/types";
 import {
@@ -77,7 +79,7 @@ export async function walkInOptionsByModel(shopId: string): Promise<WalkInOption
 
 export type SubmitWalkInOrderResult =
   | { ok: true; publicToken: string }
-  | { ok: false; reason: "shop_not_found" | "length_unavailable" | "too_many_open" | "too_windy" };
+  | { ok: false; reason: "shop_not_found" | "length_unavailable" | "too_many_open" | "too_windy" | "shop_closed" };
 
 /**
  * A customer's walk-in order, made from the shop's standing QR: the length and batteries they chose plus their
@@ -102,6 +104,8 @@ export async function submitWalkInOrder(params: {
 
   const supabase = createServiceRoleClient();
   const now = new Date();
+  // Outside the shop's opening hours (set by the admin) nobody is there to confirm the order.
+  if (!isOpenNow(await getShopHours(shop.id), now)) return { ok: false, reason: "shop_closed" };
 
   const { data: open } = await supabase
     .from("dr_walkin_requests")

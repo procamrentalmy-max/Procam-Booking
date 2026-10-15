@@ -84,7 +84,7 @@ export const en = {
       { title: "Pick a shop", text: "Choose a pickup shop on the map, or tap Nearest to me." },
       { title: "Choose a time", text: "Pick any free slot and pay the rental fee." },
       { title: "Collect and fly", text: "Show your booking QR to the shop. Return everything there when your time is up." },
-      { title: "Battery finished?", text: "Change it at the shop for a fully charged one. Each swap is charged at the battery price." },
+      { title: "Battery finished?", text: "Open your booking link, pick any shop and swap it for a fully charged one. Each swap is charged at the battery price. Bring everything back to the shop you rented from." },
     ],
     kitPoints: [
       "**Swap** used batteries for **fully charged** ones at the shop.",

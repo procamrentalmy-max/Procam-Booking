@@ -11,11 +11,14 @@ import { submitBatterySwapAction } from "./actions";
 
 export function BatterySwapForm({
   bookingId,
+  swapShopId,
   heldBatteries,
   options,
   batteryFees,
 }: {
   bookingId: string;
+  /** The shop doing the swap (the one this merchant is at). */
+  swapShopId: string;
   /** What the customer is holding now, by name. */
   heldBatteries: BatteryOption[];
   /** Every charged battery at the shop that fits this drone, to pick from. */
@@ -44,6 +47,7 @@ export function BatterySwapForm({
     try {
       const formData = new FormData();
       formData.set("bookingId", bookingId);
+      formData.set("swapShopId", swapShopId);
       formData.set("paidBy", payMethod);
       for (const id of selected) formData.append("returnedBatteryIds", id);
       for (const id of give) formData.append("replacementIds", id);

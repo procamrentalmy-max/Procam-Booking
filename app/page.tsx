@@ -7,6 +7,7 @@ import { PackageProvider } from "@/components/droneRental/PackageContext";
 import { CompareTable } from "@/components/droneRental/CompareTable";
 import { buildCompareTables } from "@/lib/droneRental/compareTables";
 import { hasTutorial } from "@/lib/tutorials";
+import { FunnelBeacon } from "@/components/FunnelBeacon";
 import { TablePreference } from "@/components/droneRental/TablePreference";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { Brand } from "@/components/Brand";
@@ -81,6 +82,7 @@ export default async function Home() {
       </header>
 
       <PackageProvider>
+      <FunnelBeacon step="HOME" />
       <main>
         <section className="mx-auto grid max-w-5xl items-center gap-10 px-6 pb-16 pt-10 md:grid-cols-[1.2fr_1fr] md:pb-24 md:pt-16">
           <div>

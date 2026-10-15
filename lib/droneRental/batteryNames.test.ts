@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { nextBatteryNames } from "./batteryNames";
 
 describe("nextBatteryNames", () => {
-  it("starts at B1 for a shop with no batteries", () => {
+  it("starts at B1 when there are no batteries", () => {
     expect(nextBatteryNames([], 3)).toEqual(["B1", "B2", "B3"]);
   });
 
-  it("carries on after the highest number in the shop", () => {
+  it("carries on after the highest number anywhere", () => {
     expect(nextBatteryNames(["B1", "B2", "B3"], 3)).toEqual(["B4", "B5", "B6"]);
     expect(nextBatteryNames(["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9"], 3)).toEqual(["B10", "B11", "B12"]);
   });

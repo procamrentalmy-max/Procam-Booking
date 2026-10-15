@@ -194,7 +194,7 @@ export const faqEn: FaqPage = {
         },
         {
           q: "What if the battery runs flat?",
-          blocks: [{ p: "Swap used batteries for fully charged ones at the shop during your rental. Each swap is charged at the battery price shown at the shop, to your saved card or in cash." }],
+          blocks: [{ p: "Swap used batteries for fully charged ones at any of our shops during your rental, not only the one you rented from. Open your booking link, tap Battery finished? Swap it at any shop, pick the shop and show the QR to the staff. Each swap is charged at the battery price, to your saved card or in cash. When your time is up, still bring the drone and all your batteries back to the shop you rented from." }],
         },
       ],
     },
@@ -407,7 +407,7 @@ export const faqMs: FaqPage = {
         },
         {
           q: "Bagaimana jika bateri habis?",
-          blocks: [{ p: "Tukar bateri yang telah digunakan dengan bateri yang dicas penuh di kedai semasa sewaan anda. Setiap pertukaran dicaj pada harga bateri yang ditunjukkan di kedai, pada kad tersimpan anda atau secara tunai." }],
+          blocks: [{ p: "Tukar bateri yang telah digunakan dengan bateri yang dicas penuh di mana-mana kedai kami semasa sewaan anda, bukan hanya kedai tempat anda menyewa. Buka pautan tempahan anda, tekan Bateri habis? Tukar di mana-mana kedai, pilih kedai dan tunjukkan kod QR kepada kakitangan. Setiap pertukaran dicaj pada harga bateri, pada kad tersimpan anda atau secara tunai. Apabila masa tamat, anda masih perlu memulangkan dron dan semua bateri ke kedai tempat anda menyewa." }],
         },
       ],
     },
@@ -620,7 +620,7 @@ export const faqZh: FaqPage = {
         },
         {
           q: "电池没电了怎么办？",
-          blocks: [{ p: "租期内可以在门店把用过的电池换成充满电的。每次更换按门店显示的电池价格收费，从您保存的卡中扣除或付现金。" }],
+          blocks: [{ p: "租期内可以在我们任何一家门店把用过的电池换成充满电的，不只是租机的那家。打开您的预订链接，点“电池用完了？可在任何门店更换”，选择门店并向店员出示二维码。每次更换按电池价格收费，从您保存的卡中扣除或付现金。时间到后，仍需把无人机和全部电池归还到您租机的门店。" }],
         },
       ],
     },

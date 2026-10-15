@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
 import { FaqLink } from "@/components/droneRental/FaqLink";
+import { PaidBeacon } from "@/components/FunnelBeacon";
 import { controllerProfileFor, formatMyr, includesController, modelProfile, storedController } from "@/lib/droneRental/pricingRules";
 import { generateQrDataUrl } from "@/lib/qr";
 import { requestOrigin } from "@/lib/requestOrigin";
@@ -52,6 +53,7 @@ export default async function DroneBookingDashboardPage({ params, searchParams }
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
       {showQr && <AutoRefresh seconds={5} />}
+      {(booking.status === "CONFIRMED" || booking.status === "ACTIVE" || booking.status === "COMPLETED") && <PaidBeacon />}
       <div className="text-center">
         <p className="text-xs uppercase tracking-wide text-zinc-400">{t.booking.number(booking.human_id)}</p>
         <h1 className="mt-1 text-2xl font-semibold text-black dark:text-zinc-50">
@@ -109,6 +111,15 @@ export default async function DroneBookingDashboardPage({ params, searchParams }
         <p className="rounded-xl border border-zinc-200 p-4 text-center text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
           {booking.status === "COMPLETED" ? t.booking.completed : includesController(booking.drone_model, controller) ? t.booking.activeWithController : t.booking.activeDroneOnly}
         </p>
+      )}
+
+      {booking.status === "ACTIVE" && (
+        <Link
+          href={`/rent/b/${token}/swap`}
+          className="flex h-12 items-center justify-center rounded-full border border-zinc-400 bg-zinc-100 text-sm font-semibold text-zinc-900 shadow-sm transition hover:bg-white dark:border-zinc-500 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
+        >
+          {t.swap.cta}
+        </Link>
       )}
 
       {booking.status === "PENDING_PAYMENT" && (

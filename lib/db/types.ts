@@ -564,6 +564,8 @@ export type DrShopRow = {
   active: boolean;
   /** The permanent code in the shop's standing walk-in QR. */
   walkin_code: string;
+  /** Opening hours: 7 entries, Sunday first, each null (closed) or [open, close]; null means the default 08:00 to 22:00 every day. See lib/droneRental/hours.ts. */
+  hours: unknown;
   created_at: string;
   updated_at: string;
 };
@@ -610,6 +612,8 @@ export type DrBatteryRow = {
   name: string | null;
   /** The shop this battery belongs to (its drone's shop); names are unique within a shop. */
   shop_id: string;
+  /** The shop it is physically at when it is AT_SHOP (or was last at). Differs from shop_id while it is away from home after a swap at another shop. */
+  at_shop_id: string;
   drone_id: string;
   status: DrBatteryStatus;
   current_booking_id: string | null;
@@ -670,6 +674,8 @@ export type DrBatterySwapRow = {
   fee_myr: number;
   paid_by: DrPaidBy;
   performed_by_staff_id: string;
+  /** The shop that did the swap (it earns the fee); null on swaps from before swaps at other shops existed. */
+  swap_shop_id: string | null;
   created_at: string;
 };
 
@@ -772,6 +778,9 @@ export type TutorialSectionRow = { id: string; title: string; position: number; 
 /** One photo or video under a tutorial header; the file is in the branding storage bucket under tutorial/. */
 export type TutorialMediaRow = { id: string; section_id: string; kind: "image" | "video"; file_path: string; caption: string | null; position: number; created_at: string };
 
+/** One step of the drone booking flow reached by one visit (Admin > Drone Funnel). */
+export type DrFunnelEventRow = { id: string; session_id: string; step: string; shop_id: string | null; created_at: string };
+
 type TableDef<Row> = { Row: Row; Insert: Partial<Row>; Update: Partial<Row>; Relationships: [] };
 
 export interface Database {
@@ -814,6 +823,7 @@ export interface Database {
       dr_combo_pictures: TableDef<DrComboPictureRow>;
       tutorial_sections: TableDef<TutorialSectionRow>;
       tutorial_media: TableDef<TutorialMediaRow>;
+      dr_funnel_events: TableDef<DrFunnelEventRow>;
       photo_orders: TableDef<PhotoOrderRow>;
       photo_order_files: TableDef<PhotoOrderFileRow>;
       demand_signals: TableDef<DemandSignalRow>;

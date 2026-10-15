@@ -8,6 +8,7 @@ import { formatMalaysiaTime, type Locale } from "@/lib/i18n/locale";
 import { dayLabelFor, droneText } from "@/lib/i18n/drone";
 import { AgreeLine } from "@/components/droneRental/AgreeLine";
 import { FaqLink } from "@/components/droneRental/FaqLink";
+import { trackStep } from "@/components/FunnelBeacon";
 import { ControllerChoice } from "@/components/droneRental/ControllerChoice";
 import { ComboCard, TotalSummary } from "@/components/droneRental/ComboCard";
 import type { PackagePreset } from "@/lib/droneRental/packagePreset";
@@ -30,7 +31,7 @@ import {
   includesController,
   rentalFeeMyr,
 } from "@/lib/droneRental/pricingRules";
-import { formatSlotTime, generateDaySlots } from "@/lib/droneRental/hours";
+import { DEFAULT_SHOP_HOURS, formatSlotTime, generateDaySlots, type ShopHours } from "@/lib/droneRental/hours";
 import { getUnavailableDroneStartsAction, createDroneBookingAction } from "@/app/rent/[shopId]/actions";
 import { useDroneKyc } from "@/components/droneRental/useDroneKyc";
 
@@ -84,6 +85,7 @@ export function DroneBookingWizard({
   preset = null,
   shopsHref = "/rent",
   tables,
+  hours = DEFAULT_SHOP_HOURS,
 }: {
   shopId: string;
   models: DroneModel[];
@@ -102,6 +104,8 @@ export function DroneBookingWizard({
   shopsHref?: string;
   /** The comparison tables behind the Compare buttons beside the drone and the way-to-fly choices. */
   tables?: CompareTables;
+  /** This shop's opening hours: the times offered follow them, and a closed day offers none. */
+  hours?: ShopHours;
 }) {
   const t = droneText(locale);
   const router = useRouter();
@@ -130,6 +134,11 @@ export function DroneBookingWizard({
   const [loading, setLoading] = useState(false);
   const [slotTaken, setSlotTaken] = useState(false);
 
+  // Which step of the booking each visit reaches (Admin > Drone Funnel).
+  useEffect(() => {
+    trackStep(step === "duration" ? "PACKAGE" : step === "slot" ? "TIME" : "DETAILS", shopId);
+  }, [step, shopId]);
+
   const durationMinutes = durationHours * 60;
   const profile = DRONE_MODEL_PROFILES[model];
   // Every way of flying is listed; those the shop has none of are greyed out and never chosen.
@@ -150,7 +159,7 @@ export function DroneBookingWizard({
   useEffect(() => {
     if (step !== "slot") return;
     const current = new Date();
-    const candidates = generateDaySlots(current, dayOffset, durationMinutes);
+    const candidates = generateDaySlots(current, dayOffset, durationMinutes, hours);
     setNow(current);
     setSlots(candidates);
     setSelectedStart(null);
@@ -177,7 +186,7 @@ export function DroneBookingWizard({
     return () => {
       cancelled = true;
     };
-  }, [step, shopId, model, controller, durationMinutes, dayOffset]);
+  }, [step, shopId, model, controller, durationMinutes, dayOffset, hours]);
 
   // Coming back after losing the last drone: put their choices and details back, ready to pick another time.
   useEffect(() => {
@@ -216,6 +225,7 @@ export function DroneBookingWizard({
   function submit() {
     if (!selectedStart) return;
     setError(null);
+    trackStep("ID_CHECK", shopId);
     void verifyThen({ name, phone, email }, placeBooking);
   }
 

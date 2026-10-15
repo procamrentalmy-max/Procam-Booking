@@ -7,6 +7,7 @@ import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
 import { batteryLabel, describeDue, formatClock, formatDayLabel, formatDuration, pickupDay } from "@/lib/droneRental/format";
 import { walkInView } from "@/lib/droneRental/walkIn";
 import { modelProfile } from "@/lib/droneRental/pricingRules";
+import { describeDayHours, parseShopHours } from "@/lib/droneRental/hours";
 import { pressableClass } from "@/components/formStyles";
 
 const NO_SHOPS = "00000000-0000-0000-0000-000000000000";
@@ -115,15 +116,19 @@ export default async function MerchantHomePage() {
   const droneIds = drones.map((d) => d.id);
   const customerIds = [...new Set(bookings.map((b) => b.customer_id))];
   const shopIdsShown = [...new Set(drones.map((d) => d.shop_id))];
-  const [{ data: batteries }, { data: customers }, { data: shops }, { data: controllers }] = await Promise.all([
-    droneIds.length ? supabase.from("dr_batteries").select("status,name,human_id,current_booking_id").in("drone_id", droneIds) : Promise.resolve({ data: [] }),
+  // A rental can hold a battery that was handed out at another shop (from a swap there), so what each rental holds is read by booking.
+  const [{ data: batteries }, { data: customers }, { data: shops }, { data: controllers }, { data: heldBatteries }] = await Promise.all([
+    (scoped ?? shopIdsShown).length ? supabase.from("dr_batteries").select("status,name,human_id,current_booking_id,at_shop_id").in("at_shop_id", scoped ?? shopIdsShown) : Promise.resolve({ data: [] }),
     // Names/phones for the cards — read with the service role after the
     // layout's merchant/admin gate, same as the pickup and return pages.
     customerIds.length ? createServiceRoleClient().from("customers").select("id,name,phone").in("id", customerIds) : Promise.resolve({ data: [] }),
-    shopIdsShown.length ? supabase.from("dr_shops").select("id,name").in("id", shopIdsShown) : Promise.resolve({ data: [] }),
+    shopIdsShown.length ? supabase.from("dr_shops").select("id,name,hours").in("id", shopIdsShown) : Promise.resolve({ data: [] }),
     // The controllers set aside for the bookings shown, to say which one goes out or comes back.
     bookings.some((b) => b.controller_id)
       ? supabase.from("dr_controllers").select("id,human_id").in("id", bookings.flatMap((b) => (b.controller_id ? [b.controller_id] : [])))
+      : Promise.resolve({ data: [] }),
+    bookings.length
+      ? createServiceRoleClient().from("dr_batteries").select("status,name,human_id,current_booking_id").in("current_booking_id", bookings.map((b) => b.id)).eq("status", "WITH_CUSTOMER")
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -133,6 +138,8 @@ export default async function MerchantHomePage() {
   const droneHumanId = new Map(drones.map((d) => [d.id, d.model_key === "NEO2" ? d.human_id : `${d.human_id} · ${modelProfile(d.model_key).shortName.replace("DJI ", "")}`]));
   const shopNameById = new Map((shops ?? []).map((s) => [s.id, s.name]));
   const showShopName = shopIdsShown.length > 1;
+  // Today's opening hours of the shop(s) shown, as the admin set them.
+  const hoursToday = (shops ?? []).map((sh) => `${showShopName ? `${sh.name}: ` : ""}${describeDayHours(parseShopHours(sh.hours), now)}`).join(" · ");
 
   // Only today's and tomorrow's pickups, soonest first. Later bookings aren't due yet; anything older was never collected.
   const pickups = bookings
@@ -142,7 +149,7 @@ export default async function MerchantHomePage() {
   const pickupsTomorrow = pickups.length - pickupsToday;
   // Which named batteries each rental is holding right now.
   const batteriesByBooking = new Map<string, string[]>();
-  for (const bat of batteries ?? []) {
+  for (const bat of heldBatteries ?? []) {
     if (bat.status !== "WITH_CUSTOMER" || !bat.current_booking_id) continue;
     batteriesByBooking.set(bat.current_booking_id, [...(batteriesByBooking.get(bat.current_booking_id) ?? []), batteryLabel(bat)]);
   }
@@ -152,6 +159,7 @@ export default async function MerchantHomePage() {
   const overdue = outNow.filter((b) => describeDue(new Date(b.end_time), now).overdue);
 
   const dronesFree = drones.filter((d) => d.status === "AVAILABLE").length;
+  // Every battery is the same, so the count is simply the ones on this shop's shelf right now, whichever shop they started at.
   const batteriesAtShop = (batteries ?? []).filter((b) => b.status === "AT_SHOP").length;
 
   return (
@@ -219,7 +227,8 @@ export default async function MerchantHomePage() {
           <Stat value={`${dronesFree}/${drones.length}`} label="Drones free" />
         </div>
         <p className="text-center text-xs text-zinc-500">
-          Batteries at the shop: <span className="font-semibold">{batteriesAtShop}</span> of {(batteries ?? []).length}
+          Batteries at the shop: <span className="font-semibold">{batteriesAtShop}</span>
+          {hoursToday && <> · Open today: <span className="font-semibold">{hoursToday}</span></>}
         </p>
       </div>
 

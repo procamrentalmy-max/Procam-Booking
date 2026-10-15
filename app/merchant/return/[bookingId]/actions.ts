@@ -47,7 +47,7 @@ export async function submitReturnAction(formData: FormData): Promise<ReturnResu
 
   const supabase = createServiceRoleClient();
 
-  const { data: booking } = await supabase.from("dr_bookings").select("id,status,drone_id,end_time,batteries_count,drone_model,controller_kind").eq("id", parsed.bookingId).single();
+  const { data: booking } = await supabase.from("dr_bookings").select("id,status,drone_id,end_time,batteries_count,drone_model,controller_kind,shop_id").eq("id", parsed.bookingId).single();
   if (!booking) throw new Error("Booking not found.");
   if (booking.status !== "ACTIVE") throw new Error("This booking isn't currently active.");
   const profile = modelProfile(booking.drone_model);
@@ -128,8 +128,9 @@ export async function submitReturnAction(formData: FormData): Promise<ReturnResu
       .eq("id", parsed.bookingId);
   }
 
-  // Every battery still checked out to this booking comes back to the shop.
-  await supabase.from("dr_batteries").update({ status: "AT_SHOP", current_booking_id: null }).eq("current_booking_id", parsed.bookingId);
+  // Every battery still checked out to this booking comes back to the shop of the booking (the final return is always there). One that
+  // belongs to another shop, from a swap there, is then away from home and goes on the Back home list.
+  await supabase.from("dr_batteries").update({ status: "AT_SHOP", current_booking_id: null, at_shop_id: booking.shop_id }).eq("current_booking_id", parsed.bookingId);
 
   const actualReturnTime = new Date();
   await supabase.from("dr_bookings").update({ status: "COMPLETED", actual_return_time: actualReturnTime.toISOString() }).eq("id", parsed.bookingId);

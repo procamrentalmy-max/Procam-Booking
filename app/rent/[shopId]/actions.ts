@@ -5,6 +5,7 @@ import { uuidSchema } from "@/lib/zod-helpers";
 import { buildShopFleetSnapshot } from "@/lib/droneRental/snapshot";
 import { computeUnavailableStarts } from "@/lib/droneRental/slots";
 import { isWithinOperatingHours } from "@/lib/droneRental/hours";
+import { getShopHours } from "@/lib/droneRental/shopHours";
 import { isValidRentalMinutes, CONTROLLER_KINDS, ENABLED_DRONE_MODELS, effectiveController, type ControllerKind, type DroneModel } from "@/lib/droneRental/pricingRules";
 import { findOrCreateCustomer, createPendingDroneBooking, NoControllerAvailableError, NoDroneAvailableError, TooWindyError } from "@/lib/droneRental/createBooking";
 import { claimVerification, releaseVerification } from "@/lib/droneRental/kyc";
@@ -40,7 +41,8 @@ export async function getUnavailableDroneStartsAction(input: {
   const dates = parsed.starts.map((s) => new Date(s));
   const noDrone = computeUnavailableStarts(snapshot.drones, snapshot.bookings, parsed.durationMinutes, dates, snapshot.controllers);
   // A start the shop is closed for (before opening, or running past closing) is unavailable too.
-  const unavailable = dates.map((d, i) => noDrone[i] || !isWithinOperatingHours(d, parsed.durationMinutes));
+  const hours = await getShopHours(parsed.shopId);
+  const unavailable = dates.map((d, i) => noDrone[i] || !isWithinOperatingHours(d, parsed.durationMinutes, hours));
 
   // Too windy for this drone then: the strongest hour of the forecast the rental would overlap is over the drone's limit.
   const windLimitMps = windLimitFor(parsed.model);
@@ -85,7 +87,7 @@ export async function createDroneBookingAction(input: {
   const data = parsed.data;
   const start = new Date(data.startTime);
   if (Number.isNaN(start.getTime())) return { error: t.invalidDate };
-  if (!isWithinOperatingHours(start, data.durationMinutes)) return { error: t.closed };
+  if (!isWithinOperatingHours(start, data.durationMinutes, await getShopHours(data.shopId))) return { error: t.closed };
 
   const customerId = await findOrCreateCustomer({ name: data.name, phone: data.phone, email: data.email });
   // Every booking needs its own passed ID check; it is used up here and given back if the booking doesn't go through.

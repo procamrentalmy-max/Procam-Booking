@@ -27,6 +27,11 @@ export type IncomeBooking = {
   /** The battery swaps (only those that charged a fee) and late fees paid on this booking, each by card or in cash. */
   swaps: { feeMyr: number; paidBy: DrPaidBy }[];
   lateFees: { amountMyr: number; paidBy: DrPaidBy }[];
+  /**
+   * A battery swap this shop did for a customer who rented from another shop: only the swap fee is this shop's income (the rental, the ID
+   * check and the booking itself belong to the other shop), and it is not counted as one of this shop's bookings.
+   */
+  swapOnly?: boolean;
 };
 
 /** Year and month (0-11) of an instant as seen on a clock in Malaysia. */
@@ -42,10 +47,10 @@ export function monthStartMs(now: number, monthsBack = 0): number {
 }
 
 export function bookingIncome(b: IncomeBooking) {
-  const rental = Number(b.rental_fee_myr);
+  const rental = b.swapOnly ? 0 : Number(b.rental_fee_myr);
   const swap = b.swaps.reduce((sum, x) => sum + x.feeMyr, 0);
   const late = b.lateFees.reduce((sum, x) => sum + x.amountMyr, 0);
-  const kept = Number(b.drone_charge_myr) + Number(b.controller_charge_myr);
+  const kept = b.swapOnly ? 0 : Number(b.drone_charge_myr) + Number(b.controller_charge_myr);
   return { rental, swap, late, kept, total: rental + swap + late + kept };
 }
 
@@ -56,12 +61,12 @@ export function bookingIncome(b: IncomeBooking) {
  */
 export function bookingEarnings(b: IncomeBooking): Earnings & { cashIncome: number } {
   const payments: Payment[] = [
-    { amount: Number(b.rental_fee_myr), method: b.paid_by },
+    ...(b.swapOnly ? [] : [{ amount: Number(b.rental_fee_myr), method: b.paid_by }]),
     ...b.swaps.filter((x) => x.feeMyr > 0).map((x): Payment => ({ amount: x.feeMyr, method: x.paidBy })),
     ...b.lateFees.filter((x) => x.amountMyr > 0).map((x): Payment => ({ amount: x.amountMyr, method: x.paidBy })),
   ];
   const cashIncome = payments.filter((p) => p.method === "CASH").reduce((sum, p) => sum + p.amount, 0);
-  return { ...earningsForBooking(payments), cashIncome };
+  return { ...earningsForBooking(payments, { kyc: !b.swapOnly }), cashIncome };
 }
 
 export type IncomeSummary = {
@@ -129,7 +134,7 @@ export function summariseIncome(bookings: IncomeBooking[], now: number, modelNam
     }
 
     if (start < thisStart || start >= nextStart) continue;
-    count += 1;
+    if (!b.swapOnly) count += 1;
     total += inc.total;
     earnings = addEarnings(earnings, earned);
     cashIncome += earned.cashIncome;

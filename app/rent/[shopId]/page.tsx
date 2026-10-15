@@ -9,6 +9,7 @@ import { droneText } from "@/lib/i18n/drone";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { buildCompareTables } from "@/lib/droneRental/compareTables";
 import { packageQuery, parsePackagePreset } from "@/lib/droneRental/packagePreset";
+import { parseShopHours } from "@/lib/droneRental/hours";
 import { ENABLED_DRONE_MODELS, isDroneModel, type ControllerKind, type DroneModel } from "@/lib/droneRental/pricingRules";
 
 export default async function ShopBookingPage({ params, searchParams }: { params: Promise<{ shopId: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -21,7 +22,7 @@ export default async function ShopBookingPage({ params, searchParams }: { params
 
   const { data: shop } = await supabase
     .from("dr_shops")
-    .select("id,name,address,active")
+    .select("id,name,address,active,hours")
     .eq("id", shopId)
     .maybeSingle();
   if (!shop || !shop.active) notFound();
@@ -49,7 +50,7 @@ export default async function ShopBookingPage({ params, searchParams }: { params
         <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">{shop.name}</h1>
         <p className="mt-0.5 text-sm text-zinc-500">{shop.address}</p>
       </div>
-      <DroneBookingWizard locale={locale} adminCanSkip={adminCanSkip} shopId={shop.id} models={models} availableModels={availableModels.length ? availableModels : ["NEO2"]} controllers={controllers} pictures={pictures} retry={retry === "1"} preset={preset} tables={buildCompareTables(getDictionary(locale).home)} shopsHref={preset ? `/rent?${packageQuery(preset)}` : "/rent"} />
+      <DroneBookingWizard locale={locale} adminCanSkip={adminCanSkip} shopId={shop.id} models={models} availableModels={availableModels.length ? availableModels : ["NEO2"]} controllers={controllers} pictures={pictures} retry={retry === "1"} preset={preset} tables={buildCompareTables(getDictionary(locale).home)} hours={parseShopHours(shop.hours)} shopsHref={preset ? `/rent?${packageQuery(preset)}` : "/rent"} />
     </div>
   );
 }

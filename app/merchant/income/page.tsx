@@ -8,8 +8,9 @@ import { EarningsRow } from "@/components/droneRental/EarningsRow";
 import { BarChart, DonutChart } from "@/app/admin/sales/charts";
 
 // The generated types don't know these two relationships, but the foreign keys exist, so PostgREST embeds them.
-type BookingRow = Omit<IncomeBooking, "swaps" | "lateFees"> & {
-  dr_battery_swaps: { fee_myr: number | string; paid_by: string }[] | null;
+type BookingRow = Omit<IncomeBooking, "swaps" | "lateFees" | "swapOnly"> & {
+  shop_id: string;
+  dr_battery_swaps: { fee_myr: number | string; paid_by: string; swap_shop_id: string | null }[] | null;
   dr_payments: { amount_myr: number | string; kind: string; status: string; provider: string }[] | null;
 };
 
@@ -46,7 +47,7 @@ export default async function ShopIncomePage() {
   const bookingsQuery = db
     .from("dr_bookings")
     .select(
-      "id,status,source,paid_by,start_time,batteries_count,drone_model,rental_fee_myr,drone_charge_myr,controller_charge_myr,dr_battery_swaps(fee_myr,paid_by),dr_payments(amount_myr,kind,status,provider)",
+      "id,shop_id,status,source,paid_by,start_time,batteries_count,drone_model,rental_fee_myr,drone_charge_myr,controller_charge_myr,dr_battery_swaps(fee_myr,paid_by,swap_shop_id),dr_payments(amount_myr,kind,status,provider)",
     )
     .in("status", PAID_STATUSES)
     .gte("start_time", new Date(monthStartMs(now, MONTHS_SHOWN - 1)).toISOString());
@@ -68,11 +69,43 @@ export default async function ShopIncomePage() {
     drone_charge_myr: b.drone_charge_myr,
     controller_charge_myr: b.controller_charge_myr,
     // A swap of two batteries is two rows, with the fee on the first only; the zero-fee row is not a payment.
-    swaps: (b.dr_battery_swaps ?? []).filter((s) => Number(s.fee_myr) > 0).map((s) => ({ feeMyr: Number(s.fee_myr), paidBy: s.paid_by === "CASH" ? ("CASH" as const) : ("CARD" as const) })),
+    // A swap done at another shop earns that shop the fee, so only this shop's own swaps (and old ones, with no shop recorded) count here.
+    swaps: (b.dr_battery_swaps ?? []).filter((s) => Number(s.fee_myr) > 0 && (!s.swap_shop_id || s.swap_shop_id === b.shop_id)).map((s) => ({ feeMyr: Number(s.fee_myr), paidBy: s.paid_by === "CASH" ? ("CASH" as const) : ("CARD" as const) })),
     lateFees: (b.dr_payments ?? [])
       .filter((p) => p.kind === "LATE_FEE" && p.status === "SUCCEEDED")
       .map((p) => ({ amountMyr: Number(p.amount_myr), paidBy: p.provider === "cash" ? ("CASH" as const) : ("CARD" as const) })),
   }));
+
+  // Swaps this shop did for customers who rented from another shop: the swap fee is this shop's income.
+  if (scoped) {
+    const { data: foreignSwaps } = await db.from("dr_battery_swaps").select("booking_id,fee_myr,paid_by").in("swap_shop_id", scoped).gt("fee_myr", 0);
+    const foreignIds = [...new Set((foreignSwaps ?? []).map((x) => x.booking_id))];
+    const { data: foreignBookings } = foreignIds.length
+      ? await db
+          .from("dr_bookings")
+          .select("id,shop_id,status,source,paid_by,start_time,batteries_count,drone_model")
+          .in("id", foreignIds)
+          .not("shop_id", "in", `(${scoped.join(",")})`)
+          .gte("start_time", new Date(monthStartMs(now, MONTHS_SHOWN - 1)).toISOString())
+      : { data: [] };
+    for (const fb of foreignBookings ?? []) {
+      bookings.push({
+        id: fb.id,
+        status: fb.status,
+        source: fb.source,
+        paid_by: fb.paid_by,
+        start_time: fb.start_time,
+        batteries_count: fb.batteries_count,
+        drone_model: fb.drone_model,
+        rental_fee_myr: 0,
+        drone_charge_myr: 0,
+        controller_charge_myr: 0,
+        swaps: (foreignSwaps ?? []).filter((x) => x.booking_id === fb.id).map((x) => ({ feeMyr: Number(x.fee_myr), paidBy: x.paid_by === "CASH" ? ("CASH" as const) : ("CARD" as const) })),
+        lateFees: [],
+        swapOnly: true,
+      });
+    }
+  }
 
   const s = summariseIncome(bookings, now, (key) => modelProfile(key).shortName, MONTHS_SHOWN);
   const e = s.earnings;

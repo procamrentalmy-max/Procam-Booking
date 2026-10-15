@@ -14,6 +14,7 @@ import { durationLabel, droneText } from "@/lib/i18n/drone";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { AgreeLine } from "@/components/droneRental/AgreeLine";
 import { FaqLink } from "@/components/droneRental/FaqLink";
+import { FunnelBeacon } from "@/components/FunnelBeacon";
 import { devBypassDronePaymentAction, devBypassCashChoiceAction, adminSkipPaymentAction } from "./actions";
 import { getAuthContext, isAdmin } from "@/lib/auth/session";
 import { pressableClass } from "@/components/formStyles";
@@ -97,6 +98,7 @@ export default async function DroneBookingPayPage({
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-5 px-6 py-8">
+      <FunnelBeacon step="PAY" />
       {cashChosen && <AutoRefresh seconds={3} />}
       <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">{cashChosen ? t.pay.titleCash : t.pay.title}</h1>
 
