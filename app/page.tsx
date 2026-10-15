@@ -6,6 +6,7 @@ import { PackagePicker } from "@/components/droneRental/PackagePicker";
 import { PackageProvider } from "@/components/droneRental/PackageContext";
 import { CompareTable } from "@/components/droneRental/CompareTable";
 import { buildCompareTables } from "@/lib/droneRental/compareTables";
+import { hasTutorial } from "@/lib/tutorials";
 import { TablePreference } from "@/components/droneRental/TablePreference";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { Brand } from "@/components/Brand";
@@ -49,7 +50,7 @@ export default async function Home() {
   const locale = await getLocale();
   const dict = getDictionary(locale);
   const t = dict.home;
-  const [logoUrl, pictures, comboPictures] = await Promise.all([getLogoUrl(), getLandingImageUrls(), getComboPictureUrls()]);
+  const [logoUrl, pictures, comboPictures, showTutorial] = await Promise.all([getLogoUrl(), getLandingImageUrls(), getComboPictureUrls(), hasTutorial()]);
 
   // Every price in the tables comes from the same pricing rules the booking flow charges with (lib/droneRental/compareTables.ts).
   const tables = buildCompareTables(t);
@@ -70,6 +71,11 @@ export default async function Home() {
           <a href="#how" className="hidden hover:text-white sm:inline">
             {t.nav.howItWorks}
           </a>
+          {showTutorial && (
+            <Link href="/tutorial" className="hidden hover:text-white sm:inline">
+              {t.tutorial.nav}
+            </Link>
+          )}
           <LanguageToggle locale={locale} onDark />
         </div>
       </header>
@@ -120,7 +126,12 @@ export default async function Home() {
               </li>
             ))}
           </ol>
-          <p className="mt-6 text-sm text-zinc-400">
+          <p className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-zinc-400">
+            {showTutorial && (
+              <Link href="/tutorial" className="underline underline-offset-4 hover:text-zinc-200">
+                {t.tutorial.watch}
+              </Link>
+            )}
             <Link href="/legal/faq" className="underline underline-offset-4 hover:text-zinc-200">
               {t.faqLine}
             </Link>
@@ -223,6 +234,11 @@ export default async function Home() {
             <Link href="/legal/privacy" className="hover:text-zinc-300">
               {t.privacy}
             </Link>
+            {showTutorial && (
+              <Link href="/tutorial" className="hover:text-zinc-300">
+                {t.tutorial.nav}
+              </Link>
+            )}
             <Link href="/legal/faq" className="hover:text-zinc-300">
               {t.faq}
             </Link>
