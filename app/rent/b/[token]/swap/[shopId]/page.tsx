@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Brand } from "@/components/Brand";
-import { LanguageToggle } from "@/components/LanguageToggle";
 import { getLogoUrl } from "@/lib/branding";
 import { formatMyr, modelProfile } from "@/lib/droneRental/pricingRules";
 import { generateQrDataUrl } from "@/lib/qr";
@@ -34,10 +33,7 @@ export default async function SwapAtShopPage({ params }: { params: Promise<{ tok
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-5 px-6 py-6">
-      <div className="flex items-center justify-between gap-4">
-        <Brand logoUrl={logoUrl} size={22} />
-        <LanguageToggle locale={locale} inline />
-      </div>
+      <Brand logoUrl={logoUrl} size={22} />
       <div>
         <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">{t.swap.atTitle(swapShop.name)}</h1>
         <p className="mt-0.5 text-sm text-zinc-500">{swapShop.address}</p>
