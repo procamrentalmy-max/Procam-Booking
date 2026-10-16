@@ -93,8 +93,6 @@ export const zh: Dictionary = {
       "逾期归还按**每小时的租金**计费。",
       "所有物品**完好归还**后，**押金即解除冻结**。",
     ],
-    camerasTitle: "运动相机和手机防水壳",
-    camerasText: "入住合作酒店？扫描前台的二维码，我们送到您手上。",
     terms: "条款",
     refunds: "退款",
     privacy: "隐私",

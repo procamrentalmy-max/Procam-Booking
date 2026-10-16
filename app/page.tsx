@@ -215,12 +215,6 @@ export default async function Home() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-5xl px-6 pb-16">
-          <div className="rounded-2xl border border-dashed border-zinc-800 p-6">
-            <p className="text-sm font-semibold text-zinc-200">{t.camerasTitle}</p>
-            <p className="mt-1 text-sm text-zinc-500">{t.camerasText}</p>
-          </div>
-        </section>
       </main>
       </PackageProvider>
 

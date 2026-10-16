@@ -93,8 +93,6 @@ export const ms: Dictionary = {
       "Pemulangan lewat dikenakan **kadar sejam** bagi **setiap jam**.",
       "**Deposit dilepaskan** apabila semuanya dipulangkan dalam **keadaan baik**.",
     ],
-    camerasTitle: "Kamera aksi dan sarung telefon",
-    camerasText: "Menginap di hotel rakan kongsi? Imbas kod QR di kaunter penerimaan dan kami hantar kepada anda.",
     terms: "Terma",
     refunds: "Bayaran balik",
     privacy: "Privasi",

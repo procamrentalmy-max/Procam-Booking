@@ -91,8 +91,6 @@ export const en = {
       "Returning late costs the **hourly rate** for **each hour**.",
       "The **deposit is released** when everything comes back in **good condition**.",
     ],
-    camerasTitle: "Action cameras and phone housings",
-    camerasText: "Staying at a partner hotel? Scan the QR code at reception and we deliver to you.",
     terms: "Terms",
     refunds: "Refunds",
     privacy: "Privacy",
