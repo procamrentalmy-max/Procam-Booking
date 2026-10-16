@@ -104,6 +104,12 @@ export default async function Home() {
               >
                 {t.ctaSecondary}
               </a>
+              <Link
+                href="/tutorial"
+                className="inline-flex h-12 items-center rounded-full border border-zinc-700 px-7 text-sm font-semibold text-zinc-200 transition hover:border-zinc-500 hover:text-white"
+              >
+                {t.ctaHowToFly}
+              </Link>
             </div>
           </div>
           {pictures.hero ? (

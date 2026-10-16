@@ -25,7 +25,8 @@ export const ms: Dictionary = {
     sub: "DJI Neo atau Neo 2 dengan bateri, sedia di kedai terdekat anda. Terbangkannya dari telefon, atau tambah alat kawalan atau gogal. Pilih masa, ambil, terbang, dan pulangkan.",
     ctaPrimary: "Tempah dron",
     ctaSecondary: "Semak harga",
-    tutorial: { nav: "Tutorial", watch: "Tonton tutorial", title: "Tutorial", sub: "Panduan ringkas dengan gambar dan video: cara menerbangkan dron, dan apa yang berlaku di kedai.", empty: "Tutorial akan datang tidak lama lagi.", back: "Kembali ke halaman utama", faq: "Ada soalan? Baca Soalan Lazim" },
+    ctaHowToFly: "Cara terbang",
+    tutorial: { nav: "Tutorial", watch: "Cara terbang", title: "Tutorial", sub: "Panduan ringkas dengan gambar dan video: cara menerbangkan dron, dan apa yang berlaku di kedai.", empty: "Tutorial akan datang tidak lama lagi.", back: "Kembali ke halaman utama", faq: "Ada soalan? Baca Soalan Lazim" },
     prefer: { label: "Yang mana anda pilih?", added: "Ditambah ke pakej anda.", see: "Semak harga" },
     price: {
       title: "Semak harga",

@@ -30,10 +30,7 @@ export default async function TutorialPage() {
         <LanguageToggle locale={locale} inline />
       </div>
 
-      <div>
-        <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">{t.title}</h1>
-        <p className="mt-1 text-sm text-zinc-500">{t.sub}</p>
-      </div>
+      <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">{t.title}</h1>
 
       {shown.length === 0 ? (
         <p className="rounded-xl border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500 dark:border-zinc-700">{t.empty}</p>

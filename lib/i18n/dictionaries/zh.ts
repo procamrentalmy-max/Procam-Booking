@@ -25,7 +25,8 @@ export const zh: Dictionary = {
     sub: "DJI Neo 或 Neo 2 配电池，在离您最近的门店等您。可用手机飞行，也可加租遥控器或飞行眼镜。选好时间，取机，飞行，再归还。",
     ctaPrimary: "预订无人机",
     ctaSecondary: "查看价格",
-    tutorial: { nav: "教程", watch: "观看教程", title: "教程", sub: "带照片和视频的简短指南：如何飞行，以及在门店会发生什么。", empty: "教程即将推出。", back: "返回首页", faq: "有疑问？查看常见问题" },
+    ctaHowToFly: "如何飞行",
+    tutorial: { nav: "教程", watch: "如何飞行", title: "教程", sub: "带照片和视频的简短指南：如何飞行，以及在门店会发生什么。", empty: "教程即将推出。", back: "返回首页", faq: "有疑问？查看常见问题" },
     prefer: { label: "您更喜欢哪一个？", added: "已加入您的套餐。", see: "查看价格" },
     price: {
       title: "查看价格",

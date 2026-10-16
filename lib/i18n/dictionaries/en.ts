@@ -23,7 +23,8 @@ export const en = {
     sub: "A DJI Neo or Neo 2 with batteries, ready at your nearest shop. Fly it from your phone, or add a controller or goggles. Pick a time, collect it, fly, and bring it back.",
     ctaPrimary: "Book a drone",
     ctaSecondary: "Check price",
-    tutorial: { nav: "Tutorial", watch: "Watch the tutorial", title: "Tutorial", sub: "Short guides with photos and videos: how to fly, and what happens at the shop.", empty: "The tutorial is coming soon.", back: "Back to the home page", faq: "Questions? Read the FAQ" },
+    ctaHowToFly: "How to fly",
+    tutorial: { nav: "Tutorial", watch: "How to fly", title: "Tutorial", sub: "Short guides with photos and videos: how to fly, and what happens at the shop.", empty: "The tutorial is coming soon.", back: "Back to the home page", faq: "Questions? Read the FAQ" },
     prefer: { label: "Which do you prefer?", added: "Added to your package.", see: "Check the price" },
     price: {
       title: "Check the price",
