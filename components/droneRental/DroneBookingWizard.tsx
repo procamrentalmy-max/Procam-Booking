@@ -277,8 +277,6 @@ export function DroneBookingWizard({
 
         <DroneChoice locale={locale} models={models} value={model} onChange={setModel} unavailable={models.filter((m) => !availableModels.includes(m))} compare={tables?.drone} />
 
-        <DurationChoice locale={locale} value={durationHours} hourly={hourly} onChange={setDurationHours} />
-
         <ControllerChoice
           locale={locale}
           model={model}
@@ -288,6 +286,8 @@ export function DroneBookingWizard({
           unavailable={controllerOptions.filter((o) => !selectableControllers.includes(o))}
           compare={tables?.fly}
         />
+
+        <DurationChoice locale={locale} value={durationHours} hourly={hourly} onChange={setDurationHours} />
 
         <ComboCard
           locale={locale}

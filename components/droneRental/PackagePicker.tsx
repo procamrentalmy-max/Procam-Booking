@@ -27,7 +27,7 @@ import { usePackage } from "./PackageContext";
 export type PackagePickerText = { hint: string; cta: string; next: string };
 
 /**
- * The landing page's "Check the price": the same choices as the first step of the booking page (drone, how long, how you fly it, batteries),
+ * The landing page's "Check the price": the same choices as the first step of the booking page (drone, how you fly it, how long, batteries),
  * asked one after the other, nothing chosen to begin with (the choices under the comparison tables on the page fill in the same package). Once all four are chosen the price shows, with a button to choose the
  * location. The package then travels in the address to the shop list and on to the booking page, which opens at the times.
  */
@@ -48,9 +48,9 @@ export function PackagePicker({ locale, pictures, text, tables }: { locale: Loca
     <div className="mt-8 grid gap-8 md:grid-cols-2 md:items-start">
       <div className="space-y-6">
         <DroneChoice onDark locale={locale} models={ENABLED_DRONE_MODELS} value={model} onChange={setModel} compare={tables.drone} unavailable={unavailableModels} unavailableLabel={t.common.notAvailable} />
-        {model && <DurationChoice onDark locale={locale} value={hours} hourly={hourlyRateFor(model, controller ?? "NONE")} onChange={setHours} />}
-        {profile && model && hours && <ControllerChoice onDark locale={locale} model={model} options={profile.controllerOptions} value={controller} onChange={setController} compare={tables.fly} unavailable={unavailableControllers} unavailableLabel={t.common.notAvailable} />}
-        {model && controller && <BatteryChoice onDark locale={locale} model={model} value={batteries} onChange={setBatteries} />}
+        {profile && model && <ControllerChoice onDark locale={locale} model={model} options={profile.controllerOptions} value={controller} onChange={setController} compare={tables.fly} unavailable={unavailableControllers} unavailableLabel={t.common.notAvailable} />}
+        {model && controller && <DurationChoice onDark locale={locale} value={hours} hourly={hourlyRateFor(model, controller)} onChange={setHours} />}
+        {model && controller && hours && <BatteryChoice onDark locale={locale} model={model} value={batteries} onChange={setBatteries} />}
       </div>
 
       <div className="space-y-5 rounded-2xl border border-slate-600 bg-slate-900 p-5 md:sticky md:top-6">
