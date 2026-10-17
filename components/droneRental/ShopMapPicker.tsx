@@ -313,7 +313,8 @@ export function ShopMapPicker({ initialShops, locale = "en", carry }: { initialS
                 <p className="mt-0.5 text-xs text-zinc-500">{shop.address}</p>
                 {availabilityLabel(shop, t, locale) && <p className="mt-1 text-xs font-medium">{availabilityLabel(shop, t, locale)}</p>}
               </button>
-              {selected &&
+              {/* A location open for booking always shows its buttons; the others show theirs once tapped. */}
+              {(selected || shop.bookable) &&
                 (shop.bookable ? (
                   <div className="mt-3 flex gap-2">
                     <PendingLink
