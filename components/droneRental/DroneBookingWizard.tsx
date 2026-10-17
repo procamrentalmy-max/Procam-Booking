@@ -9,7 +9,7 @@ import { dayLabelFor, droneText } from "@/lib/i18n/drone";
 import { AgreeLine } from "@/components/droneRental/AgreeLine";
 import { FaqLink } from "@/components/droneRental/FaqLink";
 import { trackStep } from "@/components/FunnelBeacon";
-import { WhatsAppOptIn } from "@/components/droneRental/WhatsAppOptIn";
+import { WhatsAppNumberField } from "@/components/droneRental/WhatsAppNumberField";
 import { Spinner } from "@/components/Spinner";
 import { ControllerChoice } from "@/components/droneRental/ControllerChoice";
 import { ComboCard, TotalSummary } from "@/components/droneRental/ComboCard";
@@ -132,7 +132,7 @@ export function DroneBookingWizard({
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [whatsapp, setWhatsapp] = useState(false);
+  const [whatsappNumber, setWhatsappNumber] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [slotTaken, setSlotTaken] = useState(false);
@@ -248,7 +248,7 @@ export function DroneBookingWizard({
         phone,
         email,
         verificationId,
-        whatsapp,
+        whatsappNumber,
       });
       if ("error" in result) {
         setError(result.error);
@@ -347,6 +347,8 @@ export function DroneBookingWizard({
             {slots.map((s, i) => {
               const isUnavailable = unavailable?.has(i) ?? false;
               const isSelected = selectedStart?.getTime() === s.getTime();
+              // Every half hour the rental covers, from the chosen start until it ends, is lit up with it.
+              const inRental = !!selectedStart && s.getTime() > selectedStart.getTime() && s.getTime() < selectedStart.getTime() + durationHours * 3_600_000;
               return (
                 <button
                   key={s.toISOString()}
@@ -357,9 +359,11 @@ export function DroneBookingWizard({
                   className={`rounded-lg border py-2.5 text-sm ${
                     isSelected
                       ? selectedClass
-                      : isUnavailable
-                        ? "cursor-not-allowed border-zinc-100 text-zinc-300 line-through dark:border-zinc-900 dark:text-zinc-700"
-                        : idleClass
+                      : inRental
+                        ? "border-sky-500 bg-sky-100 font-medium text-sky-900 dark:border-sky-400 dark:bg-sky-950 dark:text-sky-100"
+                        : isUnavailable
+                          ? "cursor-not-allowed border-zinc-100 text-zinc-300 line-through dark:border-zinc-900 dark:text-zinc-700"
+                          : idleClass
                   }`}
                 >
                   {formatSlotTime(s)}
@@ -367,6 +371,11 @@ export function DroneBookingWizard({
               );
             })}
           </div>
+        )}
+        {selectedStart && (
+          <p className="text-center text-sm font-medium text-sky-800 dark:text-sky-200">
+            {formatSlotTime(selectedStart)} – {formatSlotTime(new Date(selectedStart.getTime() + durationHours * 3_600_000))}
+          </p>
         )}
         {unavailable === null && slots.length > 0 && <p className="text-center text-xs text-zinc-400">{t.wizard.checking}</p>}
         {windNote && (
@@ -476,7 +485,7 @@ export function DroneBookingWizard({
           required
           className={`w-full ${inputClass} py-3 text-base`}
         />
-        <WhatsAppOptIn checked={whatsapp} onChange={setWhatsapp} locale={locale} />
+        <WhatsAppNumberField value={whatsappNumber} onChange={setWhatsappNumber} locale={locale} />
         {(error ?? kycMessage) && (
           <p role="alert" className="text-center text-sm text-red-600">
             {error ?? kycMessage}

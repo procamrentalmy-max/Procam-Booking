@@ -8,6 +8,7 @@ import {
   findNextAvailableSlot,
   computeUnavailableStarts,
   firstAvailableAt,
+  firstBookableStart,
   InvalidDroneBookingRequestError,
   type ControllerPool,
   type DroneCandidate,
@@ -200,5 +201,27 @@ describe("a rental with a controller needs a controller free as well as a drone"
     const result = findNextAvailableSlot(drones(), [], 60, t("10:00"), 96, busy);
     expect(result.outcome).toBe("NEXT_FEASIBLE_SLOT");
     if (result.outcome !== "INFEASIBLE") expect(result.startTime.toISOString()).toBe("2026-09-02T11:30:00.000Z");
+  });
+});
+
+describe("firstBookableStart: when a shop can really be booked", () => {
+  const open = (o: string, c: string) => ({ open: o, close: c });
+  const hours = Array.from({ length: 7 }, () => open("08:00", "22:00"));
+  it("is the next half hour while the shop is open and a drone is free", () => {
+    // 05:05 UTC = 13:05 in Malaysia, inside 08:00 to 22:00
+    expect(firstBookableStart(drones(), [], hours, new Date("2026-09-02T05:05:00Z"))?.toISOString()).toBe("2026-09-02T05:30:00.000Z");
+  });
+  it("is when the shop opens, not the next half hour, while the shop is shut", () => {
+    // 18:10 UTC = 02:10 the next morning in Malaysia: shut until 08:00 (00:00 UTC)
+    expect(firstBookableStart(drones(), [], hours, new Date("2026-09-02T18:10:00Z"))?.toISOString()).toBe("2026-09-03T00:00:00.000Z");
+  });
+  it("skips a closed day, and a time whose rental would run past closing", () => {
+    const sundayShut = [null, ...Array.from({ length: 6 }, () => open("09:00", "18:00"))];
+    // Saturday 2026-09-05 18:00 Malaysia = 10:00 UTC; Sunday closed, so Monday 09:00 Malaysia = 01:00 UTC
+    expect(firstBookableStart(drones(), [], sundayShut, new Date("2026-09-05T10:00:00Z"))?.toISOString()).toBe("2026-09-07T01:00:00.000Z");
+  });
+  it("is null when no drone is ever free", () => {
+    const maint: DroneCandidate[] = [{ id: "d1", humanId: "DRN-001", status: "MAINTENANCE" }];
+    expect(firstBookableStart(maint, [], hours, new Date("2026-09-02T05:05:00Z"))).toBeNull();
   });
 });

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { inputClass, pressableClass, primaryButtonClass } from "@/components/formStyles";
 import { Spinner } from "@/components/Spinner";
 import { ControllerChoice } from "@/components/droneRental/ControllerChoice";
-import { WhatsAppOptIn } from "@/components/droneRental/WhatsAppOptIn";
+import { WhatsAppNumberField } from "@/components/droneRental/WhatsAppNumberField";
 import type { CompareTables } from "@/lib/droneRental/compareTables";
 import { ComboCard, TotalSummary } from "@/components/droneRental/ComboCard";
 import { DroneChoice } from "@/components/droneRental/DroneChoice";
@@ -56,7 +56,7 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false,
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [whatsapp, setWhatsapp] = useState(false);
+  const [whatsappNumber, setWhatsappNumber] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -71,7 +71,7 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false,
   async function sendOrder(verificationId: string) {
     setLoading(true);
     setError(null);
-    const result = await submitWalkInOrderAction({ code, durationMinutes, batteries, model, controller, name, phone, email, verificationId, whatsapp });
+    const result = await submitWalkInOrderAction({ code, durationMinutes, batteries, model, controller, name, phone, email, verificationId, whatsappNumber });
     if (result.ok) {
       router.push(`/rent/w/${result.token}`);
       return;
@@ -170,7 +170,7 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false,
           required
           className={`w-full ${inputClass} py-3 text-base`}
         />
-        <WhatsAppOptIn checked={whatsapp} onChange={setWhatsapp} locale={locale} />
+        <WhatsAppNumberField value={whatsappNumber} onChange={setWhatsappNumber} locale={locale} />
       </div>
 
       {(error ?? kycMessage) && (

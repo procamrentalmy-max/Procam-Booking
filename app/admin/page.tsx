@@ -46,7 +46,7 @@ const GROUPS: { title: string; sections: Section[] }[] = [
     sections: [
       { href: "/admin/staff", label: "Staff", note: "Add and manage staff, merchant and admin accounts" },
       { href: "/admin/branding", label: "Branding", note: "The logo, and the pictures on the landing page" },
-      { href: "/admin/whatsapp", label: "WhatsApp", note: "Booking messages on WhatsApp: connection, templates to approve, what was sent" },
+      { href: "/admin/whatsapp", label: "WhatsApp", note: "Booking messages on WhatsApp and by SMS: connection, templates to approve, what was sent" },
       { href: "/admin/tutorials", label: "Tutorials", note: "Headers with photos and videos for the Tutorial page" },
     ],
   },

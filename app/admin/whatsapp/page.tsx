@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { whatsappMode } from "@/lib/whatsapp/send";
+import { smsMode } from "@/lib/sms/send";
 import { WA_APP_URL, WA_BUTTON_URL, WA_KINDS, WA_LANGUAGE_CODE, WA_TEMPLATES, fillTemplate } from "@/lib/whatsapp/templates";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
 
@@ -25,8 +26,9 @@ const mask = (phone: string) => `•••• ${phone.slice(-4)}`;
 /** Admin > WhatsApp: is it connected, the exact templates to approve in Meta, and what has been sent. */
 export default async function AdminWhatsAppPage() {
   const supabase = await createServerSupabaseClient();
-  const { data: messages } = await supabase.from("wa_messages").select("id,booking_id,kind,to_phone,locale,status,error,created_at").order("created_at", { ascending: false }).limit(60);
+  const { data: messages } = await supabase.from("wa_messages").select("id,booking_id,kind,to_phone,locale,channel,status,error,created_at").order("created_at", { ascending: false }).limit(60);
   const mode = whatsappMode();
+  const sms = smsMode();
   const env = [
     { name: "WHATSAPP_PHONE_NUMBER_ID", set: !!process.env.WHATSAPP_PHONE_NUMBER_ID, what: "The id of the WhatsApp number (Meta > WhatsApp > API setup)" },
     { name: "WHATSAPP_ACCESS_TOKEN", set: !!process.env.WHATSAPP_ACCESS_TOKEN, what: "A permanent access token from a System User" },
@@ -42,8 +44,8 @@ export default async function AdminWhatsAppPage() {
       <div>
         <h1 className="text-lg font-semibold">WhatsApp</h1>
         <p className="text-sm text-zinc-500">
-          Booking messages on WhatsApp: confirmation, a reminder before pickup, how to swap a battery after handover, a return reminder, a late notice, a deposit nudge, and a refund notice. A customer only gets
-          them if they ticked &quot;WhatsApp me about my booking&quot; when booking, in the language they were using.
+          Booking messages: confirmation, a reminder before pickup, how to swap a battery after handover, a return reminder, a late notice, a deposit nudge, and a refund notice, in the language the customer was using. A customer who gave a
+          WhatsApp number gets them on WhatsApp; one who left it empty gets the same words as an SMS to their phone number.
         </p>
       </div>
 
@@ -52,6 +54,12 @@ export default async function AdminWhatsAppPage() {
           Status:{" "}
           <span className={mode === "live" ? "text-green-700 dark:text-green-400" : mode === "dry-run" ? "text-amber-700 dark:text-amber-400" : "text-zinc-500"}>
             {mode === "live" ? "Connected: messages are being sent" : mode === "dry-run" ? "Test mode (dry run): nothing is sent, messages are only listed below" : "Not connected yet: nothing is sent"}
+          </span>
+        </p>
+        <p className="text-sm font-semibold">
+          SMS (for customers with no WhatsApp number):{" "}
+          <span className={sms === "live" ? "text-green-700 dark:text-green-400" : sms === "dry-run" ? "text-amber-700 dark:text-amber-400" : "text-red-600 dark:text-red-400"}>
+            {sms === "live" ? "Connected: texts are being sent" : sms === "dry-run" ? "Test mode (dry run): nothing is sent, texts are only listed below" : "Not connected yet: these customers get no messages until an SMS account is set up (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_SMS_FROM in Vercel)"}
           </span>
         </p>
         <ul className="space-y-1.5 text-sm">
@@ -114,6 +122,7 @@ export default async function AdminWhatsAppPage() {
                 <th className="px-3 py-2">Booking</th>
                 <th className="px-3 py-2">Message</th>
                 <th className="px-3 py-2">To</th>
+                <th className="px-3 py-2">Via</th>
                 <th className="px-3 py-2">Status</th>
               </tr>
             </thead>
@@ -124,6 +133,7 @@ export default async function AdminWhatsAppPage() {
                   <td className="px-3 py-2">{humanId.get(m.booking_id) ?? "—"}</td>
                   <td className="px-3 py-2">{WA_TEMPLATES[m.kind as keyof typeof WA_TEMPLATES]?.name ?? m.kind}</td>
                   <td className="px-3 py-2 text-zinc-500">{mask(m.to_phone)}</td>
+                  <td className="px-3 py-2">{m.channel === "SMS" ? "SMS" : "WhatsApp"}</td>
                   <td className="px-3 py-2">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[m.status] ?? ""}`}>{m.status.replace("_", " ")}</span>
                     {m.error && <p className="mt-0.5 max-w-xs text-xs text-red-600 dark:text-red-400">{m.error}</p>}
@@ -132,7 +142,7 @@ export default async function AdminWhatsAppPage() {
               ))}
               {(messages ?? []).length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-3 py-6 text-center text-zinc-500">
+                  <td colSpan={6} className="px-3 py-6 text-center text-zinc-500">
                     No messages yet.
                   </td>
                 </tr>

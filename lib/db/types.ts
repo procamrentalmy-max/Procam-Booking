@@ -625,8 +625,15 @@ export type DrBatteryRow = {
 };
 
 export type DrBookingRow = {
-  /** The customer ticked "WhatsApp me about my booking" (see lib/whatsapp), and the language they were using. */
+  /** Older bookings: the customer ticked "WhatsApp me about my booking" (see lib/whatsapp). New ones use whatsapp_number instead. */
   whatsapp_opt_in: boolean;
+  /** When a run last started finishing this booking's card payment (see finishCardBooking); only one run at a time. */
+  card_finish_started_at: string | null;
+  /** The deposit hold (a Stripe payment intent) the card form of this booking is collecting; the rental fee is charged only once it is held. */
+  deposit_checkout_intent: string | null;
+  /** The WhatsApp number given on the form: messages go there on WhatsApp. Empty: they are texted to the phone number. */
+  whatsapp_number: string | null;
+  /** The language they were using, for the messages. */
   locale: string | null;
   id: string;
   human_id: string;
@@ -747,6 +754,7 @@ export type DrWalkInStatus = "WAITING" | "SUBMITTED" | "ACCEPTED" | "DECLINED" |
 
 export type DrWalkInRequestRow = {
   whatsapp_opt_in: boolean;
+  whatsapp_number: string | null;
   locale: string | null;
   id: string;
   public_token: string;
@@ -793,6 +801,8 @@ export type WaMessageRow = {
   kind: string;
   to_phone: string;
   locale: string;
+  /** How it was sent: on WhatsApp (they gave a WhatsApp number) or as an SMS to their phone number. */
+  channel: "WHATSAPP" | "SMS";
   status: "PENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED" | "DRY_RUN";
   provider_message_id: string | null;
   error: string | null;

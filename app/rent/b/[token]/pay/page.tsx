@@ -1,7 +1,7 @@
 import { PendingLink } from "@/components/PendingLink";
 import { notFound, redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { createDroneRentalFeePaymentIntent, finishCashCardSetup, startCashCardSetup } from "@/lib/droneRental/payment";
+import { createDroneCheckout, finishCashCardSetup, startCashCardSetup } from "@/lib/droneRental/payment";
 import { PaymentForm } from "@/components/PaymentForm";
 import { SlotCheckedPayment } from "@/components/droneRental/SlotCheckedPayment";
 import { SlotTakenDialog } from "@/components/droneRental/SlotTakenDialog";
@@ -31,10 +31,10 @@ export default async function DroneBookingPayPage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ next?: string; method?: string; setup_intent?: string }>;
+  searchParams: Promise<{ next?: string; method?: string; setup_intent?: string; problem?: string }>;
 }) {
   const { token } = await params;
-  const { next, method, setup_intent: setupIntentId } = await searchParams;
+  const { next, method, setup_intent: setupIntentId, problem } = await searchParams;
   const nextPath = safeNextPath(next);
   const supabase = createServiceRoleClient();
   const locale = await getLocale();
@@ -84,7 +84,7 @@ export default async function DroneBookingPayPage({
   let clientSecret: string | null = null;
   if (!cashChosen) {
     try {
-      ({ clientSecret } = payingCash ? await startCashCardSetup(booking.id) : await createDroneRentalFeePaymentIntent(booking.id));
+      ({ clientSecret } = payingCash ? await startCashCardSetup(booking.id) : await createDroneCheckout(booking.id));
     } catch {
       clientSecret = null;
     }
@@ -145,6 +145,8 @@ export default async function DroneBookingPayPage({
         <AgreeLine locale={locale} />
       </p>
       <FaqLink locale={locale} className="-mt-2 text-xs text-zinc-400" />
+      {problem && !cashChosen && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">{t.pay.holdFailed}</p>}
+      {!cashChosen && !payingCash && <p className="text-xs text-zinc-500">{t.pay.holdFirst}</p>}
 
       {cashChosen ? (
         <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-center dark:border-amber-800 dark:bg-amber-950">
@@ -181,9 +183,9 @@ export default async function DroneBookingPayPage({
               <CashCardForm clientSecret={clientSecret} returnUrl={cashReturnUrl} locale={locale} />
             ) : (
               booking.source === "ONLINE" ? (
-                <SlotCheckedPayment token={token} shopId={booking.shop_id} clientSecret={clientSecret} returnUrl={returnUrl} locale={locale} />
+                <SlotCheckedPayment token={token} shopId={booking.shop_id} clientSecret={clientSecret} returnUrl={returnUrl} locale={locale} buttonLabel={t.pay.payAndHold(formatMyr(booking.rental_fee_myr), formatMyr(booking.deposit_myr))} />
               ) : (
-                <PaymentForm clientSecret={clientSecret} returnUrl={returnUrl} locale={locale} />
+                <PaymentForm clientSecret={clientSecret} returnUrl={returnUrl} locale={locale} buttonLabel={t.pay.payAndHold(formatMyr(booking.rental_fee_myr), formatMyr(booking.deposit_myr))} />
               )
             )
           ) : (

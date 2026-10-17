@@ -3,9 +3,10 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { formatMalaysiaTime, isLocale, type Locale } from "@/lib/i18n/locale";
 import { formatMyr } from "@/lib/droneRental/pricingRules";
 import { RETURN_GRACE_MINUTES } from "@/lib/droneRental/slots";
-import { toWhatsAppNumber } from "./phone";
+import { chooseChannel } from "./channel";
 import { sendWhatsAppTemplate, whatsappMode } from "./send";
-import type { WaKind } from "./templates";
+import { sendSms, smsMode } from "@/lib/sms/send";
+import { WA_APP_URL, WA_TEMPLATES, fillTemplate, type WaKind } from "./templates";
 
 /** The time part of "15 Oct, 10:00" for the messages that only need a time of day. */
 function clockOf(date: Date, locale: Locale): string {
@@ -13,30 +14,34 @@ function clockOf(date: Date, locale: Locale): string {
 }
 
 /**
- * Sends one WhatsApp message about a booking, if the customer ticked the box when they booked and WhatsApp is connected. It never throws
+ * Sends one message about a booking: on WhatsApp when the customer gave a WhatsApp number, otherwise as an SMS to their phone number (and only when that
+ * channel is connected). It never throws
  * (a message must never break a booking), sends each kind at most once per booking (the unique row in wa_messages is claimed first), and
  * records what happened so the admin can see it in Admin > WhatsApp.
  */
 export async function notifyBooking(bookingId: string, kind: WaKind, options: { refundMyr?: number } = {}): Promise<void> {
   try {
-    if (whatsappMode() === "off") return;
+    if (whatsappMode() === "off" && smsMode() === "off") return;
     const supabase = createServiceRoleClient();
     const { data: booking } = await supabase
       .from("dr_bookings")
-      .select("id,human_id,secure_token,customer_id,shop_id,start_time,end_time,whatsapp_opt_in,locale,rental_fee_myr")
+      .select("id,human_id,secure_token,customer_id,shop_id,start_time,end_time,whatsapp_opt_in,whatsapp_number,locale,rental_fee_myr")
       .eq("id", bookingId)
       .maybeSingle();
-    if (!booking || !booking.whatsapp_opt_in) return;
+    if (!booking) return;
     const [{ data: customer }, { data: shop }] = await Promise.all([
       supabase.from("customers").select("name,phone").eq("id", booking.customer_id).maybeSingle(),
       supabase.from("dr_shops").select("name").eq("id", booking.shop_id).maybeSingle(),
     ]);
-    const to = customer ? toWhatsAppNumber(customer.phone) : null;
-    if (!customer || !to) return;
+    if (!customer) return;
+    const route = chooseChannel({ whatsappNumber: booking.whatsapp_number, whatsappOptIn: booking.whatsapp_opt_in, phone: customer.phone });
+    const to = route.to;
+    if (!to) return;
+    if ((route.channel === "WHATSAPP" ? whatsappMode() : smsMode()) === "off") return;
 
     const locale: Locale = isLocale(booking.locale) ? booking.locale : "en";
     // Claim this message first: a second run (the cron, a repeated webhook) finds the row and stops.
-    const { data: claimed, error: claimError } = await supabase.from("wa_messages").insert({ booking_id: bookingId, kind, to_phone: to, locale, status: "PENDING" }).select("id").maybeSingle();
+    const { data: claimed, error: claimError } = await supabase.from("wa_messages").insert({ booking_id: bookingId, kind, to_phone: to, locale, channel: route.channel, status: "PENDING" }).select("id").maybeSingle();
     if (claimError || !claimed) return;
 
     const start = new Date(booking.start_time);
@@ -52,7 +57,12 @@ export async function notifyBooking(bookingId: string, kind: WaKind, options: { 
       DEPOSIT_CONFIRM: [first, booking.human_id],
       BOOKING_CANCELLED: [first, booking.human_id, formatMyr(options.refundMyr ?? Number(booking.rental_fee_myr))],
     };
-    const result = await sendWhatsAppTemplate({ to, kind, locale, variables: variables[kind], bookingToken: booking.secure_token });
+    const template = WA_TEMPLATES[kind];
+    // An SMS has no templates and no button: the same words, with the link to the booking on its own line.
+    const result =
+      route.channel === "WHATSAPP"
+        ? await sendWhatsAppTemplate({ to, kind, locale, variables: variables[kind], bookingToken: booking.secure_token })
+        : await sendSms({ to, body: `${fillTemplate(template.body[locale], variables[kind])}\n${template.button[locale]}: ${WA_APP_URL}/rent/b/${booking.secure_token}` });
     await supabase
       .from("wa_messages")
       .update(result.ok ? { status: result.dryRun ? "DRY_RUN" : "SENT", provider_message_id: result.id, updated_at: new Date().toISOString() } : { status: "FAILED", error: result.error.slice(0, 500), updated_at: new Date().toISOString() })
@@ -68,7 +78,7 @@ export async function notifyBooking(bookingId: string, kind: WaKind, options: { 
  * booking whose bank did not accept the deposit hold, 10 minutes on). Each is claimed once per booking inside notifyBooking.
  */
 export async function sendDueWhatsAppMessages(now: Date = new Date()): Promise<{ checked: number }> {
-  if (whatsappMode() === "off") return { checked: 0 };
+  if (whatsappMode() === "off" && smsMode() === "off") return { checked: 0 };
   const supabase = createServiceRoleClient();
   const iso = (ms: number) => new Date(now.getTime() + ms).toISOString();
   const MIN = 60_000;
@@ -84,7 +94,7 @@ export async function sendDueWhatsAppMessages(now: Date = new Date()): Promise<{
     }
   };
 
-  const base = () => supabase.from("dr_bookings").select("id").eq("whatsapp_opt_in", true).limit(200);
+  const base = () => supabase.from("dr_bookings").select("id").limit(200);
   const [pickup, ret, late, noHold] = await Promise.all([
     base().eq("status", "CONFIRMED").gt("start_time", iso(0)).lte("start_time", iso(60 * MIN)),
     base().eq("status", "ACTIVE").gt("end_time", iso(0)).lte("end_time", iso(15 * MIN)),

@@ -1,5 +1,5 @@
 import { PendingLink } from "@/components/PendingLink";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
 import { FaqLink } from "@/components/droneRental/FaqLink";
@@ -12,7 +12,7 @@ import { SlotTakenDialog } from "@/components/droneRental/SlotTakenDialog";
 import { durationLabel, droneText } from "@/lib/i18n/drone";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { DepositConfirm } from "@/components/droneRental/DepositConfirm";
-import { finishDepositConfirmation, needsDepositConfirmation } from "@/lib/droneRental/payment";
+import { finishCardBooking, finishDepositConfirmation, needsDepositConfirmation } from "@/lib/droneRental/payment";
 
 // The QR stops being offered the moment the merchant accepts it — never cache this page.
 export const dynamic = "force-dynamic";
@@ -24,12 +24,31 @@ export default async function DroneBookingDashboardPage({ params, searchParams }
   const t = droneText(locale);
   const supabase = createServiceRoleClient();
 
-  const { data: booking } = await supabase
-    .from("dr_bookings")
-    .select("id,human_id,status,source,start_time,end_time,shop_id,drone_id,rental_fee_myr,deposit_myr,checked_in_at,batteries_count,drone_model,controller_kind")
-    .eq("secure_token", token)
-    .maybeSingle();
+  const selectBooking = () =>
+    supabase
+      .from("dr_bookings")
+      .select("id,human_id,status,source,start_time,end_time,shop_id,drone_id,rental_fee_myr,deposit_myr,checked_in_at,batteries_count,drone_model,controller_kind")
+      .eq("secure_token", token)
+      .maybeSingle();
+  let { data: booking } = await selectBooking();
   if (!booking) notFound();
+  // Back from the card form with the deposit hold taken: the booking goes through now (the rental fee is charged, then the drone is claimed). The webhook does the same
+  // if this page is never reached; whichever comes first. If the hold didn't take, nothing was charged and the customer goes back to try again.
+  if (returnedIntent && booking.status === "PENDING_PAYMENT") {
+    const finished = await finishCardBooking(booking.id, returnedIntent).catch((err) => {
+      console.error("[drone booking] could not finish the card payment", err);
+      return null;
+    });
+    // Another run (Stripe's message) is finishing it right now: give it a few seconds.
+    for (let i = 0; finished === "BUSY" && i < 10; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      ({ data: booking } = await selectBooking());
+      if (booking?.status !== "PENDING_PAYMENT") break;
+    }
+    ({ data: booking } = await selectBooking());
+    if (!booking) notFound();
+    if (booking.status === "PENDING_PAYMENT") redirect(`/rent/b/${token}/pay?problem=1`);
+  }
   const controller = storedController(booking.drone_model, booking.controller_kind);
   // Back from confirming the deposit on this page: record the hold (the webhook does too; whichever comes first).
   if (returnedIntent) await finishDepositConfirmation(booking.id, returnedIntent).catch((err) => console.error("[drone deposit] could not record the confirmed hold", err));

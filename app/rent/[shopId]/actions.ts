@@ -12,6 +12,7 @@ import { claimVerification, releaseVerification } from "@/lib/droneRental/kyc";
 import { getShopWindForecast } from "@/lib/droneRental/wind";
 import { droneText, fieldError } from "@/lib/i18n/drone";
 import { getLocale } from "@/lib/i18n/getLocale";
+import { toWhatsAppNumber } from "@/lib/whatsapp/phone";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { formatWind } from "@/lib/droneRental/windRules";
 import { isTooWindy, maxWindForWindow, windLimitFor } from "@/lib/droneRental/windRules";
@@ -65,8 +66,8 @@ const createBookingSchema = z.object({
   phone: z.string().trim().regex(/^[0-9+\-()\s]{6,30}$/, "Enter a valid phone number"),
   email: z.string().trim().email("Enter a valid email"),
   verificationId: uuidSchema,
-  /** Ticked "WhatsApp me about my booking". */
-  whatsapp: z.boolean().optional(),
+  /** The WhatsApp number to send the booking messages to; empty means they are texted to the phone number. */
+  whatsappNumber: z.string().trim().max(30).optional(),
 });
 
 export async function createDroneBookingAction(input: {
@@ -82,14 +83,16 @@ export async function createDroneBookingAction(input: {
   email: string;
   /** The passed ID check this booking relies on (see lib/droneRental/kyc.ts). */
   verificationId: string;
-  /** Ticked "WhatsApp me about my booking" (see lib/whatsapp). */
-  whatsapp?: boolean;
+  /** The WhatsApp number for the booking messages (see lib/whatsapp); empty means an SMS to the phone number. */
+  whatsappNumber?: string;
 }): Promise<{ secureToken: string; startTime: string; endTime: string } | { slotTaken: true } | { error: string }> {
   // Refusals are returned, not thrown: a thrown message never reaches the customer on the live site.
-  const t = droneText(await getLocale()).errors;
+  const text = droneText(await getLocale());
+  const t = text.errors;
   const parsed = createBookingSchema.safeParse(input);
   if (!parsed.success) return { error: fieldError(t, parsed.error.issues[0]?.path[0]) };
   const data = parsed.data;
+  if (data.whatsappNumber && !toWhatsAppNumber(data.whatsappNumber)) return { error: text.common.whatsappNumberInvalid };
   const start = new Date(data.startTime);
   if (Number.isNaN(start.getTime())) return { error: t.invalidDate };
   if (!isWithinOperatingHours(start, data.durationMinutes, await getShopHours(data.shopId))) return { error: t.closed };
@@ -108,8 +111,8 @@ export async function createDroneBookingAction(input: {
       model: data.model,
       controller: data.controller,
     });
-    // The WhatsApp choice and the language they are using, for the messages (lib/whatsapp). Stored only when they ticked the box.
-    if (data.whatsapp) await createServiceRoleClient().from("dr_bookings").update({ whatsapp_opt_in: true, locale: await getLocale() }).eq("id", booking.id);
+    // Where the messages go (their WhatsApp number, or an SMS to the phone number) and the language they are using (lib/whatsapp).
+    await createServiceRoleClient().from("dr_bookings").update({ whatsapp_number: data.whatsappNumber || null, locale: await getLocale() }).eq("id", booking.id);
     return { secureToken: booking.secure_token, startTime: booking.start_time, endTime: booking.end_time };
   } catch (err) {
     await releaseVerification(data.verificationId);

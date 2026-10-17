@@ -1,7 +1,8 @@
 import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { buildShopFleetSnapshot } from "./snapshot";
-import { firstAvailableAt } from "./slots";
+import { firstBookableStart } from "./slots";
+import { parseShopHours } from "./hours";
 
 const EARTH_RADIUS_KM = 6371;
 
@@ -39,7 +40,7 @@ export async function listActiveShopsWithAvailability(customerLocation: { lat: n
   const supabase = createServiceRoleClient();
   const { data: shops } = await supabase
     .from("dr_shops")
-    .select("id,human_id,name,address,lat,lng,google_maps_url")
+    .select("id,human_id,name,address,lat,lng,google_maps_url,hours")
     .eq("active", true)
     .order("name");
 
@@ -47,7 +48,7 @@ export async function listActiveShopsWithAvailability(customerLocation: { lat: n
   const withAvailability = await Promise.all(
     (shops ?? []).map(async (shop) => {
       const snapshot = await buildShopFleetSnapshot(shop.id);
-      const soonest = firstAvailableAt(snapshot.drones, snapshot.bookings, now);
+      const soonest = firstBookableStart(snapshot.drones, snapshot.bookings, parseShopHours(shop.hours), now);
       return {
         id: shop.id,
         humanId: shop.human_id,

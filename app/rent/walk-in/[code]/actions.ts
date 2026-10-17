@@ -6,6 +6,7 @@ import { findOrCreateCustomer } from "@/lib/droneRental/createBooking";
 import { claimVerification, releaseVerification } from "@/lib/droneRental/kyc";
 import { droneText, fieldError } from "@/lib/i18n/drone";
 import { getLocale } from "@/lib/i18n/getLocale";
+import { toWhatsAppNumber } from "@/lib/whatsapp/phone";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { uuidSchema } from "@/lib/zod-helpers";
 import { CONTROLLER_KINDS, ENABLED_DRONE_MODELS, type ControllerKind, type DroneModel } from "@/lib/droneRental/pricingRules";
@@ -20,7 +21,7 @@ const schema = z.object({
   phone: z.string().trim().regex(/^[0-9+\-()\s]{6,30}$/, "Enter a valid phone number"),
   email: z.string().trim().email("Enter a valid email").max(200),
   verificationId: uuidSchema,
-  whatsapp: z.boolean().optional(),
+  whatsappNumber: z.string().trim().max(30).optional(),
 });
 
 export type SubmitOrderResult = { ok: true; token: string } | { ok: false; message: string };
@@ -38,14 +39,16 @@ export async function submitWalkInOrderAction(input: {
   email: string;
   /** The passed ID check this order relies on (see lib/droneRental/kyc.ts). */
   verificationId: string;
-  /** Ticked "WhatsApp me about my booking" (see lib/whatsapp). */
-  whatsapp?: boolean;
+  /** The WhatsApp number for the booking messages (see lib/whatsapp); empty means an SMS to the phone number. */
+  whatsappNumber?: string;
 }): Promise<SubmitOrderResult> {
-  const t = droneText(await getLocale()).errors;
+  const text = droneText(await getLocale());
+  const t = text.errors;
   const reasons = { shop_not_found: t.shopNotFound, length_unavailable: t.lengthUnavailable, too_many_open: t.tooManyOpen, too_windy: t.tooWindyNow, shop_closed: t.shopClosedNow } as const;
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { ok: false, message: fieldError(t, parsed.error.issues[0]?.path[0]) };
   const d = parsed.data;
+  if (d.whatsappNumber && !toWhatsAppNumber(d.whatsappNumber)) return { ok: false, message: text.common.whatsappNumberInvalid };
 
   const customerId = await findOrCreateCustomer({ name: d.name, phone: d.phone, email: d.email });
   if (!(await claimVerification(d.verificationId, customerId))) return { ok: false, message: t.idCheckNeeded };
@@ -62,7 +65,7 @@ export async function submitWalkInOrderAction(input: {
   });
   if (result.ok) {
     // Kept on the order until the staff confirm it and the booking is made (see acceptWalkInRequest).
-    if (d.whatsapp) await createServiceRoleClient().from("dr_walkin_requests").update({ whatsapp_opt_in: true, locale: await getLocale() }).eq("public_token", result.publicToken);
+    await createServiceRoleClient().from("dr_walkin_requests").update({ whatsapp_number: d.whatsappNumber || null, locale: await getLocale() }).eq("public_token", result.publicToken);
     return { ok: true, token: result.publicToken };
   }
   await releaseVerification(d.verificationId);

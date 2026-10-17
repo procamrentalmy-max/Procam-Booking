@@ -6,6 +6,8 @@
  * eligibility is pure per-shop inventory + a return buffer, nothing else.
  */
 
+import { SLOT_MINUTES, isWithinOperatingHours, type ShopHours } from "./hours";
+
 /** The slot table's granularity, and the grid every start time gets rounded up onto. */
 export const SLOT_INTERVAL_MINUTES = 30;
 
@@ -182,4 +184,21 @@ export function firstAvailableAt(
 ): Date | null {
   const result = findNextAvailableSlot(drones, bookings, durationMinutes, now);
   return result.outcome === "INFEASIBLE" ? null : result.startTime;
+}
+
+/**
+ * The earliest time a customer could actually book a 1-hour rental at this shop: a half-hour start from now on that falls inside the shop's
+ * opening hours (so a shop that is shut until 08:00 says 08:00, not the next half hour) and that has a drone free. Looks a week ahead.
+ */
+export function firstBookableStart(drones: readonly DroneCandidate[], bookings: readonly BookingWindow[], hours: ShopHours, now: Date, durationMinutes = 60): Date | null {
+  const stepMs = SLOT_MINUTES * 60_000;
+  const first = Math.ceil(now.getTime() / stepMs) * stepMs;
+  const candidates: Date[] = [];
+  for (let i = 0; i < 7 * 48; i++) {
+    const start = new Date(first + i * stepMs);
+    if (isWithinOperatingHours(start, durationMinutes, hours)) candidates.push(start);
+  }
+  const unavailable = computeUnavailableStarts(drones, bookings, durationMinutes, candidates);
+  const at = unavailable.findIndex((u) => !u);
+  return at < 0 ? null : candidates[at];
 }

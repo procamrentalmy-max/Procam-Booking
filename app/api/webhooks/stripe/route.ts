@@ -5,7 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { confirmBookingAfterPayment } from "@/lib/booking/confirm";
 import { assertValidDepositTransition } from "@/lib/state-machine/deposit";
 import { logAudit } from "@/lib/audit";
-import { confirmDroneBookingAfterPayment, finishDepositConfirmation } from "@/lib/droneRental/payment";
+import { finishCardBooking, finishDepositConfirmation } from "@/lib/droneRental/payment";
 
 /**
  * Orchestrates the payment side of the booking lifecycle:
@@ -56,8 +56,8 @@ export async function POST(req: Request) {
         }
 
         if (kind === "DRONE_RENTAL_FEE" && droneBookingId) {
+          // Charged by finishCardBooking once the deposit was held; it records the payment itself.
           await supabase.from("dr_payments").update({ status: "SUCCEEDED" }).eq("provider_ref", intent.id);
-          await confirmDroneBookingAfterPayment(droneBookingId);
           break;
         }
 
@@ -74,10 +74,15 @@ export async function POST(req: Request) {
       }
 
       case "payment_intent.amount_capturable_updated": {
-        // A deposit the customer confirmed on their booking page is now held (the card was authorized, not charged).
+        // The deposit is now held on the customer's card (authorized, not charged). For a booking still waiting to be paid this is what lets it go
+        // through (the rental fee is charged now, then the drone is claimed); for an older booking it just records the hold.
         const intent = event.data.object as Stripe.PaymentIntent;
         const { droneBookingId, kind } = intent.metadata as { droneBookingId?: string; kind?: string };
-        if (kind === "DRONE_DEPOSIT" && droneBookingId) await finishDepositConfirmation(droneBookingId, intent.id);
+        if (kind === "DRONE_DEPOSIT" && droneBookingId) {
+          const { data: waiting } = await supabase.from("dr_bookings").select("status").eq("id", droneBookingId).maybeSingle();
+          if (waiting?.status === "PENDING_PAYMENT") await finishCardBooking(droneBookingId, intent.id);
+          else await finishDepositConfirmation(droneBookingId, intent.id);
+        }
         break;
       }
 
