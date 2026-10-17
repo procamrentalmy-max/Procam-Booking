@@ -1,18 +1,22 @@
-import { getTutorialSections } from "@/lib/tutorials";
-import { TutorialsEditor } from "./TutorialsEditor";
+import Link from "next/link";
+import { getTutorialSections, type TutorialAudience } from "@/lib/tutorials";
 
 export const dynamic = "force-dynamic";
 
+const CARDS: { audience: TutorialAudience; slug: string; title: string; note: string }[] = [
+  { audience: "PHONE", slug: "phone", title: "Phone tutorial", note: "Shown when a customer taps Use Phone: how to fly with their own phone." },
+  { audience: "CONTROLLER", slug: "controller", title: "Controller tutorial", note: "Shown when a customer taps Use Controller: how to fly with the controller." },
+];
+
+/** Admin > Tutorials: the Tutorial page has two tutorials, so pick which one to edit. */
 export default async function AdminTutorialsPage() {
-  const sections = await getTutorialSections();
+  const counts = await Promise.all(CARDS.map(async (c) => (await getTutorialSections(c.audience)).length));
   return (
     <div className="max-w-3xl space-y-6 pt-4 pb-10">
       <div>
         <h1 className="text-lg font-semibold">Tutorials</h1>
         <p className="text-sm text-zinc-500">
-          The Tutorial page customers can open from the home page. Add as many headers as you like, and under each header as many photos and videos as you like. They show in the order
-          you set here, each one whole and sized to fit a phone. Photos are shrunk to a sensible size automatically. Videos: MP4, WebM or MOV, up to 50 MB each (MP4 plays everywhere). The home page only links to the
-          Tutorial once there is at least one photo or video.
+          Customers who open the Tutorial page are asked how they will fly and choose between two tutorials. Each one has its own headers, photos and videos. The home page only links to the Tutorial once there is at least one photo or video.
         </p>
         <p className="mt-1 text-sm">
           <a href="/tutorial" target="_blank" rel="noreferrer" className="underline underline-offset-2">
@@ -20,7 +24,17 @@ export default async function AdminTutorialsPage() {
           </a>
         </p>
       </div>
-      <TutorialsEditor sections={sections} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        {CARDS.map((c, i) => (
+          <Link key={c.slug} href={`/admin/tutorials/${c.slug}`} className="rounded-xl border border-zinc-200 p-4 hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600">
+            <p className="font-medium text-black dark:text-zinc-50">{c.title}</p>
+            <p className="text-sm text-zinc-500">{c.note}</p>
+            <p className="mt-2 text-xs text-zinc-500">
+              {counts[i]} header{counts[i] === 1 ? "" : "s"}
+            </p>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

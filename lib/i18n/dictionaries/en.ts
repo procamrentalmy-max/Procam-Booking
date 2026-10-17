@@ -24,7 +24,7 @@ export const en = {
     ctaPrimary: "Book a drone",
     ctaSecondary: "Check price",
     ctaHowToFly: "How to fly",
-    tutorial: { nav: "Tutorial", watch: "How to fly", title: "Tutorial", sub: "Short guides with photos and videos: how to fly, and what happens at the shop.", empty: "The tutorial is coming soon.", back: "Back to the home page", faq: "Questions? Read the FAQ" },
+    tutorial: { nav: "Tutorial", watch: "How to fly", title: "Tutorial", sub: "Short guides with photos and videos: how to fly, and what happens at the shop.", choose: "How will you fly?", usePhone: "Use Phone", useController: "Use Controller", titlePhone: "Flying with your phone", titleController: "Flying with the controller", other: "Choose the other tutorial", empty: "The tutorial is coming soon.", back: "Back to the home page", faq: "Questions? Read the FAQ" },
     prefer: { label: "Which do you prefer?", added: "Added to your package.", see: "Check the price" },
     price: {
       title: "Check the price",

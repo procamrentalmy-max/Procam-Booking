@@ -26,7 +26,7 @@ export const ms: Dictionary = {
     ctaPrimary: "Tempah dron",
     ctaSecondary: "Semak harga",
     ctaHowToFly: "Cara terbang",
-    tutorial: { nav: "Tutorial", watch: "Cara terbang", title: "Tutorial", sub: "Panduan ringkas dengan gambar dan video: cara menerbangkan dron, dan apa yang berlaku di kedai.", empty: "Tutorial akan datang tidak lama lagi.", back: "Kembali ke halaman utama", faq: "Ada soalan? Baca Soalan Lazim" },
+    tutorial: { nav: "Tutorial", watch: "Cara terbang", title: "Tutorial", sub: "Panduan ringkas dengan gambar dan video: cara menerbangkan dron, dan apa yang berlaku di kedai.", choose: "Bagaimana anda akan terbang?", usePhone: "Guna telefon", useController: "Guna alat kawalan", titlePhone: "Terbang dengan telefon anda", titleController: "Terbang dengan alat kawalan", other: "Pilih tutorial yang lain", empty: "Tutorial akan datang tidak lama lagi.", back: "Kembali ke halaman utama", faq: "Ada soalan? Baca Soalan Lazim" },
     prefer: { label: "Yang mana anda pilih?", added: "Ditambah ke pakej anda.", see: "Semak harga" },
     price: {
       title: "Semak harga",

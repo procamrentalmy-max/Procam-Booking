@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
+import type { TutorialAudience } from "@/lib/tutorials";
 import { inputClass, pressableClass, primaryButtonClass } from "@/components/formStyles";
 import { TUTORIAL_BUCKET, TUTORIAL_IMAGE_MAX_WIDTH, TUTORIAL_MAX_BYTES, tutorialKindOf, type TutorialSectionData } from "@/lib/tutorialMedia";
 import {
@@ -155,7 +156,7 @@ function SectionCard({ section, index, count, busy, run, upload, uploading, stat
 }
 
 /** Admin > Tutorials: headers, and the photos and videos under each, in the order they show on the Tutorial page. */
-export function TutorialsEditor({ sections }: { sections: TutorialSectionData[] }) {
+export function TutorialsEditor({ sections, audience }: { sections: TutorialSectionData[]; audience: TutorialAudience }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -215,7 +216,7 @@ export function TutorialsEditor({ sections }: { sections: TutorialSectionData[] 
           e.preventDefault();
           const title = newTitle;
           run(async () => {
-            const r = await addSectionAction(title);
+            const r = await addSectionAction(title, audience);
             if (!r.error) setNewTitle("");
             return r;
           });

@@ -779,7 +779,7 @@ export type DrComboPictureRow = {
 };
 
 /** A header on the Tutorial page, set up in Admin > Tutorials. */
-export type TutorialSectionRow = { id: string; title: string; position: number; created_at: string };
+export type TutorialSectionRow = { id: string; title: string; position: number; audience: "PHONE" | "CONTROLLER"; created_at: string };
 /** One photo or video under a tutorial header; the file is in the branding storage bucket under tutorial/. */
 export type TutorialMediaRow = { id: string; section_id: string; kind: "image" | "video"; file_path: string; caption: string | null; position: number; created_at: string };
 

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getAuthContext, isAdmin } from "@/lib/auth/session";
 import { BRANDING_BUCKET } from "@/lib/branding";
+import { TUTORIAL_AUDIENCES, type TutorialAudience } from "@/lib/tutorials";
 import { TUTORIAL_IMAGE_TYPES, TUTORIAL_MAX_BYTES, TUTORIAL_PATH_PREFIX, TUTORIAL_VIDEO_TYPES, tutorialKindOf } from "@/lib/tutorialMedia";
 
 /**
@@ -21,18 +22,19 @@ async function admin() {
 }
 
 function refresh() {
-  revalidatePath("/admin/tutorials");
-  revalidatePath("/tutorial");
+  revalidatePath("/admin/tutorials", "layout");
+  revalidatePath("/tutorial", "layout");
   revalidatePath("/", "layout");
 }
 
-export async function addSectionAction(title: string): Promise<Result> {
+export async function addSectionAction(title: string, audience: TutorialAudience): Promise<Result> {
   if (!(await admin())) return NOT_ALLOWED;
+  if (!(TUTORIAL_AUDIENCES as readonly string[]).includes(audience)) return { error: "Unknown tutorial." };
   const clean = title.trim().slice(0, MAX_TITLE);
   if (!clean) return { error: "Type a header first." };
   const supabase = createServiceRoleClient();
-  const { data: last } = await supabase.from("tutorial_sections").select("position").order("position", { ascending: false }).limit(1).maybeSingle();
-  const { error } = await supabase.from("tutorial_sections").insert({ title: clean, position: (last?.position ?? -1) + 1 });
+  const { data: last } = await supabase.from("tutorial_sections").select("position").eq("audience", audience).order("position", { ascending: false }).limit(1).maybeSingle();
+  const { error } = await supabase.from("tutorial_sections").insert({ title: clean, audience, position: (last?.position ?? -1) + 1 });
   if (error) return { error: `Could not add the header: ${error.message}` };
   refresh();
   return {};
@@ -52,7 +54,9 @@ export async function renameSectionAction(id: string, title: string): Promise<Re
 export async function moveSectionAction(id: string, direction: "up" | "down"): Promise<Result> {
   if (!(await admin())) return NOT_ALLOWED;
   const supabase = createServiceRoleClient();
-  const { data: rows } = await supabase.from("tutorial_sections").select("id").order("position").order("created_at");
+  const { data: mine } = await supabase.from("tutorial_sections").select("audience").eq("id", id).maybeSingle();
+  if (!mine) return { error: "Not found." };
+  const { data: rows } = await supabase.from("tutorial_sections").select("id").eq("audience", mine.audience).order("position").order("created_at");
   const ids = (rows ?? []).map((r) => r.id);
   const i = ids.indexOf(id);
   const j = direction === "up" ? i - 1 : i + 1;

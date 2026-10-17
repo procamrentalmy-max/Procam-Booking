@@ -26,7 +26,7 @@ export const zh: Dictionary = {
     ctaPrimary: "预订无人机",
     ctaSecondary: "查看价格",
     ctaHowToFly: "如何飞行",
-    tutorial: { nav: "教程", watch: "如何飞行", title: "教程", sub: "带照片和视频的简短指南：如何飞行，以及在门店会发生什么。", empty: "教程即将推出。", back: "返回首页", faq: "有疑问？查看常见问题" },
+    tutorial: { nav: "教程", watch: "如何飞行", title: "教程", sub: "带照片和视频的简短指南：如何飞行，以及在门店会发生什么。", choose: "您打算怎么飞？", usePhone: "用手机", useController: "用遥控器", titlePhone: "用手机飞行", titleController: "用遥控器飞行", other: "选择另一个教程", empty: "教程即将推出。", back: "返回首页", faq: "有疑问？查看常见问题" },
     prefer: { label: "您更喜欢哪一个？", added: "已加入您的套餐。", see: "查看价格" },
     price: {
       title: "查看价格",

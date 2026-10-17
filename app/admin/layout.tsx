@@ -17,6 +17,9 @@ const PAGE_TITLES: Record<string, string> = {
   "/admin/rental-assets": "Rental Assets",
   "/admin/batteries": "Batteries",
   "/admin/staff": "Staff",
+  "/admin/tutorials": "Tutorials",
+  "/admin/tutorials/phone": "Phone tutorial",
+  "/admin/tutorials/controller": "Controller tutorial",
 };
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

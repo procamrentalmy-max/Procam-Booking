@@ -3,11 +3,21 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { BRANDING_BUCKET } from "@/lib/branding";
 import type { TutorialSectionData } from "@/lib/tutorialMedia";
 
-/** Every header with its photos and videos, in the order the admin set them (Admin > Tutorials). */
-export async function getTutorialSections(): Promise<TutorialSectionData[]> {
+/** Every header of one tutorial with its photos and videos, in the order the admin set them (Admin > Tutorials). */
+/** The two tutorials: for flying with your phone, and for flying with the controller. */
+export const TUTORIAL_AUDIENCES = ["PHONE", "CONTROLLER"] as const;
+export type TutorialAudience = (typeof TUTORIAL_AUDIENCES)[number];
+
+/** "phone" and "controller" in the address of the tutorial and admin pages. */
+export function audienceFromSlug(slug: string): TutorialAudience | null {
+  const upper = slug.toUpperCase();
+  return (TUTORIAL_AUDIENCES as readonly string[]).includes(upper) ? (upper as TutorialAudience) : null;
+}
+
+export async function getTutorialSections(audience: TutorialAudience = "PHONE"): Promise<TutorialSectionData[]> {
   const supabase = createServiceRoleClient();
   const [{ data: sections }, { data: media }] = await Promise.all([
-    supabase.from("tutorial_sections").select("id,title,position,created_at").order("position").order("created_at"),
+    supabase.from("tutorial_sections").select("id,title,position,created_at").eq("audience", audience).order("position").order("created_at"),
     supabase.from("tutorial_media").select("id,section_id,kind,file_path,caption,position,created_at").order("position").order("created_at"),
   ]);
   return (sections ?? []).map((s) => ({
