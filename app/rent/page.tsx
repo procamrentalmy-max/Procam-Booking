@@ -1,4 +1,4 @@
-import { listActiveShopsWithAvailability } from "@/lib/droneRental/shops";
+import { listShopsWithAvailability } from "@/lib/droneRental/shops";
 import { ShopMapPicker } from "@/components/droneRental/ShopMapPicker";
 import { getLogoUrl } from "@/lib/branding";
 import { Brand } from "@/components/Brand";
@@ -22,7 +22,7 @@ export default async function RentLandingPage({ searchParams }: { searchParams: 
   // available server-side) — the client re-fetches sorted-by-distance the
   // moment geolocation resolves. Rendering something immediately (even
   // unsorted) beats a blank page while that permission prompt is pending.
-  const [initialShops, logoUrl, locale] = await Promise.all([listActiveShopsWithAvailability(null), getLogoUrl(), getLocale()]);
+  const [initialShops, logoUrl, locale] = await Promise.all([listShopsWithAvailability(null), getLogoUrl(), getLocale()]);
   const text = droneText(locale);
   const t = text.shops;
   const summary = preset

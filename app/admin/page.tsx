@@ -9,6 +9,7 @@ const GROUPS: { title: string; sections: Section[] }[] = [
     sections: [
       { href: "/admin/drone-rental", label: "Drone Rental", note: "Drones, batteries and controllers, and which shop each one is at" },
       { href: "/admin/drone-rental/batteries", label: "Drone Batteries", note: "Every battery by number, and how much each one has been used" },
+      { href: "/admin/drone-rental/locations", label: "Locations", note: "Which locations customers tap, open and ask directions for, location by location and overall" },
       { href: "/admin/drone-rental/funnel", label: "Drone Funnel", note: "Where customers drop off between the home page and paying" },
       { href: "/admin/drone-rental/profit", label: "Drone Profit", note: "Sales minus what each rental costs, against the 65% goal, with charts, payback and a forecast by day" },
       { href: "/admin/drone-rental/sales", label: "Drone Sales", note: "Drone revenue only: by month, shop, drone and rental length" },

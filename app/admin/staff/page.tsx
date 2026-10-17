@@ -28,8 +28,6 @@ export default async function StaffAdminPage() {
   }
 
   const shopById = new Map((shops ?? []).map((sh) => [sh.id, sh]));
-  const shopIdsWithMerchant = new Set((merchantShops ?? []).map((m) => m.shop_id));
-  const shopsWithoutMerchant = (shops ?? []).filter((sh) => !shopIdsWithMerchant.has(sh.id)).map((sh) => ({ id: sh.id, name: sh.name }));
   const shopInfoForStaff = (staffId: string): ShopInfo | null => {
     const link = (merchantShops ?? []).find((m) => m.staff_user_id === staffId);
     const shop = link ? shopById.get(link.shop_id) : undefined;
@@ -54,7 +52,7 @@ export default async function StaffAdminPage() {
     <div className="space-y-6 pt-4">
       <section className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
         <h2 className="mb-3 text-sm font-semibold">Add Staff</h2>
-        <CreateStaffForm shopsWithoutMerchant={shopsWithoutMerchant} />
+        <CreateStaffForm />
         <p className="mt-2 text-xs text-zinc-500">
           Share the username and password with them directly. Workers don&apos;t manage their own login — use
           &quot;Edit Login&quot; below to change a worker&apos;s username or password later.

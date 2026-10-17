@@ -88,6 +88,7 @@ export function DroneBookingWizard({
   shopsHref = "/rent",
   tables,
   hours = DEFAULT_SHOP_HOURS,
+  canBook = true,
 }: {
   shopId: string;
   models: DroneModel[];
@@ -108,13 +109,15 @@ export function DroneBookingWizard({
   tables?: CompareTables;
   /** This shop's opening hours: the times offered follow them, and a closed day offers none. */
   hours?: ShopHours;
+  /** False on a location that only shows its rates (Check Rates): everything can be looked at and priced, but there is no button to go on to a time. */
+  canBook?: boolean;
 }) {
   const t = droneText(locale);
   const router = useRouter();
   // The package from the landing page: used as it is when this shop has the drone and the controller, and ignored where it does not.
   const presetModel = preset && availableModels.includes(preset.model) ? preset.model : null;
   const presetController = preset && presetModel && (preset.controller === "NONE" || controllers.includes(preset.controller)) ? preset.controller : null;
-  const presetFits = !!preset && presetModel === preset.model && presetController === preset.controller;
+  const presetFits = canBook && !!preset && presetModel === preset.model && presetController === preset.controller;
   const [presetNote, setPresetNote] = useState(!!preset && !presetFits);
   const [step, setStep] = useState<Step>(presetFits ? "slot" : "duration");
   const [model, setModel] = useState<DroneModel>(presetModel ?? (availableModels.includes("NEO2") ? "NEO2" : (availableModels[0] ?? models[0])));
@@ -301,17 +304,19 @@ export function DroneBookingWizard({
 
         <TotalSummary locale={locale} totalMyr={rentalFee} depositMyr={deposit} />
 
-        <button
-          type="button"
-          onClick={() => {
-            setSelectedStart(null);
-            setPresetNote(false);
-            setStep("slot");
-          }}
-          className={`w-full ${primaryButtonClass} h-12 rounded-full`}
-        >
-          {t.wizard.chooseTime}
-        </button>
+        {canBook && (
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedStart(null);
+              setPresetNote(false);
+              setStep("slot");
+            }}
+            className={`w-full ${primaryButtonClass} h-12 rounded-full`}
+          >
+            {t.wizard.chooseTime}
+          </button>
+        )}
       </div>
     );
   }

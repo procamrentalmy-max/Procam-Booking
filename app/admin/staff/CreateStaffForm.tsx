@@ -3,14 +3,17 @@
 import { useRef, useState, useTransition, type FormEvent } from "react";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import { Spinner } from "@/components/Spinner";
+import { LocationPicker } from "@/components/admin/LocationPicker";
 import { createStaffAction } from "./actions";
 
 /** Add Staff: a wrong or taken username or a refused password is shown under the form, instead of the page failing to load. */
-export function CreateStaffForm({ shopsWithoutMerchant }: { shopsWithoutMerchant: { id: string; name: string }[] }) {
+export function CreateStaffForm() {
   const form = useRef<HTMLFormElement>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [isPending, startTransition] = useTransition();
   const [role, setRole] = useState("PROCAM_STAFF");
+  // Bumped after a successful create so the map starts afresh for the next account.
+  const [formKey, setFormKey] = useState(0);
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -21,7 +24,8 @@ export function CreateStaffForm({ shopsWithoutMerchant }: { shopsWithoutMerchant
         const result = await createStaffAction(formData);
         if (result.ok) {
           form.current?.reset();
-          setMessage({ ok: true, text: role === "DRONE_MERCHANT" ? "Account created. Open Edit info under it to add the shop's address and opening hours." : "Account created." });
+          setFormKey((k) => k + 1);
+          setMessage({ ok: true, text: role === "DRONE_MERCHANT" ? "Account created with its shop. Open Edit info under it to set the opening hours and open it to customers." : "Account created." });
         } else {
           setMessage({ ok: false, text: result.error });
         }
@@ -41,20 +45,7 @@ export function CreateStaffForm({ shopsWithoutMerchant }: { shopsWithoutMerchant
         <option value="ADMIN">Admin</option>
         <option value="DRONE_MERCHANT">Drone Merchant</option>
       </select>
-      {role === "DRONE_MERCHANT" && (
-        <label className="space-y-1 text-sm sm:col-span-2">
-          <span className="text-zinc-500">Their shop</span>
-          <select name="shopChoice" defaultValue="new" className={`w-full ${inputClass}`}>
-            <option value="new">A new shop, named after the full name above</option>
-            {shopsWithoutMerchant.map((shop) => (
-              <option key={shop.id} value={shop.id}>
-                {shop.name} (shop with no merchant yet)
-              </option>
-            ))}
-          </select>
-          <span className="block text-xs text-zinc-500">The shop is created with the account. Its address, map position and opening hours are edited under the account with Edit info.</span>
-        </label>
-      )}
+      {role === "DRONE_MERCHANT" && <LocationPicker key={formKey} />}
       <button type="submit" disabled={isPending} className={`${primaryButtonClass} flex items-center justify-center gap-2 disabled:opacity-50 sm:col-span-2`}>
         {isPending && <Spinner />}
         {isPending ? "Creating…" : "Create Account"}

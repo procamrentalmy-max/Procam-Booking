@@ -26,6 +26,8 @@ export type ShopWithAvailability = {
   lng: number;
   googleMapsUrl: string | null;
   distanceKm: number | null;
+  /** True for the locations that are open for booking (the only ones with Book here and Get direction); the rest show Too Far and Check Rates. */
+  bookable: boolean;
   firstAvailableAt: string | null; // ISO, or null if nothing is ever eligible right now (e.g. every drone is down)
 };
 
@@ -36,19 +38,22 @@ export type ShopWithAvailability = {
  * customer's browser-reported location when given; sorted nearest-first,
  * shops with an unknown location pushed to the end rather than dropped.
  */
-export async function listActiveShopsWithAvailability(customerLocation: { lat: number; lng: number } | null): Promise<ShopWithAvailability[]> {
+export async function listShopsWithAvailability(customerLocation: { lat: number; lng: number } | null): Promise<ShopWithAvailability[]> {
   const supabase = createServiceRoleClient();
   const { data: shops } = await supabase
     .from("dr_shops")
-    .select("id,human_id,name,address,lat,lng,google_maps_url,hours")
-    .eq("active", true)
+    .select("id,human_id,name,address,lat,lng,google_maps_url,hours,active")
     .order("name");
 
   const now = new Date();
   const withAvailability = await Promise.all(
     (shops ?? []).map(async (shop) => {
-      const snapshot = await buildShopFleetSnapshot(shop.id);
-      const soonest = firstBookableStart(snapshot.drones, snapshot.bookings, parseShopHours(shop.hours), now);
+      // A location that is not open for booking has nothing to look up: it shows Too Far and Check Rates.
+      let soonest: Date | null = null;
+      if (shop.active) {
+        const snapshot = await buildShopFleetSnapshot(shop.id);
+        soonest = firstBookableStart(snapshot.drones, snapshot.bookings, parseShopHours(shop.hours), now);
+      }
       return {
         id: shop.id,
         humanId: shop.human_id,
@@ -58,12 +63,15 @@ export async function listActiveShopsWithAvailability(customerLocation: { lat: n
         lng: shop.lng,
         googleMapsUrl: shop.google_maps_url,
         distanceKm: customerLocation ? haversineDistanceKm(customerLocation, { lat: shop.lat, lng: shop.lng }) : null,
+        bookable: shop.active,
         firstAvailableAt: soonest ? soonest.toISOString() : null,
       };
     })
   );
 
+  // The locations that can be booked come first, then the rest; each group nearest first when the customer's position is known.
   return withAvailability.sort((a, b) => {
+    if (a.bookable !== b.bookable) return a.bookable ? -1 : 1;
     if (a.distanceKm === null && b.distanceKm === null) return 0;
     if (a.distanceKm === null) return 1;
     if (b.distanceKm === null) return -1;

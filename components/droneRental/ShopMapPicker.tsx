@@ -6,6 +6,8 @@ import { getShopsWithAvailabilityAction } from "@/app/rent/actions";
 import { formatMalaysiaTime, type Locale } from "@/lib/i18n/locale";
 import { droneText, type DroneText } from "@/lib/i18n/drone";
 import { pressableClass } from "@/components/formStyles";
+import { trackLocation } from "@/components/FunnelBeacon";
+import { loadGoogleMaps } from "@/lib/maps/loadGoogleMaps";
 
 export type ShopMarker = {
   id: string;
@@ -16,6 +18,8 @@ export type ShopMarker = {
   lng: number;
   googleMapsUrl: string | null;
   distanceKm: number | null;
+  /** Open for booking: only these show Book here and Get direction; the others show Too Far and Check Rates. */
+  bookable: boolean;
   firstAvailableAt: string | null;
 };
 
@@ -25,43 +29,8 @@ const DEFAULT_ZOOM = 6;
 const LOCATED_ZOOM = 12;
 const SHOP_ZOOM = 14;
 
-let mapsLoaderPromise: Promise<void> | null = null;
-let mapsCallbackCounter = 0;
-
-/**
- * Loads the Google Maps JS API exactly once per page, however many times
- * this component mounts, resolving only once google.maps.Map/Marker are
- * genuinely safe to construct.
- *
- * Uses the classic `callback=` query param rather than `loading=async` +
- * `importLibrary`: that combination requires Google's special inline
- * bootstrap snippet to actually define `google.maps.importLibrary` — a
- * plain <script src="...&loading=async"> tag's own `onload` fires as soon
- * as that small stub is fetched, well before `importLibrary` exists at
- * all, which was throwing "google.maps.importLibrary is not a function"
- * every time. `callback=` is the older, plainer contract: Google calls the
- * named global function only once the full library (Map, Marker, the
- * works) is actually loaded and ready to use — nothing to import.
- */
-function loadGoogleMaps(apiKey: string): Promise<void> {
-  if (typeof window === "undefined") return Promise.resolve();
-  if (window.google?.maps?.Map) return Promise.resolve();
-  if (mapsLoaderPromise) return mapsLoaderPromise;
-
-  mapsLoaderPromise = new Promise((resolve, reject) => {
-    const callbackName = `__shopMapPickerInit${mapsCallbackCounter++}`;
-    (window as unknown as Record<string, () => void>)[callbackName] = () => resolve();
-
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&callback=${callbackName}`;
-    script.async = true;
-    script.onerror = () => reject(new Error("Failed to load Google Maps"));
-    document.head.appendChild(script);
-  });
-  return mapsLoaderPromise;
-}
-
 function availabilityLabel(shop: ShopMarker, t: DroneText["shops"], locale: Locale): string {
+  if (!shop.bookable) return "";
   if (!shop.firstAvailableAt) return t.none;
   const at = new Date(shop.firstAvailableAt);
   return at.getTime() <= Date.now() ? t.nowAvailable : t.availableAt(formatMalaysiaTime(at, locale));
@@ -77,9 +46,11 @@ function haversineKm(a: LatLng, b: LatLng): number {
   return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
+/** The nearest location that can be booked (the ones that show Too Far are not what "nearest to me" is for). */
 function nearestShop(shops: ShopMarker[], origin: LatLng): ShopMarker | null {
   let best: { shop: ShopMarker; km: number } | null = null;
   for (const shop of shops) {
+    if (!shop.bookable) continue;
     const km = haversineKm(origin, shop);
     if (!best || km < best.km) best = { shop, km };
   }
@@ -200,7 +171,10 @@ export function ShopMapPicker({ initialShops, locale = "en", carry }: { initialS
         map: mapRef.current!,
         title: shop.name,
       });
-      marker.addListener("click", () => setSelectedShopId(shop.id));
+      marker.addListener("click", () => {
+        setSelectedShopId(shop.id);
+        trackLocation("SELECT", shop.id);
+      });
       return marker;
     });
   }, [mapsReady, shops]);
@@ -316,7 +290,15 @@ export function ShopMapPicker({ initialShops, locale = "en", carry }: { initialS
               key={shop.id}
               className={`rounded-xl border p-3 text-sm ${selected ? "border-black bg-white dark:border-white dark:bg-zinc-800" : "cursor-pointer border-zinc-300 bg-zinc-50 shadow-sm transition hover:border-black hover:bg-white dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-white"}`}
             >
-              <button type="button" onClick={() => focusShop(shop, userLocation)} className="w-full text-left" aria-pressed={selected}>
+              <button
+                type="button"
+                onClick={() => {
+                  focusShop(shop, userLocation);
+                  trackLocation("SELECT", shop.id);
+                }}
+                className="w-full text-left"
+                aria-pressed={selected}
+              >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium text-black dark:text-zinc-50">
                     {shop.name}
@@ -329,28 +311,43 @@ export function ShopMapPicker({ initialShops, locale = "en", carry }: { initialS
                   {shop.distanceKm !== null && <span className="shrink-0 text-xs text-zinc-400">{shop.distanceKm.toFixed(1)} km</span>}
                 </div>
                 <p className="mt-0.5 text-xs text-zinc-500">{shop.address}</p>
-                <p className="mt-1 text-xs font-medium">{availabilityLabel(shop, t, locale)}</p>
+                {availabilityLabel(shop, t, locale) && <p className="mt-1 text-xs font-medium">{availabilityLabel(shop, t, locale)}</p>}
               </button>
-              {selected && (
-                <div className="mt-3 flex gap-2">
-                  <PendingLink
-                    href={carry ? `/rent/${shop.id}?${carry}` : `/rent/${shop.id}`}
-                    className="flex h-11 flex-1 items-center justify-center rounded-full bg-black text-sm font-semibold text-white dark:bg-white dark:text-black"
-                  >
-                    {t.book}
-                  </PendingLink>
-                  {shop.googleMapsUrl && (
+              {selected &&
+                (shop.bookable ? (
+                  <div className="mt-3 flex gap-2">
+                    <PendingLink
+                      href={carry ? `/rent/${shop.id}?${carry}` : `/rent/${shop.id}`}
+                      className="flex h-11 flex-1 items-center justify-center rounded-full bg-black text-sm font-semibold text-white dark:bg-white dark:text-black"
+                    >
+                      {t.book}
+                    </PendingLink>
                     <a
-                      href={shop.googleMapsUrl}
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${shop.lat},${shop.lng}`}
                       target="_blank"
                       rel="noreferrer"
+                      onClick={() => trackLocation("DIRECTIONS", shop.id)}
                       className={`flex h-11 items-center justify-center rounded-full border px-4 text-sm font-medium ${pressableClass}`}
                     >
                       {t.directions}
                     </a>
-                  )}
-                </div>
-              )}
+                  </div>
+                ) : (
+                  <div className="mt-3 flex gap-2">
+                    <span
+                      aria-disabled="true"
+                      className="flex h-11 flex-1 cursor-not-allowed items-center justify-center rounded-full border border-zinc-200 text-sm font-semibold text-zinc-400 dark:border-zinc-800 dark:text-zinc-600"
+                    >
+                      {t.tooFar}
+                    </span>
+                    <PendingLink
+                      href={carry ? `/rent/${shop.id}?${carry}` : `/rent/${shop.id}`}
+                      className={`flex h-11 flex-1 items-center justify-center rounded-full border px-4 text-sm font-semibold ${pressableClass}`}
+                    >
+                      {t.checkRates}
+                    </PendingLink>
+                  </div>
+                ))}
             </div>
           );
         })}

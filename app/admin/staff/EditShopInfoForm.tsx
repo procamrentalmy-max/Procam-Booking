@@ -2,6 +2,7 @@
 
 import { ActionForm } from "@/components/admin/ActionForm";
 import { inputClass } from "@/components/formStyles";
+import { LocationPicker } from "@/components/admin/LocationPicker";
 import { WEEKDAY_NAMES, type DayHours } from "@/lib/droneRental/hours";
 import { updateShopInfoAction } from "./actions";
 
@@ -37,23 +38,11 @@ export function EditShopInfoForm({ shop }: { shop: ShopInfo }) {
           <span className="text-zinc-500">Shop name</span>
           <input name="name" defaultValue={shop.name} required className={`w-full ${inputClass}`} />
         </label>
-        <label className="space-y-1 text-sm">
-          <span className="text-zinc-500">Address</span>
-          <input name="address" defaultValue={shop.needsDetails ? "" : shop.address} placeholder="Where customers collect the drone" required className={`w-full ${inputClass}`} />
-        </label>
-        <label className="space-y-1 text-sm">
-          <span className="text-zinc-500">Latitude</span>
-          <input name="lat" type="number" step="0.000001" defaultValue={shop.needsDetails ? "" : shop.lat} required className={`w-full ${inputClass}`} />
-        </label>
-        <label className="space-y-1 text-sm">
-          <span className="text-zinc-500">Longitude</span>
-          <input name="lng" type="number" step="0.000001" defaultValue={shop.needsDetails ? "" : shop.lng} required className={`w-full ${inputClass}`} />
-        </label>
+        <LocationPicker defaultAddress={shop.needsDetails ? "" : shop.address} defaultLat={shop.needsDetails ? null : shop.lat} defaultLng={shop.needsDetails ? null : shop.lng} />
         <label className="space-y-1 text-sm sm:col-span-2">
           <span className="text-zinc-500">Google Maps link (optional)</span>
           <input name="googleMapsUrl" type="url" defaultValue={shop.googleMapsUrl ?? ""} className={`w-full ${inputClass}`} />
         </label>
-        <p className="text-xs text-zinc-500 sm:col-span-2">Get the exact position by right-clicking the spot on Google Maps and copying the latitude and longitude shown.</p>
 
         <div className="space-y-1.5 sm:col-span-2">
           <p className="text-sm font-medium">Opening hours</p>

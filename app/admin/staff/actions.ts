@@ -7,7 +7,13 @@ import { getAuthContext, isAdmin } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { isValidUsername, usernameToEmail } from "@/lib/auth/username";
 import { isHalfHourTime, serializeShopHours, WEEKDAY_NAMES, type ShopHours } from "@/lib/droneRental/hours";
-import { SHOP_ADDRESS_PLACEHOLDER, shopInfoComplete } from "@/lib/droneRental/shopInfo";
+import { shopInfoComplete } from "@/lib/droneRental/shopInfo";
+
+const shopPlaceSchema = z.object({
+  address: z.string().trim().min(1),
+  lat: z.coerce.number().min(-90).max(90),
+  lng: z.coerce.number().min(-180).max(180),
+});
 
 const createStaffSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -47,21 +53,16 @@ export async function createStaffAction(formData: FormData): Promise<StaffAction
 
   const supabase = createServiceRoleClient();
 
-  // A Drone Merchant account IS the shop: it is made together with one (kept closed to customers until its address is filled in under Edit info),
-  // or it takes over a shop that has no merchant yet.
-  const shopChoice = String(formData.get("shopChoice") ?? "new");
+  // A Drone Merchant account IS the shop: it is made together with one, at the address and map position given here (closed to customers
+  // until it is opened under Edit info).
+  let place: { address: string; lat: number; lng: number } | null = null;
+  if (parsed.data.role === "DRONE_MERCHANT") {
+    const located = shopPlaceSchema.safeParse({ address: formData.get("address"), lat: formData.get("lat"), lng: formData.get("lng") });
+    if (!located.success) return { ok: false, error: "Give the shop's address and click its position on the map." };
+    place = located.data;
+  }
   let shopToLink: string | null = null;
   let shopCreated = false;
-  if (parsed.data.role === "DRONE_MERCHANT" && shopChoice !== "new") {
-    if (!uuidSchema.safeParse(shopChoice).success) return { ok: false, error: "Pick a shop from the list." };
-    const [{ data: shop }, { count: taken }] = await Promise.all([
-      supabase.from("dr_shops").select("id").eq("id", shopChoice).maybeSingle(),
-      supabase.from("dr_merchant_shops").select("shop_id", { count: "exact", head: true }).eq("shop_id", shopChoice),
-    ]);
-    if (!shop) return { ok: false, error: "That shop was not found." };
-    if ((taken ?? 0) > 0) return { ok: false, error: "That shop already has a merchant." };
-    shopToLink = shop.id;
-  }
 
   const { data: created, error: authError } = await supabase.auth.admin.createUser({
     email: usernameToEmail(parsed.data.username),
@@ -88,7 +89,7 @@ export async function createStaffAction(formData: FormData): Promise<StaffAction
     if (!shopToLink) {
       const { data: shop, error: shopError } = await supabase
         .from("dr_shops")
-        .insert({ name: parsed.data.name, address: SHOP_ADDRESS_PLACEHOLDER, lat: 0, lng: 0, active: false })
+        .insert({ name: parsed.data.name, address: place!.address, lat: place!.lat, lng: place!.lng, active: false })
         .select("id")
         .single();
       if (shopError || !shop) {
@@ -165,6 +166,7 @@ export async function updateShopInfoAction(formData: FormData): Promise<StaffAct
   }
 
   const active = formData.get("active") === "on";
+  if (!formData.get("lat") || !formData.get("lng")) return { ok: false, error: "Click the shop's position on the map." };
   if (active && !shopInfoComplete({ address: parsed.data.address, lat: parsed.data.lat, lng: parsed.data.lng })) {
     return { ok: false, error: "To open the shop to customers, give its real address and its map position (latitude and longitude) first." };
   }

@@ -95,6 +95,9 @@ export async function createDroneBookingAction(input: {
   if (data.whatsappNumber && !toWhatsAppNumber(data.whatsappNumber)) return { error: text.common.whatsappNumberInvalid };
   const start = new Date(data.startTime);
   if (Number.isNaN(start.getTime())) return { error: t.invalidDate };
+  // A location that only shows its rates can't be booked, whatever is sent to this action.
+  const { data: shopRow } = await createServiceRoleClient().from("dr_shops").select("active").eq("id", data.shopId).maybeSingle();
+  if (!shopRow?.active) return { error: t.closed };
   if (!isWithinOperatingHours(start, data.durationMinutes, await getShopHours(data.shopId))) return { error: t.closed };
 
   const customerId = await findOrCreateCustomer({ name: data.name, phone: data.phone, email: data.email });

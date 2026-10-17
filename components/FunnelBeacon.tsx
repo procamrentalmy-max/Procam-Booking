@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { logDroneFunnelAction } from "@/app/funnelActions";
+import { logDroneFunnelAction, logLocationEventAction } from "@/app/funnelActions";
 import { FUNNEL_PAYING_KEY, FUNNEL_SESSION_KEY, type DroneFunnelStep } from "@/lib/droneFunnel";
 
 function sessionId(): string | null {
@@ -54,5 +54,23 @@ export function PaidBeacon() {
       // ignore
     }
   }, []);
+  return null;
+}
+
+/** Counts something a visit did with a location (see logLocationEventAction). Never breaks the page it is called from. */
+export function trackLocation(kind: "SELECT" | "OPEN" | "DIRECTIONS", shopId: string): void {
+  try {
+    const id = sessionId();
+    if (id) void logLocationEventAction({ sessionId: id, shopId, kind }).catch(() => {});
+  } catch {
+    // counting is best effort
+  }
+}
+
+/** On a location's page: counts that this visit opened it, whether it is open for booking or only shows the rates. */
+export function LocationBeacon({ shopId }: { shopId: string }) {
+  useEffect(() => {
+    trackLocation("OPEN", shopId);
+  }, [shopId]);
   return null;
 }

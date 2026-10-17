@@ -810,6 +810,9 @@ export type WaMessageRow = {
   updated_at: string;
 };
 
+/** A customer tapping a location on the shop list (SELECT), opening its page (OPEN) or asking for directions (DIRECTIONS); bookable says whether the location was open for booking then. */
+export type DrLocationEventRow = { id: string; session_id: string; shop_id: string; kind: "SELECT" | "OPEN" | "DIRECTIONS"; bookable: boolean; created_at: string };
+
 /** One step of the drone booking flow reached by one visit (Admin > Drone Funnel). */
 export type DrFunnelEventRow = { id: string; session_id: string; step: string; shop_id: string | null; created_at: string };
 
@@ -856,6 +859,7 @@ export interface Database {
       tutorial_sections: TableDef<TutorialSectionRow>;
       tutorial_media: TableDef<TutorialMediaRow>;
       dr_funnel_events: TableDef<DrFunnelEventRow>;
+      dr_location_events: TableDef<DrLocationEventRow>;
       wa_messages: TableDef<WaMessageRow>;
       photo_orders: TableDef<PhotoOrderRow>;
       photo_order_files: TableDef<PhotoOrderFileRow>;
