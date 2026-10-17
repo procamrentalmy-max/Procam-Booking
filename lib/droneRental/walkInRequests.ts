@@ -44,6 +44,12 @@ export async function findShopByWalkInCode(code: string): Promise<{ id: string; 
   return { id: data.id, name: data.name, address: data.address };
 }
 
+/** The id of a shop with this walk-in code whether or not it is open for booking (its QR works from the day it is made). */
+export async function shopIdForWalkInCode(code: string): Promise<string | null> {
+  const { data } = await createServiceRoleClient().from("dr_shops").select("id").eq("walkin_code", code).maybeSingle();
+  return data?.id ?? null;
+}
+
 /**
  * The lengths (in minutes) a customer scanning this shop's QR can choose right now for one model and one way of flying it — only what
  * some drone of that model at the shop can actually take (and, with a controller, only while the shop has one of that kind free).

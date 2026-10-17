@@ -1,7 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getComboPictureUrls, getLogoUrl } from "@/lib/branding";
 import { Brand } from "@/components/Brand";
-import { findShopByWalkInCode, walkInOptionsByModel, windyModelsNow } from "@/lib/droneRental/walkInRequests";
+import { findShopByWalkInCode, shopIdForWalkInCode, walkInOptionsByModel, windyModelsNow } from "@/lib/droneRental/walkInRequests";
 import { formatWind } from "@/lib/droneRental/windRules";
 import { DRONE_MODEL_PROFILES } from "@/lib/droneRental/pricingRules";
 import { WalkInOrderForm } from "./WalkInOrderForm";
@@ -23,7 +23,12 @@ export default async function WalkInOrderPage({ params }: { params: Promise<{ co
   const locale = await getLocale();
   const t = droneText(locale);
   const shop = await findShopByWalkInCode(code);
-  if (!shop) notFound();
+  if (!shop) {
+    // A shop that is not open for booking: its QR is valid already, and scanning it shows the rates like Check Rates does.
+    const shopId = await shopIdForWalkInCode(code);
+    if (shopId) redirect(`/rent/${shopId}`);
+    notFound();
+  }
 
   const [options, logoUrl, pictures, windy] = await Promise.all([walkInOptionsByModel(shop.id), getLogoUrl(), getComboPictureUrls(), windyModelsNow(shop.id)]);
   const offered = Object.keys(options).length > 0;
