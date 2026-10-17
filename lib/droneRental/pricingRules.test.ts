@@ -162,15 +162,15 @@ describe("computeDepositCapture", () => {
 });
 
 describe("the three ways to fly: phone only, the RC-N3 or the Goggles N3 + Motion 3 set", () => {
-  it("adds RM5 an hour for the RC-N3 and RM10 for the goggles set: RM15, RM20 or RM25 on the Neo 2", () => {
+  it("adds RM11 an hour for the RC-N3 and RM10 for the goggles set: RM15, RM26 or RM25 on the Neo 2", () => {
     expect(hourlyRateFor("NEO2", "NONE")).toBe(15);
-    expect(hourlyRateFor("NEO2", "RC_N3")).toBe(20);
+    expect(hourlyRateFor("NEO2", "RC_N3")).toBe(26);
     expect(hourlyRateFor("NEO2", "GOGGLES_N3")).toBe(25);
     expect(rentalFeeMyr(60, 1, "NEO2", "NONE")).toBe(23);
-    expect(rentalFeeMyr(60, 1, "NEO2", "RC_N3")).toBe(28);
+    expect(rentalFeeMyr(60, 1, "NEO2", "RC_N3")).toBe(34);
     expect(rentalFeeMyr(60, 1, "NEO2", "GOGGLES_N3")).toBe(33);
     expect(rentalFeeMyr(120, 2, "NEO2", "GOGGLES_N3")).toBe(65);
-    expect(rentalFeeMyr(180, 1, "NEO2", "RC_N3")).toBe(68);
+    expect(rentalFeeMyr(180, 1, "NEO2", "RC_N3")).toBe(86);
   });
 
   it("charges the same controller prices on every drone: the extra is the same on the Neo and the Neo 2", () => {
@@ -184,7 +184,7 @@ describe("the three ways to fly: phone only, the RC-N3 or the Goggles N3 + Motio
 
   it("is with the RC-N3 unless the booking says otherwise, so older rows keep their price", () => {
     expect(rentalFeeMyr(60, 2)).toBe(rentalFeeMyr(60, 2, "NEO2", "RC_N3"));
-    expect(lateFeeMyr(10)).toBe(20);
+    expect(lateFeeMyr(10)).toBe(26);
     expect(depositMyrFor("NEO2")).toBe(1100);
     expect(storedController("NEO2", undefined)).toBe("RC_N3");
     expect(storedController("NEO2", "SOMETHING")).toBe("RC_N3");
@@ -202,7 +202,7 @@ describe("the three ways to fly: phone only, the RC-N3 or the Goggles N3 + Motio
 
   it("bills a late return at the hourly rate for each hour, whichever way it was flown", () => {
     expect(lateFeeMyr(10, "NEO2", "NONE")).toBe(15);
-    expect(lateFeeMyr(10, "NEO2", "RC_N3")).toBe(20);
+    expect(lateFeeMyr(10, "NEO2", "RC_N3")).toBe(26);
     expect(lateFeeMyr(10, "NEO2", "GOGGLES_N3")).toBe(25);
     expect(lateFeeMyr(61, "NEO2", "GOGGLES_N3")).toBe(50);
     expect(lateFeeMyr(61, "NEO", "GOGGLES_N3")).toBe(48);
@@ -260,12 +260,12 @@ describe("the DJI Neo (the original)", () => {
     expect(DRONE_MODEL_PROFILES.NEO.batteryFeeMyr).toEqual({ 1: 7, 2: 14 });
     expect(rentalFeeMyr(60, 1, "NEO", "NONE")).toBe(21);
     expect(rentalFeeMyr(60, 2, "NEO", "NONE")).toBe(28);
-    expect(rentalFeeMyr(120, 2, "NEO", "RC_N3")).toBe(52);
+    expect(rentalFeeMyr(120, 2, "NEO", "RC_N3")).toBe(64);
   });
 
   it("bills a late return at the hourly rate, RM14 on its own", () => {
     expect(lateFeeMyr(10, "NEO", "NONE")).toBe(14);
-    expect(lateFeeMyr(61, "NEO", "RC_N3")).toBe(38);
+    expect(lateFeeMyr(61, "NEO", "RC_N3")).toBe(50);
   });
 
   it("holds a RM600 drone deposit (RM100 less than the Neo 2), with the controller deposits on top", () => {

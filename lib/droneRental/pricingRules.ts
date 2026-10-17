@@ -74,7 +74,7 @@ export type ControllerProfile = {
 };
 
 export const CONTROLLER_PROFILES: Record<ControllerEquipment, ControllerProfile> = {
-  RC_N3: { key: "RC_N3", name: "RC-N3 controller", shortName: "Controller (RC-N3)", hourlyMyr: 5, depositMyr: 400 },
+  RC_N3: { key: "RC_N3", name: "RC-N3 controller", shortName: "Controller (RC-N3)", hourlyMyr: 11, depositMyr: 400 },
   GOGGLES_N3: { key: "GOGGLES_N3", name: "Goggles N3 + Motion 3 controller", shortName: "Goggles N3 + Motion 3", hourlyMyr: 10, depositMyr: 800 },
 };
 
