@@ -2,7 +2,8 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import { emailToUsername } from "@/lib/auth/username";
-import { createStaffAction, setStaffActiveAction, updateWorkerLockersAction } from "./actions";
+import { setStaffActiveAction, updateWorkerLockersAction } from "./actions";
+import { CreateStaffForm } from "./CreateStaffForm";
 import { EditLoginForm } from "./EditLoginForm";
 
 export default async function StaffAdminPage() {
@@ -28,34 +29,7 @@ export default async function StaffAdminPage() {
     <div className="space-y-6 pt-4">
       <section className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
         <h2 className="mb-3 text-sm font-semibold">Add Staff</h2>
-        <form action={createStaffAction} className="grid gap-2 sm:grid-cols-2">
-          <input name="name" placeholder="Full name" required className={inputClass} />
-          <input
-            name="username"
-            placeholder="Username"
-            required
-            minLength={3}
-            maxLength={32}
-            pattern="[A-Za-z0-9][-A-Za-z0-9._]*[A-Za-z0-9]"
-            className={inputClass}
-          />
-          <input
-            name="password"
-            type="password"
-            placeholder="Password (min 8 characters)"
-            minLength={8}
-            required
-            className={inputClass}
-          />
-          <select name="role" defaultValue="PROCAM_STAFF" className={inputClass}>
-            <option value="PROCAM_STAFF">Staff</option>
-            <option value="ADMIN">Admin</option>
-            <option value="DRONE_MERCHANT">Drone Merchant</option>
-          </select>
-          <button type="submit" className={`${primaryButtonClass} sm:col-span-2`}>
-            Create Account
-          </button>
-        </form>
+        <CreateStaffForm />
         <p className="mt-2 text-xs text-zinc-500">
           Share the username and password with them directly. Workers don&apos;t manage their own login — use
           &quot;Edit Login&quot; below to change a worker&apos;s username or password later.

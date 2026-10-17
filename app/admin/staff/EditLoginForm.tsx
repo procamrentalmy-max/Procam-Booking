@@ -28,10 +28,11 @@ export function EditLoginForm({
     setError(null);
     startTransition(async () => {
       try {
-        await updateStaffCredentialsAction(formData);
-        setPassword("");
-      } catch (err) {
-        setError((err as Error).message);
+        const result = await updateStaffCredentialsAction(formData);
+        if (result.ok) setPassword("");
+        else setError(result.error);
+      } catch {
+        setError("Could not save. Reload the page and try again.");
       }
     });
   }

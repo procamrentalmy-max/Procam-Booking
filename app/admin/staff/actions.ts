@@ -21,9 +21,19 @@ const createStaffSchema = z.object({
  * (auth.admin.createUser) requires it — RLS/is_admin() can't gate that call,
  * so the admin check below is the only thing standing in for it.
  */
-export async function createStaffAction(formData: FormData) {
+export type StaffActionResult = { ok: true } | { ok: false; error: string };
+
+/** What the admin reads when Supabase Auth refuses an account: plain words instead of its own wording. */
+function friendlyAuthError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes("already") && (m.includes("registered") || m.includes("exists"))) return "That username is already taken. Pick another one.";
+  if (m.includes("password")) return "That password isn't accepted. Try a longer or less common one.";
+  return message;
+}
+
+export async function createStaffAction(formData: FormData): Promise<StaffActionResult> {
   const ctx = await getAuthContext();
-  if (!isAdmin(ctx)) throw new Error("Not authorized");
+  if (!isAdmin(ctx)) return { ok: false, error: "Not authorized" };
 
   const parsed = createStaffSchema.safeParse({
     name: formData.get("name"),
@@ -31,7 +41,7 @@ export async function createStaffAction(formData: FormData) {
     password: formData.get("password"),
     role: formData.get("role"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+  if (!parsed.success) return { ok: false, error: parsed.error.issues.map((i) => i.message).join(", ") };
 
   const supabase = createServiceRoleClient();
 
@@ -40,7 +50,7 @@ export async function createStaffAction(formData: FormData) {
     password: parsed.data.password,
     email_confirm: true,
   });
-  if (authError) throw new Error(authError.message);
+  if (authError) return { ok: false, error: friendlyAuthError(authError.message) };
 
   const { data: staffRow, error: staffError } = await supabase
     .from("staff_users")
@@ -53,7 +63,7 @@ export async function createStaffAction(formData: FormData) {
     .single();
   if (staffError) {
     await supabase.auth.admin.deleteUser(created.user.id);
-    throw new Error(staffError.message);
+    return { ok: false, error: staffError.message };
   }
 
   // Staff (not admin) also need a workers row, or the routing feature
@@ -64,11 +74,12 @@ export async function createStaffAction(formData: FormData) {
     if (workerError) {
       await supabase.from("staff_users").delete().eq("id", staffRow.id);
       await supabase.auth.admin.deleteUser(created.user.id);
-      throw new Error(workerError.message);
+      return { ok: false, error: workerError.message };
     }
   }
 
   revalidatePath("/admin/staff");
+  return { ok: true };
 }
 
 const updateStaffCredentialsSchema = z.object({
@@ -87,9 +98,9 @@ const updateStaffCredentialsSchema = z.object({
  * from this page. Password is left untouched when the field is submitted
  * blank.
  */
-export async function updateStaffCredentialsAction(formData: FormData) {
+export async function updateStaffCredentialsAction(formData: FormData): Promise<StaffActionResult> {
   const ctx = await getAuthContext();
-  if (!isAdmin(ctx)) throw new Error("Not authorized");
+  if (!isAdmin(ctx)) return { ok: false, error: "Not authorized" };
 
   const parsed = updateStaffCredentialsSchema.safeParse({
     id: formData.get("id"),
@@ -98,16 +109,16 @@ export async function updateStaffCredentialsAction(formData: FormData) {
     mode: formData.get("mode"),
     password: formData.get("password"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+  if (!parsed.success) return { ok: false, error: parsed.error.issues.map((i) => i.message).join(", ") };
 
   let email: string;
   if (parsed.data.mode === "username") {
     if (!isValidUsername(parsed.data.identifier)) {
-      throw new Error("3-32 characters: letters, numbers, dots, underscores, hyphens only");
+      return { ok: false, error: "3-32 characters: letters, numbers, dots, underscores, hyphens only" };
     }
     email = usernameToEmail(parsed.data.identifier);
   } else {
-    if (!z.string().email().safeParse(parsed.data.identifier).success) throw new Error("Enter a valid email");
+    if (!z.string().email().safeParse(parsed.data.identifier).success) return { ok: false, error: "Enter a valid email" };
     email = parsed.data.identifier;
   }
 
@@ -116,9 +127,10 @@ export async function updateStaffCredentialsAction(formData: FormData) {
     email,
     ...(parsed.data.password ? { password: parsed.data.password } : {}),
   });
-  if (error) throw new Error(error.message);
+  if (error) return { ok: false, error: friendlyAuthError(error.message) };
 
   revalidatePath("/admin/staff");
+  return { ok: true };
 }
 
 const updateWorkerLockersSchema = z.object({
