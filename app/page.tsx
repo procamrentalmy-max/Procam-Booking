@@ -1,3 +1,4 @@
+import { PendingLink } from "@/components/PendingLink";
 import Link from "next/link";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -92,24 +93,24 @@ export default async function Home() {
             </h1>
             <p className="mt-5 max-w-md text-base leading-relaxed text-zinc-400">{t.sub}</p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link
+              <PendingLink
                 href="/rent"
                 className="inline-flex h-12 items-center rounded-full bg-white px-7 text-sm font-semibold text-black transition hover:bg-zinc-200"
               >
                 {t.ctaPrimary}
-              </Link>
+              </PendingLink>
               <a
                 href="#price"
                 className="inline-flex h-12 items-center rounded-full border border-zinc-700 px-7 text-sm font-semibold text-zinc-200 transition hover:border-zinc-500 hover:text-white"
               >
                 {t.ctaSecondary}
               </a>
-              <Link
+              <PendingLink
                 href="/tutorial"
                 className="inline-flex h-12 items-center rounded-full border border-zinc-700 px-7 text-sm font-semibold text-zinc-200 transition hover:border-zinc-500 hover:text-white"
               >
                 {t.ctaHowToFly}
-              </Link>
+              </PendingLink>
             </div>
           </div>
           {pictures.hero ? (
@@ -171,12 +172,12 @@ export default async function Home() {
             <TablePreference kind="fly" locale={locale} text={t.prefer} />
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link
+              <PendingLink
                 href="/rent"
                 className="inline-flex h-12 items-center rounded-full bg-white px-7 text-sm font-semibold text-black transition hover:bg-zinc-200"
               >
                 {t.ctaPrimary}
-              </Link>
+              </PendingLink>
               <a
                 href="#price"
                 className="inline-flex h-12 items-center rounded-full border border-zinc-700 px-7 text-sm font-semibold text-zinc-200 transition hover:border-zinc-500 hover:text-white"
@@ -205,12 +206,12 @@ export default async function Home() {
               ))}
             </ul>
             <div className="flex flex-wrap gap-3">
-              <Link
+              <PendingLink
                 href="/rent"
                 className="inline-flex h-12 w-fit items-center justify-center rounded-full bg-white px-7 text-sm font-semibold text-black transition hover:bg-zinc-200"
               >
                 {t.ctaPrimary}
-              </Link>
+              </PendingLink>
               <a
                 href="#price"
                 className="inline-flex h-12 w-fit items-center justify-center rounded-full border border-zinc-700 px-7 text-sm font-semibold text-zinc-200 transition hover:border-zinc-500 hover:text-white"

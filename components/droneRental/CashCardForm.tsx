@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { Spinner } from "@/components/Spinner";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import { droneText } from "@/lib/i18n/drone";
@@ -48,8 +49,9 @@ function SaveCardForm({ returnUrl, locale }: { returnUrl: string; locale: Locale
       <button
         type="submit"
         disabled={!stripe || loading}
-        className="w-full rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
+        className="flex w-full items-center justify-center gap-2 rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
       >
+        {loading && <Spinner />}
         {loading ? t.saving : t.saveCard}
       </button>
     </form>

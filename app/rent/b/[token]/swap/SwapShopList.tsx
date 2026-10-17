@@ -1,7 +1,7 @@
 "use client";
 
+import { PendingLink } from "@/components/PendingLink";
 import { useState } from "react";
-import Link from "next/link";
 import { droneText } from "@/lib/i18n/drone";
 import type { Locale } from "@/lib/i18n/locale";
 import { pressableClass } from "@/components/formStyles";
@@ -63,9 +63,9 @@ export function SwapShopList({ token, shops, locale }: { token: string; shops: S
             <p className={`text-xs font-medium ${s.charged > 0 && s.openNow ? "text-green-700 dark:text-green-400" : "text-zinc-500"}`}>{!s.openNow ? t.closedNow : s.charged > 0 ? t.charged(s.charged) : t.none}</p>
             <div className="flex gap-2">
               {s.charged > 0 && s.openNow ? (
-                <Link href={`/rent/b/${token}/swap/${s.id}`} className="flex h-11 flex-1 items-center justify-center rounded-full bg-black text-sm font-semibold text-white dark:bg-white dark:text-black">
+                <PendingLink href={`/rent/b/${token}/swap/${s.id}`} className="flex h-11 flex-1 items-center justify-center rounded-full bg-black text-sm font-semibold text-white dark:bg-white dark:text-black">
                   {t.swapHere}
-                </Link>
+                </PendingLink>
               ) : (
                 <span className="flex h-11 flex-1 items-center justify-center rounded-full border border-zinc-200 text-sm text-zinc-400 dark:border-zinc-800">{s.openNow ? t.none : t.closedNow}</span>
               )}

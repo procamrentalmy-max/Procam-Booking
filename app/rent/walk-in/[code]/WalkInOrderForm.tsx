@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputClass, pressableClass, primaryButtonClass } from "@/components/formStyles";
+import { Spinner } from "@/components/Spinner";
 import { ControllerChoice } from "@/components/droneRental/ControllerChoice";
 import { WhatsAppOptIn } from "@/components/droneRental/WhatsAppOptIn";
 import type { CompareTables } from "@/lib/droneRental/compareTables";
@@ -178,7 +179,8 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false,
         </p>
       )}
       {idCheckPanel ?? (
-        <button type="submit" disabled={loading || kycBusy || !name || !phone || !email} className={`w-full ${primaryButtonClass} h-12 rounded-full text-base disabled:opacity-50`}>
+        <button type="submit" disabled={loading || kycBusy || !name || !phone || !email} className={`flex w-full items-center justify-center gap-2 ${primaryButtonClass} h-12 rounded-full text-base disabled:opacity-50`}>
+          {(loading || kycBusy) && <Spinner />}
           {loading || kycBusy ? t.walkIn.sending : t.walkIn.send}
         </button>
       )}

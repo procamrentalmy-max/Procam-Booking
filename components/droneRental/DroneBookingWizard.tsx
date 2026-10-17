@@ -10,6 +10,7 @@ import { AgreeLine } from "@/components/droneRental/AgreeLine";
 import { FaqLink } from "@/components/droneRental/FaqLink";
 import { trackStep } from "@/components/FunnelBeacon";
 import { WhatsAppOptIn } from "@/components/droneRental/WhatsAppOptIn";
+import { Spinner } from "@/components/Spinner";
 import { ControllerChoice } from "@/components/droneRental/ControllerChoice";
 import { ComboCard, TotalSummary } from "@/components/droneRental/ComboCard";
 import type { PackagePreset } from "@/lib/droneRental/packagePreset";
@@ -484,8 +485,9 @@ export function DroneBookingWizard({
           <button
             type="submit"
             disabled={loading || kycBusy || !name || !phone || !email}
-            className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}
+            className={`flex w-full items-center justify-center gap-2 ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}
           >
+            {(loading || kycBusy) && <Spinner />}
             {loading || kycBusy ? t.wizard.booking : t.wizard.bookAndPay(formatMyr(rentalFee))}
           </button>
         )}

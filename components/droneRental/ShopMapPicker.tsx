@@ -1,7 +1,7 @@
 "use client";
 
+import { PendingLink } from "@/components/PendingLink";
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { getShopsWithAvailabilityAction } from "@/app/rent/actions";
 import { formatMalaysiaTime, type Locale } from "@/lib/i18n/locale";
 import { droneText, type DroneText } from "@/lib/i18n/drone";
@@ -333,12 +333,12 @@ export function ShopMapPicker({ initialShops, locale = "en", carry }: { initialS
               </button>
               {selected && (
                 <div className="mt-3 flex gap-2">
-                  <Link
+                  <PendingLink
                     href={carry ? `/rent/${shop.id}?${carry}` : `/rent/${shop.id}`}
                     className="flex h-11 flex-1 items-center justify-center rounded-full bg-black text-sm font-semibold text-white dark:bg-white dark:text-black"
                   >
                     {t.book}
-                  </Link>
+                  </PendingLink>
                   {shop.googleMapsUrl && (
                     <a
                       href={shop.googleMapsUrl}

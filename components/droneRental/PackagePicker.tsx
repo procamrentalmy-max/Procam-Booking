@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { PendingLink } from "@/components/PendingLink";
 import { packageQuery } from "@/lib/droneRental/packagePreset";
 import {
   DRONE_MODEL_PROFILES,
@@ -67,12 +67,12 @@ export function PackagePicker({ locale, pictures, text, tables }: { locale: Loca
               alt={`${DRONE_MODEL_PROFILES[model].shortName}, ${controllerName(model, controller)}, ${t.common.batteries(batteries)}`}
             />
             <TotalSummary onDark locale={locale} totalMyr={rentalFeeMyr(hours * 60, batteries, model, controller)} depositMyr={depositMyrFor(model, controller)} />
-            <Link
+            <PendingLink
               href={`/rent?${packageQuery({ model, controller, batteries, hours })}`}
               className="inline-flex h-12 w-full items-center justify-center rounded-full bg-white px-7 text-sm font-semibold text-black transition hover:bg-zinc-200"
             >
               {text.cta}
-            </Link>
+            </PendingLink>
             <p className="text-center text-xs text-slate-400">{text.next}</p>
           </>
         ) : (

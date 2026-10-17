@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { PendingLink } from "@/components/PendingLink";
 import { notFound, redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { createDroneRentalFeePaymentIntent, finishCashCardSetup, startCashCardSetup } from "@/lib/droneRental/payment";
@@ -154,18 +154,18 @@ export default async function DroneBookingPayPage({
         <>
           {canPayCash && (
             <div className="grid grid-cols-2 gap-2 text-center text-sm font-semibold">
-              <Link
+              <PendingLink
                 href={withQuery("")}
                 className={`rounded-full border py-2.5 ${!payingCash ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black" : pressableClass}`}
               >
                 {t.pay.payCard}
-              </Link>
-              <Link
+              </PendingLink>
+              <PendingLink
                 href={withQuery("method=cash")}
                 className={`rounded-full border py-2.5 ${payingCash ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black" : pressableClass}`}
               >
                 {t.pay.payCash}
-              </Link>
+              </PendingLink>
             </div>
           )}
           {payingCash && (

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { PendingLink } from "@/components/PendingLink";
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
@@ -114,21 +114,21 @@ export default async function DroneBookingDashboardPage({ params, searchParams }
       )}
 
       {booking.status === "ACTIVE" && (
-        <Link
+        <PendingLink
           href={`/rent/b/${token}/swap`}
           className="flex h-12 items-center justify-center rounded-full border border-zinc-400 bg-zinc-100 text-sm font-semibold text-zinc-900 shadow-sm transition hover:bg-white dark:border-zinc-500 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
         >
           {t.swap.cta}
-        </Link>
+        </PendingLink>
       )}
 
       {booking.status === "PENDING_PAYMENT" && (
-        <Link
+        <PendingLink
           href={`/rent/b/${token}/pay`}
           className="flex h-12 items-center justify-center rounded-full bg-black text-sm font-semibold text-white dark:bg-white dark:text-black"
         >
           {t.booking.completePayment}
-        </Link>
+        </PendingLink>
       )}
 
       <div className="space-y-2 rounded-xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">
