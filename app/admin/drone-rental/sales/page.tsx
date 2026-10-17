@@ -253,7 +253,7 @@ export default async function DroneSalesPage({ searchParams }: { searchParams: P
         />
       </Section>
 
-      <Section title="How they flew it" note="Their own phone, the RC-N3 controller (RM11 an hour more) or the Goggles N3 + Motion 3 set (RM10 an hour more).">
+      <Section title="How they flew it" note="Their own phone, the RC-N3 controller (RM9 an hour more) or the Goggles N3 + Motion 3 set (RM10 an hour more).">
         <DonutChart data={controllerRows.map((r) => ({ label: r.name, value: r.revenue }))} formatValue={myr} />
       </Section>
 
