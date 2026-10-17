@@ -361,11 +361,11 @@ export function DroneBookingWizard({
                   disabled={isUnavailable || unavailable === null}
                   onClick={() => setSelectedStart(s)}
                   aria-pressed={isSelected}
-                  className={`rounded-lg border py-2.5 text-sm ${
+                  className={`rounded-lg border py-3 text-base ${
                     isSelected
                       ? selectedClass
                       : inRental
-                        ? "border-sky-500 bg-sky-100 font-medium text-sky-900 dark:border-sky-400 dark:bg-sky-950 dark:text-sky-100"
+                        ? "border-zinc-500 bg-zinc-500 font-medium text-white dark:border-zinc-400 dark:bg-zinc-400 dark:text-black"
                         : isUnavailable
                           ? "cursor-not-allowed border-zinc-100 text-zinc-300 line-through dark:border-zinc-900 dark:text-zinc-700"
                           : idleClass
@@ -378,7 +378,7 @@ export function DroneBookingWizard({
           </div>
         )}
         {selectedStart && (
-          <p className="text-center text-sm font-medium text-sky-800 dark:text-sky-200">
+          <p className="text-center text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
             {formatSlotTime(selectedStart)} – {formatSlotTime(new Date(selectedStart.getTime() + durationHours * 3_600_000))}
           </p>
         )}
