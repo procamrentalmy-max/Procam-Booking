@@ -3,18 +3,16 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { inputClass, primaryButtonClass } from "@/components/formStyles";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
 import { ENABLED_DRONE_MODELS, CONTROLLER_PROFILES, DRONE_MODEL_PROFILES, formatMyr, modelProfile } from "@/lib/droneRental/pricingRules";
+import { ActionForm } from "@/components/admin/ActionForm";
 import {
-  createShopAction,
-  setShopActiveAction,
   createDroneAction,
   createControllerAction,
   deleteControllerAction,
   setDroneStatusAction,
-  renameBatteryAction,
-  assignMerchantShopsAction,
-  setShopHoursAction,
+  moveDroneAction,
+  createBatteriesAction,
+  assignBatteryAction,
 } from "./actions";
-import { parseShopHours, WEEKDAY_NAMES } from "@/lib/droneRental/hours";
 
 const DRONE_STATUSES = ["AVAILABLE", "RENTED", "MAINTENANCE", "LOST", "RETIRED"] as const;
 
@@ -53,7 +51,7 @@ export default async function DroneRentalAdminPage() {
     await Promise.all([
       supabase.from("dr_shops").select("id,human_id,name,address,lat,lng,active,hours").order("created_at", { ascending: true }),
       supabase.from("dr_drones").select("id,human_id,shop_id,status,serial_number,cost_price_myr,model_key").order("human_id"),
-      supabase.from("dr_batteries").select("id,human_id,name,drone_id,status").order("human_id"),
+      supabase.from("dr_batteries").select("id,human_id,name,shop_id,model_key,status,at_shop_id").order("human_id"),
       supabase.from("dr_controllers").select("id,human_id,shop_id,kind").order("human_id"),
       supabase.from("staff_users").select("id,name,active").eq("role", "DRONE_MERCHANT"),
       supabase.from("dr_merchant_shops").select("staff_user_id,shop_id"),
@@ -71,15 +69,10 @@ export default async function DroneRentalAdminPage() {
     : { data: [] as { id: string; name: string; phone: string }[] };
   const customerById = new Map((customers ?? []).map((c) => [c.id, c]));
 
-  const batteryCountByDrone = new Map<string, { total: number; atShop: number }>();
-  for (const b of batteries ?? []) {
-    const entry = batteryCountByDrone.get(b.drone_id) ?? { total: 0, atShop: 0 };
-    entry.total += 1;
-    if (b.status === "AT_SHOP") entry.atShop += 1;
-    batteryCountByDrone.set(b.drone_id, entry);
-  }
-  const batteriesByDrone = new Map<string, NonNullable<typeof batteries>>();
-  for (const b of batteries ?? []) batteriesByDrone.set(b.drone_id, [...(batteriesByDrone.get(b.drone_id) ?? []), b]);
+  const batteriesByShop = new Map<string, NonNullable<typeof batteries>>();
+  for (const b of batteries ?? []) batteriesByShop.set(b.shop_id, [...(batteriesByShop.get(b.shop_id) ?? []), b]);
+  const dronesByShop = new Map<string, number>();
+  for (const d of drones ?? []) dronesByShop.set(d.shop_id, (dronesByShop.get(d.shop_id) ?? 0) + 1);
   const shopNameById = new Map((shops ?? []).map((s) => [s.id, s.name]));
   const droneHumanById = new Map((drones ?? []).map((d) => [d.id, d.human_id]));
   const assignedShopIdsByMerchant = new Map<string, Set<string>>();
@@ -156,44 +149,159 @@ export default async function DroneRentalAdminPage() {
 
       <section className="space-y-3">
         <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">Shops</h2>
-        {(shops ?? []).map((s) => (
-          <div key={s.id} className="flex flex-col gap-2 rounded-xl border border-zinc-200 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
-            <div>
-              <p className="font-medium">
-                {s.human_id} — {s.name}
-              </p>
-              <p className="text-sm text-zinc-500">{s.address}</p>
-              <p className="text-xs text-zinc-400">
-                {s.lat}, {s.lng}
-              </p>
+        <p className="text-xs text-zinc-500">
+          A shop is created together with its Drone Merchant account, and its name, address, map position and opening hours are edited there: Admin &gt; Staff, then Edit info under the merchant.{" "}
+          <a href="/admin/staff" className="underline underline-offset-2">
+            Open Staff
+          </a>
+          . Below, give each shop its drones, batteries and controllers.
+        </p>
+        {(shops ?? []).map((s) => {
+          const merchantNames = (merchants ?? []).filter((m) => (assignedShopIdsByMerchant.get(m.id) ?? new Set<string>()).has(s.id)).map((m) => m.name);
+          const shelf = batteriesByShop.get(s.id) ?? [];
+          return (
+            <div key={s.id} className="flex flex-col gap-1 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-medium">
+                  {s.human_id} — {s.name}
+                </p>
+                <p className="text-sm text-zinc-500">{s.address}</p>
+                <p className="text-xs text-zinc-400">{merchantNames.length ? `Merchant: ${merchantNames.join(", ")}` : "No merchant account yet"}</p>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-zinc-500">
+                <span>
+                  {dronesByShop.get(s.id) ?? 0} drone(s) · {shelf.length} batteries
+                </span>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${s.active ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"}`}>
+                  {s.active ? "Open to customers" : "Not open yet"}
+                </span>
+              </div>
             </div>
-            <form action={setShopActiveAction} className="flex items-center gap-2">
-              <input type="hidden" name="id" value={s.id} />
-              <input type="hidden" name="active" value={(!s.active).toString()} />
-              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${s.active ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"}`}>
-                {s.active ? "Active" : "Inactive"}
-              </span>
-              <button type="submit" className={primaryButtonClass}>
-                {s.active ? "Deactivate" : "Activate"}
-              </button>
-            </form>
+          );
+        })}
+        {(shops ?? []).length === 0 && <p className="text-sm text-zinc-400">No shops yet. Create a Drone Merchant account in Staff and its shop is made with it.</p>}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">Drones</h2>
+        <p className="text-xs text-zinc-500">Each drone is at one shop. Move it to another shop from its card.</p>
+        {(drones ?? []).map((d) => (
+          <div key={d.id} className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="font-medium">
+                  {d.human_id} · {modelProfile(d.model_key).shortName} — {shopNameById.get(d.shop_id) ?? "—"}
+                </p>
+                <p className="text-sm text-zinc-500">RM{d.cost_price_myr} cost</p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <ActionForm action={moveDroneAction} submitLabel="Move" savedText="Moved." compact className="flex flex-wrap items-center gap-2">
+                  <input type="hidden" name="id" value={d.id} />
+                  <select name="shopId" defaultValue={d.shop_id} aria-label={`Shop for ${d.human_id}`} className={inputClass}>
+                    {(shops ?? []).map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+                  </select>
+                </ActionForm>
+                <ActionForm action={setDroneStatusAction} submitLabel="Save status" compact className="flex flex-wrap items-center gap-2">
+                  <input type="hidden" name="id" value={d.id} />
+                  <select name="status" defaultValue={d.status} aria-label={`Status of ${d.human_id}`} className={inputClass}>
+                    {DRONE_STATUSES.map((st) => (
+                      <option key={st} value={st}>
+                        {st}
+                      </option>
+                    ))}
+                  </select>
+                </ActionForm>
+              </div>
+            </div>
           </div>
         ))}
-        {(shops ?? []).length === 0 && <p className="text-sm text-zinc-400">No shops yet. Add one below.</p>}
+        {(drones ?? []).length === 0 && <p className="text-sm text-zinc-400">No drones yet. Add one below.</p>}
 
         <details className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-          <summary className="cursor-pointer text-sm font-semibold">Add a shop</summary>
-          <form action={createShopAction} className="mt-3 grid gap-2 sm:grid-cols-2">
-            <input name="name" placeholder="Shop name" required className={inputClass} />
-            <input name="address" placeholder="Address" required className={inputClass} />
-            <input name="lat" type="number" step="0.000001" placeholder="Latitude" required className={inputClass} />
-            <input name="lng" type="number" step="0.000001" placeholder="Longitude" required className={inputClass} />
-            <input name="googleMapsUrl" type="url" placeholder="Google Maps link (optional)" className={`${inputClass} sm:col-span-2`} />
-            <button type="submit" className={`${primaryButtonClass} sm:col-span-2`}>
-              Create Shop
-            </button>
-          </form>
-          <p className="mt-2 text-xs text-zinc-500">Get exact coordinates by right-clicking the spot on Google Maps and copying the lat/lng shown.</p>
+          <summary className="cursor-pointer text-sm font-semibold">Add a drone</summary>
+          <ActionForm action={createDroneAction} submitLabel="Add drone" savedText="Drone added." resetOnSuccess className="mt-3 grid gap-2 sm:grid-cols-2">
+            <select name="model" required defaultValue="NEO2" className={inputClass}>
+              {ENABLED_DRONE_MODELS.map((m) => (
+                <option key={m} value={m}>
+                  {DRONE_MODEL_PROFILES[m].shortName}
+                </option>
+              ))}
+            </select>
+            <select name="shopId" required defaultValue="" className={inputClass}>
+              <option value="">Select shop…</option>
+              {(shops ?? []).map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+            <input name="serialNumber" placeholder="Serial number (optional)" className={inputClass} />
+            <input name="costPriceMyr" type="number" step="0.01" min="0" placeholder="What you paid for it (RM)" required className={inputClass} />
+          </ActionForm>
+        </details>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">Batteries</h2>
+        <p className="text-xs text-zinc-500">
+          Batteries belong to a shop, not to a drone. At every handover the merchant picks which of the shop&apos;s charged batteries go out (any battery of the right make fits any drone of that make). The name is what is on the sticker, and every
+          battery needs its own number.
+        </p>
+        {(shops ?? []).map((s) => {
+          const shelf = batteriesByShop.get(s.id) ?? [];
+          return (
+            <div key={s.id} className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+              <p className="mb-2 text-sm font-medium">
+                {s.name} <span className="font-normal text-zinc-500">· {shelf.length} batter{shelf.length === 1 ? "y" : "ies"}</span>
+              </p>
+              <div className="space-y-2">
+                {shelf.map((b) => (
+                  <ActionForm key={b.id} action={assignBatteryAction} submitLabel="Save" compact className="flex flex-wrap items-center gap-2">
+                    <input type="hidden" name="id" value={b.id} />
+                    <input name="name" defaultValue={b.name ?? b.human_id} maxLength={30} aria-label={`Name for battery ${b.human_id}`} className={`w-28 ${inputClass}`} />
+                    <select name="shopId" defaultValue={b.shop_id} aria-label={`Shop for battery ${b.name ?? b.human_id}`} className={inputClass}>
+                      {(shops ?? []).map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+                    </select>
+                    <span className="text-xs text-zinc-500">
+                      {modelProfile(b.model_key).shortName}
+                      {b.status !== "AT_SHOP" ? ` · ${b.status === "WITH_CUSTOMER" ? "out on a rental" : b.status}` : ""}
+                    </span>
+                  </ActionForm>
+                ))}
+                {shelf.length === 0 && <p className="text-sm text-zinc-400">No batteries at this shop yet.</p>}
+              </div>
+            </div>
+          );
+        })}
+        <details className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+          <summary className="cursor-pointer text-sm font-semibold">Add batteries</summary>
+          <ActionForm action={createBatteriesAction} submitLabel="Add batteries" savedText="Batteries added." resetOnSuccess className="mt-3 grid gap-2 sm:grid-cols-3">
+            <select name="model" required defaultValue="NEO2" className={inputClass}>
+              {ENABLED_DRONE_MODELS.map((m) => (
+                <option key={m} value={m}>
+                  {DRONE_MODEL_PROFILES[m].shortName}
+                </option>
+              ))}
+            </select>
+            <select name="shopId" required defaultValue="" className={inputClass}>
+              <option value="">Select shop…</option>
+              {(shops ?? []).map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+            <input name="count" type="number" min="1" max="30" defaultValue="1" required aria-label="How many batteries" className={inputClass} />
+          </ActionForm>
+          <p className="mt-2 text-xs text-zinc-500">They get the next sticker numbers (B8, B9, ...): the numbers are shared by every shop, so none repeats.</p>
         </details>
       </section>
 
@@ -207,23 +315,20 @@ export default async function DroneRentalAdminPage() {
             <p className="text-sm">
               <span className="font-medium">{c.human_id}</span> · {CONTROLLER_PROFILES[c.kind].name} — {shopNameById.get(c.shop_id) ?? "—"}
             </p>
-            <form action={deleteControllerAction}>
+            <ActionForm action={deleteControllerAction} submitLabel="Remove" savedText="Removed." compact className="flex items-center gap-2">
               <input type="hidden" name="id" value={c.id} />
-              <button type="submit" className="text-xs text-red-600 underline underline-offset-2">
-                Remove
-              </button>
-            </form>
+            </ActionForm>
           </div>
         ))}
         {(controllers ?? []).length === 0 && <p className="text-sm text-zinc-400">No controllers yet: customers can only rent drones to fly from their own phone.</p>}
         <details className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
           <summary className="cursor-pointer text-sm font-semibold">Add a controller</summary>
-          <form action={createControllerAction} className="mt-3 grid gap-2 sm:grid-cols-2">
+          <ActionForm action={createControllerAction} submitLabel="Add controller" savedText="Controller added." resetOnSuccess className="mt-3 grid gap-2 sm:grid-cols-2">
             <select name="kind" required defaultValue="RC_N3" className={inputClass}>
               <option value="RC_N3">{CONTROLLER_PROFILES.RC_N3.name}</option>
               <option value="GOGGLES_N3">{CONTROLLER_PROFILES.GOGGLES_N3.name}</option>
             </select>
-            <select name="shopId" required className={inputClass}>
+            <select name="shopId" required defaultValue="" className={inputClass}>
               <option value="">Select shop…</option>
               {(shops ?? []).map((s) => (
                 <option key={s.id} value={s.id}>
@@ -231,161 +336,8 @@ export default async function DroneRentalAdminPage() {
                 </option>
               ))}
             </select>
-            <button type="submit" className={`${primaryButtonClass} sm:col-span-2`}>
-              Add controller
-            </button>
-          </form>
+          </ActionForm>
         </details>
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">Drones</h2>
-        {(drones ?? []).map((d) => {
-          const batteryCount = batteryCountByDrone.get(d.id) ?? { total: 0, atShop: 0 };
-          return (
-            <div key={d.id} className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-medium">
-                  {d.human_id} · {modelProfile(d.model_key).shortName} — {shopNameById.get(d.shop_id) ?? "—"}
-                </p>
-                <p className="text-sm text-zinc-500">
-                  RM{d.cost_price_myr} cost · {batteryCount.atShop}/{batteryCount.total} batteries at shop
-                </p>
-              </div>
-              <form action={setDroneStatusAction} className="flex items-center gap-2">
-                <input type="hidden" name="id" value={d.id} />
-                <select name="status" defaultValue={d.status} className={inputClass}>
-                  {DRONE_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-                <button type="submit" className={primaryButtonClass}>
-                  Save
-                </button>
-              </form>
-             </div>
-              <div className="mt-3 border-t border-zinc-100 pt-3 dark:border-zinc-900">
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Batteries (the name on each sticker)</p>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  {(batteriesByDrone.get(d.id) ?? []).map((b) => (
-                    <form key={b.id} action={renameBatteryAction} className="flex items-center gap-2">
-                      <input type="hidden" name="id" value={b.id} />
-                      <input name="name" defaultValue={b.name ?? b.human_id} maxLength={30} aria-label={`Name for battery ${b.human_id}`} className={`min-w-0 flex-1 ${inputClass}`} />
-                      <button type="submit" className={primaryButtonClass}>
-                        Save
-                      </button>
-                      <span className="sr-only">{b.status}</span>
-                    </form>
-                  ))}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-        {(drones ?? []).length === 0 && <p className="text-sm text-zinc-400">No drones yet. Add one below.</p>}
-
-        <details className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-          <summary className="cursor-pointer text-sm font-semibold">Add a drone</summary>
-          <form action={createDroneAction} className="mt-3 grid gap-2 sm:grid-cols-2">
-            <select name="model" required defaultValue="NEO2" className={inputClass}>
-              {ENABLED_DRONE_MODELS.map((m) => (
-                <option key={m} value={m}>
-                  {DRONE_MODEL_PROFILES[m].shortName}
-                </option>
-              ))}
-            </select>
-            <select name="shopId" required className={inputClass}>
-              <option value="">Select shop…</option>
-              {(shops ?? []).map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-            <input name="serialNumber" placeholder="Serial number (optional)" className={inputClass} />
-            <input name="costPriceMyr" type="number" step="0.01" min="0" placeholder="What you paid for it (RM)" required className={inputClass} />
-            <button type="submit" className={`${primaryButtonClass} sm:col-span-2`}>
-              Create Drone (adds 3 batteries automatically)
-            </button>
-          </form>
-        </details>
-      </section>
-
-      <section className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-        <h2 className="mb-1 text-sm font-semibold">Merchant shop assignments</h2>
-        <p className="mb-3 text-xs text-zinc-500">
-          Create a Drone Merchant account first from{" "}
-          <a href="/admin/staff" className="underline underline-offset-2">
-            Staff
-          </a>
-          .
-        </p>
-        {(merchants ?? []).map((m) => {
-          const assignedIds = assignedShopIdsByMerchant.get(m.id) ?? new Set<string>();
-          return (
-            <form key={m.id} action={assignMerchantShopsAction} className="mb-3 space-y-2 border-t border-zinc-100 pt-3 first:border-t-0 first:pt-0 dark:border-zinc-900">
-              <input type="hidden" name="staffUserId" value={m.id} />
-              <p className="text-sm font-medium">{m.name}</p>
-              <div className="flex flex-wrap gap-3">
-                {(shops ?? []).map((s) => (
-                  <label key={s.id} className="flex items-center gap-1 text-sm">
-                    <input type="checkbox" name="shopIds" value={s.id} defaultChecked={assignedIds.has(s.id)} />
-                    {s.name}
-                  </label>
-                ))}
-              </div>
-              <button type="submit" className={primaryButtonClass}>
-                Save
-              </button>
-            </form>
-          );
-        })}
-        {(merchants ?? []).length === 0 && <p className="text-sm text-zinc-400">No merchant accounts yet.</p>}
-      </section>
-
-      <section className="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-        <div>
-          <h2 className="text-sm font-semibold">Operating hours</h2>
-          <p className="text-xs text-zinc-500">
-            Each merchant works to the hours of the shop they are assigned to. Set them for each day, or tick Closed. Times are Malaysia time, on the hour or half hour. Customers can only book
-            times inside the hours (the rental has to end by closing), and the shop shows as closed outside them for swaps and walk-ins. Until you set them, a shop is open 08:00 to 22:00 every day.
-          </p>
-        </div>
-        {(shops ?? []).map((shop) => {
-          const hours = parseShopHours(shop.hours);
-          const merchantNames = (merchants ?? []).filter((m) => (assignedShopIdsByMerchant.get(m.id) ?? new Set<string>()).has(shop.id)).map((m) => m.name);
-          return (
-            <form key={shop.id} action={setShopHoursAction} className="space-y-2 border-t border-zinc-100 pt-4 first:border-t-0 first:pt-0 dark:border-zinc-900">
-              <input type="hidden" name="shopId" value={shop.id} />
-              <p className="text-sm font-medium">
-                {shop.name} <span className="font-normal text-zinc-500">{merchantNames.length ? `· merchant: ${merchantNames.join(", ")}` : "· no merchant assigned yet"}</span>
-              </p>
-              <div className="space-y-1.5">
-                {WEEKDAY_NAMES.map((dayName, day) => {
-                  const d = hours[day];
-                  return (
-                    <div key={dayName} className="flex flex-wrap items-center gap-2 text-sm">
-                      <span className="w-24 shrink-0">{dayName}</span>
-                      <input type="time" step={1800} name={`open-${day}`} defaultValue={d?.open ?? "09:00"} aria-label={`${dayName} opens`} className={inputClass} />
-                      <span className="text-zinc-500">to</span>
-                      <input type="time" step={1800} name={`close-${day}`} defaultValue={d?.close ?? "18:00"} aria-label={`${dayName} closes`} className={inputClass} />
-                      <label className="flex items-center gap-1 text-zinc-600 dark:text-zinc-400">
-                        <input type="checkbox" name={`closed-${day}`} defaultChecked={d === null} />
-                        Closed
-                      </label>
-                    </div>
-                  );
-                })}
-              </div>
-              <button type="submit" className={primaryButtonClass}>
-                Save hours
-              </button>
-            </form>
-          );
-        })}
       </section>
     </div>
   );

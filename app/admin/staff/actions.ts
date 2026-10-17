@@ -6,6 +6,8 @@ import { uuidSchema } from "@/lib/zod-helpers";
 import { getAuthContext, isAdmin } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { isValidUsername, usernameToEmail } from "@/lib/auth/username";
+import { isHalfHourTime, serializeShopHours, WEEKDAY_NAMES, type ShopHours } from "@/lib/droneRental/hours";
+import { SHOP_ADDRESS_PLACEHOLDER, shopInfoComplete } from "@/lib/droneRental/shopInfo";
 
 const createStaffSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -45,6 +47,22 @@ export async function createStaffAction(formData: FormData): Promise<StaffAction
 
   const supabase = createServiceRoleClient();
 
+  // A Drone Merchant account IS the shop: it is made together with one (kept closed to customers until its address is filled in under Edit info),
+  // or it takes over a shop that has no merchant yet.
+  const shopChoice = String(formData.get("shopChoice") ?? "new");
+  let shopToLink: string | null = null;
+  let shopCreated = false;
+  if (parsed.data.role === "DRONE_MERCHANT" && shopChoice !== "new") {
+    if (!uuidSchema.safeParse(shopChoice).success) return { ok: false, error: "Pick a shop from the list." };
+    const [{ data: shop }, { count: taken }] = await Promise.all([
+      supabase.from("dr_shops").select("id").eq("id", shopChoice).maybeSingle(),
+      supabase.from("dr_merchant_shops").select("shop_id", { count: "exact", head: true }).eq("shop_id", shopChoice),
+    ]);
+    if (!shop) return { ok: false, error: "That shop was not found." };
+    if ((taken ?? 0) > 0) return { ok: false, error: "That shop already has a merchant." };
+    shopToLink = shop.id;
+  }
+
   const { data: created, error: authError } = await supabase.auth.admin.createUser({
     email: usernameToEmail(parsed.data.username),
     password: parsed.data.password,
@@ -66,6 +84,30 @@ export async function createStaffAction(formData: FormData): Promise<StaffAction
     return { ok: false, error: staffError.message };
   }
 
+  if (parsed.data.role === "DRONE_MERCHANT") {
+    if (!shopToLink) {
+      const { data: shop, error: shopError } = await supabase
+        .from("dr_shops")
+        .insert({ name: parsed.data.name, address: SHOP_ADDRESS_PLACEHOLDER, lat: 0, lng: 0, active: false })
+        .select("id")
+        .single();
+      if (shopError || !shop) {
+        await supabase.from("staff_users").delete().eq("id", staffRow.id);
+        await supabase.auth.admin.deleteUser(created.user.id);
+        return { ok: false, error: shopError?.message ?? "Could not create the shop." };
+      }
+      shopToLink = shop.id;
+      shopCreated = true;
+    }
+    const { error: linkError } = await supabase.from("dr_merchant_shops").insert({ staff_user_id: staffRow.id, shop_id: shopToLink });
+    if (linkError) {
+      if (shopCreated) await supabase.from("dr_shops").delete().eq("id", shopToLink);
+      await supabase.from("staff_users").delete().eq("id", staffRow.id);
+      await supabase.auth.admin.deleteUser(created.user.id);
+      return { ok: false, error: linkError.message };
+    }
+  }
+
   // Staff (not admin) also need a workers row, or the routing feature
   // ("My Next Stop" on /staff/route) tells them they're "not set up as a
   // worker yet" even though their login works fine.
@@ -79,6 +121,72 @@ export async function createStaffAction(formData: FormData): Promise<StaffAction
   }
 
   revalidatePath("/admin/staff");
+  return { ok: true };
+}
+
+const shopInfoSchema = z.object({
+  shopId: uuidSchema,
+  name: z.string().trim().min(1, "The shop needs a name"),
+  address: z.string().trim().min(1, "The shop needs an address"),
+  lat: z.coerce.number().min(-90, "Latitude is between -90 and 90").max(90, "Latitude is between -90 and 90"),
+  lng: z.coerce.number().min(-180, "Longitude is between -180 and 180").max(180, "Longitude is between -180 and 180"),
+  googleMapsUrl: z.string().trim().url("Enter a valid Google Maps link, or leave it empty").optional().or(z.literal("")),
+});
+
+/**
+ * Edit info under a Drone Merchant account: the shop's name, address, map position, Google Maps link, opening hours, and whether it is open to customers.
+ * Opening hours: one line per weekday (Sunday first), closed or an opening and closing time on the half hour, Malaysia time; customers can only book inside them.
+ */
+export async function updateShopInfoAction(formData: FormData): Promise<StaffActionResult> {
+  const ctx = await getAuthContext();
+  if (!isAdmin(ctx)) return { ok: false, error: "Not authorized" };
+
+  const parsed = shopInfoSchema.safeParse({
+    shopId: formData.get("shopId"),
+    name: formData.get("name"),
+    address: formData.get("address"),
+    lat: formData.get("lat"),
+    lng: formData.get("lng"),
+    googleMapsUrl: formData.get("googleMapsUrl") ?? "",
+  });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues.map((i) => i.message).join(", ") };
+
+  const hours: ShopHours = [];
+  for (let day = 0; day < 7; day++) {
+    if (formData.get(`closed-${day}`)) {
+      hours.push(null);
+      continue;
+    }
+    const open = formData.get(`open-${day}`);
+    const close = formData.get(`close-${day}`);
+    if (!isHalfHourTime(open) || !isHalfHourTime(close)) return { ok: false, error: `${WEEKDAY_NAMES[day]}: use times on the hour or half hour, for example 09:00 or 18:30.` };
+    if (open >= close) return { ok: false, error: `${WEEKDAY_NAMES[day]}: closing must be after opening.` };
+    hours.push({ open, close });
+  }
+
+  const active = formData.get("active") === "on";
+  if (active && !shopInfoComplete({ address: parsed.data.address, lat: parsed.data.lat, lng: parsed.data.lng })) {
+    return { ok: false, error: "To open the shop to customers, give its real address and its map position (latitude and longitude) first." };
+  }
+
+  const supabase = createServiceRoleClient();
+  const { error } = await supabase
+    .from("dr_shops")
+    .update({
+      name: parsed.data.name,
+      address: parsed.data.address,
+      lat: parsed.data.lat,
+      lng: parsed.data.lng,
+      google_maps_url: parsed.data.googleMapsUrl || null,
+      active,
+      hours: serializeShopHours(hours),
+    })
+    .eq("id", parsed.data.shopId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/admin/staff");
+  revalidatePath("/admin/drone-rental");
+  revalidatePath("/rent", "layout");
   return { ok: true };
 }
 

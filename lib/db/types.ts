@@ -610,11 +610,14 @@ export type DrBatteryRow = {
   human_id: string;
   /** The short name on the battery's sticker, e.g. "B3" (numbered per shop); null falls back to human_id on screen. */
   name: string | null;
-  /** The shop this battery belongs to (its drone's shop); names are unique within a shop. */
+  /** The shop this battery belongs to (set by the admin; it can be moved to another shop). */
   shop_id: string;
   /** The shop it is physically at when it is AT_SHOP (or was last at). Differs from shop_id while it is away from home after a swap at another shop. */
   at_shop_id: string;
-  drone_id: string;
+  /** Which drone make it fits (a Neo 2 battery does not fit another make); any battery of the right make can go out with any drone of that make. */
+  model_key: string;
+  /** Older rows were created with a drone; batteries are no longer tied to one. */
+  drone_id: string | null;
   status: DrBatteryStatus;
   current_booking_id: string | null;
   created_at: string;

@@ -6,50 +6,20 @@ import { uuidSchema } from "@/lib/zod-helpers";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { ENABLED_DRONE_MODELS, DRONE_MODEL_PROFILES } from "@/lib/droneRental/pricingRules";
 import { nextBatteryNames } from "@/lib/droneRental/batteryNames";
-import { isHalfHourTime, serializeShopHours, WEEKDAY_NAMES, type ShopHours } from "@/lib/droneRental/hours";
 
-const createShopSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  address: z.string().min(1, "Address is required"),
-  lat: z.coerce.number().min(-90).max(90),
-  lng: z.coerce.number().min(-180).max(180),
-  googleMapsUrl: z.string().url("Enter a valid URL").optional().or(z.literal("")),
-});
+/**
+ * Admin > Drone Rental: the drones, batteries and controllers, and which shop each one is at. Shops themselves (name, address, opening hours) belong to each
+ * Drone Merchant account and are edited under Admin > Staff. Actions here return `{ ok, error }` instead of throwing, because a thrown error never reaches the screen
+ * on production: it shows the "page couldn't load" screen instead.
+ */
+export type InventoryResult = { ok: true } | { ok: false; error: string };
 
-export async function createShopAction(formData: FormData) {
-  const parsed = createShopSchema.safeParse({
-    name: formData.get("name"),
-    address: formData.get("address"),
-    lat: formData.get("lat"),
-    lng: formData.get("lng"),
-    googleMapsUrl: formData.get("googleMapsUrl"),
-  });
-  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+const firstIssue = (e: z.ZodError) => e.issues.map((i) => i.message).join(", ");
 
-  const supabase = await createServerSupabaseClient();
-  const { error } = await supabase.from("dr_shops").insert({
-    name: parsed.data.name,
-    address: parsed.data.address,
-    lat: parsed.data.lat,
-    lng: parsed.data.lng,
-    google_maps_url: parsed.data.googleMapsUrl || null,
-  });
-  if (error) throw new Error(error.message);
-
+function refresh() {
   revalidatePath("/admin/drone-rental");
-}
-
-const setShopActiveSchema = z.object({ id: uuidSchema, active: z.enum(["true", "false"]).transform((v) => v === "true") });
-
-export async function setShopActiveAction(formData: FormData) {
-  const parsed = setShopActiveSchema.safeParse({ id: formData.get("id"), active: formData.get("active") });
-  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
-
-  const supabase = await createServerSupabaseClient();
-  const { error } = await supabase.from("dr_shops").update({ active: parsed.data.active }).eq("id", parsed.data.id);
-  if (error) throw new Error(error.message);
-
-  revalidatePath("/admin/drone-rental");
+  revalidatePath("/admin/drone-rental/batteries");
+  revalidatePath("/rent", "layout");
 }
 
 const createDroneSchema = z.object({
@@ -59,40 +29,103 @@ const createDroneSchema = z.object({
   costPriceMyr: z.coerce.number().min(0),
 });
 
-/** Every drone ships with exactly 3 batteries (see pricingRules.ts's swap rule) — created alongside the drone, not managed separately. */
-export async function createDroneAction(formData: FormData) {
+/** Adds a drone to a shop. Batteries are added separately (and belong to a shop, not to the drone). */
+export async function createDroneAction(formData: FormData): Promise<InventoryResult> {
   const parsed = createDroneSchema.safeParse({
     shopId: formData.get("shopId"),
     model: formData.get("model"),
     serialNumber: formData.get("serialNumber"),
     costPriceMyr: formData.get("costPriceMyr"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
   const supabase = await createServerSupabaseClient();
-  const { data: drone, error } = await supabase
-    .from("dr_drones")
-    .insert({
-      shop_id: parsed.data.shopId,
-      model_key: parsed.data.model,
-      model: DRONE_MODEL_PROFILES[parsed.data.model].name,
-      serial_number: parsed.data.serialNumber || null,
-      cost_price_myr: parsed.data.costPriceMyr,
-    })
-    .select("id,human_id")
-    .single();
-  if (error || !drone) throw new Error(error?.message ?? "Could not create the drone.");
+  const { error } = await supabase.from("dr_drones").insert({
+    shop_id: parsed.data.shopId,
+    model_key: parsed.data.model,
+    model: DRONE_MODEL_PROFILES[parsed.data.model].name,
+    serial_number: parsed.data.serialNumber || null,
+    cost_price_myr: parsed.data.costPriceMyr,
+  });
+  if (error) return { ok: false, error: error.message };
+  refresh();
+  return { ok: true };
+}
 
-  // Controllers are separate from drones (see createControllerAction): a customer picks the RC-N3, the goggles set or neither per rental.
+const moveDroneSchema = z.object({ id: uuidSchema, shopId: uuidSchema });
 
-  // Named by make (B1, B2... for the Neo 2, N1, N2... for the Neo; a parked GT50's would be A1, A2...), carrying on from the highest number already used
-  // for that letter in ALL the shops, because batteries are swapped between shops and every sticker number must be different. Rename them from this page.
-  const { data: allBatteries } = await supabase.from("dr_batteries").select("name");
-  const names = nextBatteryNames((allBatteries ?? []).map((b) => b.name), 3, DRONE_MODEL_PROFILES[parsed.data.model].batteryPrefix);
-  const { error: batteryError } = await supabase.from("dr_batteries").insert(names.map((name) => ({ drone_id: drone.id, name })));
-  if (batteryError) throw new Error(batteryError.code === "23505" ? "One of the new batteries' names is already taken by another battery. Rename it, then add the drone's batteries by hand." : batteryError.message);
+/** Moves a drone to another shop. Refused while the drone is out or has a booking waiting, so no customer is sent to a shop that no longer has it. */
+export async function moveDroneAction(formData: FormData): Promise<InventoryResult> {
+  const parsed = moveDroneSchema.safeParse({ id: formData.get("id"), shopId: formData.get("shopId") });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
-  revalidatePath("/admin/drone-rental");
+  const supabase = await createServerSupabaseClient();
+  const { data: drone } = await supabase.from("dr_drones").select("shop_id,status").eq("id", parsed.data.id).maybeSingle();
+  if (!drone) return { ok: false, error: "That drone was not found." };
+  if (drone.shop_id === parsed.data.shopId) return { ok: true };
+  if (drone.status === "RENTED") return { ok: false, error: "This drone is out on a rental right now. Move it after it comes back." };
+  const { count } = await supabase
+    .from("dr_bookings")
+    .select("id", { count: "exact", head: true })
+    .eq("drone_id", parsed.data.id)
+    .in("status", ["PENDING_PAYMENT", "CONFIRMED", "ACTIVE"]);
+  if ((count ?? 0) > 0) return { ok: false, error: "This drone has a booking waiting. Move it after that booking is finished or cancelled." };
+
+  const { error } = await supabase.from("dr_drones").update({ shop_id: parsed.data.shopId }).eq("id", parsed.data.id);
+  if (error) return { ok: false, error: error.message };
+  refresh();
+  return { ok: true };
+}
+
+const createBatteriesSchema = z.object({
+  shopId: uuidSchema,
+  model: z.enum(ENABLED_DRONE_MODELS),
+  count: z.coerce.number().int().min(1, "Add at least 1 battery").max(30, "Add 30 batteries or fewer at a time"),
+});
+
+/**
+ * Adds batteries to a shop. Each is named by make and numbered across ALL the shops (B1, B2... for the Neo 2), carrying on from the highest number already used,
+ * because batteries are swapped between shops and every sticker number must be different. Rename them from this page.
+ */
+export async function createBatteriesAction(formData: FormData): Promise<InventoryResult> {
+  const parsed = createBatteriesSchema.safeParse({ shopId: formData.get("shopId"), model: formData.get("model"), count: formData.get("count") });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const supabase = await createServerSupabaseClient();
+  const { data: all } = await supabase.from("dr_batteries").select("name");
+  const names = nextBatteryNames((all ?? []).map((b) => b.name), parsed.data.count, DRONE_MODEL_PROFILES[parsed.data.model].batteryPrefix);
+  const { error } = await supabase.from("dr_batteries").insert(names.map((name) => ({ shop_id: parsed.data.shopId, model_key: parsed.data.model, name })));
+  if (error) return { ok: false, error: error.code === "23505" ? "One of the new battery names is already taken. Rename that battery, then try again." : error.message };
+  refresh();
+  return { ok: true };
+}
+
+const assignBatterySchema = z.object({
+  id: uuidSchema,
+  name: z.string().trim().min(1, "Enter a name for the battery").max(30, "Keep the name to 30 characters or fewer"),
+  shopId: uuidSchema,
+});
+
+/** A battery's sticker name and the shop it belongs to. Changing the shop is only allowed while the battery is on that shop's shelf. */
+export async function assignBatteryAction(formData: FormData): Promise<InventoryResult> {
+  const parsed = assignBatterySchema.safeParse({ id: formData.get("id"), name: formData.get("name"), shopId: formData.get("shopId") });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const supabase = await createServerSupabaseClient();
+  const { data: battery } = await supabase.from("dr_batteries").select("shop_id,at_shop_id,status").eq("id", parsed.data.id).maybeSingle();
+  if (!battery) return { ok: false, error: "That battery was not found." };
+
+  const changingShop = battery.shop_id !== parsed.data.shopId;
+  if (changingShop && (battery.status !== "AT_SHOP" || battery.at_shop_id !== battery.shop_id)) {
+    return { ok: false, error: "This battery is not on its shop's shelf right now (it is out on a rental or away from home). Move it after it is back." };
+  }
+  const { error } = await supabase
+    .from("dr_batteries")
+    .update(changingShop ? { name: parsed.data.name, shop_id: parsed.data.shopId, at_shop_id: parsed.data.shopId } : { name: parsed.data.name })
+    .eq("id", parsed.data.id);
+  if (error) return { ok: false, error: error.code === "23505" ? "Another battery already has that name: every battery needs its own number." : error.message };
+  refresh();
+  return { ok: true };
 }
 
 const createControllerSchema = z.object({
@@ -101,102 +134,38 @@ const createControllerSchema = z.object({
 });
 
 /** Adds a controller to a shop's pool: an RC-N3 (CTR-001, ...) or a Goggles N3 + Motion 3 set (GOG-001, ...). Customers can only pick what the shop has. */
-export async function createControllerAction(formData: FormData) {
+export async function createControllerAction(formData: FormData): Promise<InventoryResult> {
   const parsed = createControllerSchema.safeParse({ shopId: formData.get("shopId"), kind: formData.get("kind") });
-  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
   const supabase = await createServerSupabaseClient();
   const { error } = await supabase.from("dr_controllers").insert({ shop_id: parsed.data.shopId, kind: parsed.data.kind });
-  if (error) throw new Error(error.message);
-
-  revalidatePath("/admin/drone-rental");
+  if (error) return { ok: false, error: error.message };
+  refresh();
+  return { ok: true };
 }
 
 /** Removes a controller that has never been on a booking (one that has is kept for the records; mark a lost one in the notes instead). */
-export async function deleteControllerAction(formData: FormData) {
+export async function deleteControllerAction(formData: FormData): Promise<InventoryResult> {
   const parsed = z.object({ id: uuidSchema }).safeParse({ id: formData.get("id") });
-  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
   const supabase = await createServerSupabaseClient();
   const { error } = await supabase.from("dr_controllers").delete().eq("id", parsed.data.id);
-  if (error) throw new Error(error.code === "23503" ? "This controller has been on a booking, so it can't be removed." : error.message);
-
-  revalidatePath("/admin/drone-rental");
-}
-
-const renameBatterySchema = z.object({
-  id: uuidSchema,
-  name: z.string().trim().min(1, "Enter a name for the battery").max(30, "Keep the name to 30 characters or fewer"),
-});
-
-/** Gives a battery the name on its sticker; shown to the merchant whenever it has to be handed out or taken back. */
-export async function renameBatteryAction(formData: FormData) {
-  const parsed = renameBatterySchema.safeParse({ id: formData.get("id"), name: formData.get("name") });
-  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
-
-  const supabase = await createServerSupabaseClient();
-  const { error } = await supabase.from("dr_batteries").update({ name: parsed.data.name }).eq("id", parsed.data.id);
-  if (error) throw new Error(error.code === "23505" ? "Another battery already has that name: every battery needs its own number." : error.message);
-
-  revalidatePath("/admin/drone-rental");
+  if (error) return { ok: false, error: error.code === "23503" ? "This controller has been on a booking, so it can't be removed." : error.message };
+  refresh();
+  return { ok: true };
 }
 
 const setDroneStatusSchema = z.object({ id: uuidSchema, status: z.enum(["AVAILABLE", "RENTED", "MAINTENANCE", "LOST", "RETIRED"]) });
 
-export async function setDroneStatusAction(formData: FormData) {
+export async function setDroneStatusAction(formData: FormData): Promise<InventoryResult> {
   const parsed = setDroneStatusSchema.safeParse({ id: formData.get("id"), status: formData.get("status") });
-  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
   const supabase = await createServerSupabaseClient();
   const { error } = await supabase.from("dr_drones").update({ status: parsed.data.status }).eq("id", parsed.data.id);
-  if (error) throw new Error(error.message);
-
-  revalidatePath("/admin/drone-rental");
-}
-
-const assignMerchantSchema = z.object({ staffUserId: uuidSchema, shopIds: z.array(uuidSchema) });
-
-/** Full-replace, same pattern as updateWorkerLockersAction in app/admin/staff/actions.ts. */
-export async function assignMerchantShopsAction(formData: FormData) {
-  const parsed = assignMerchantSchema.safeParse({ staffUserId: formData.get("staffUserId"), shopIds: formData.getAll("shopIds") });
-  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
-
-  const supabase = await createServerSupabaseClient();
-
-  const { error: deleteError } = await supabase.from("dr_merchant_shops").delete().eq("staff_user_id", parsed.data.staffUserId);
-  if (deleteError) throw new Error(deleteError.message);
-
-  if (parsed.data.shopIds.length > 0) {
-    const { error: insertError } = await supabase
-      .from("dr_merchant_shops")
-      .insert(parsed.data.shopIds.map((shopId) => ({ staff_user_id: parsed.data.staffUserId, shop_id: shopId })));
-    if (insertError) throw new Error(insertError.message);
-  }
-
-  revalidatePath("/admin/drone-rental");
-}
-
-/**
- * A shop's opening hours, one line per weekday (Sunday first): closed, or an opening and a closing time on the half hour, Malaysia time.
- * The merchant assigned to the shop works to these hours: customers can only book inside them, and the shop shows as closed outside them.
- */
-export async function setShopHoursAction(formData: FormData) {
-  const shopId = uuidSchema.parse(formData.get("shopId"));
-  const hours: ShopHours = [];
-  for (let day = 0; day < 7; day++) {
-    if (formData.get(`closed-${day}`)) {
-      hours.push(null);
-      continue;
-    }
-    const open = formData.get(`open-${day}`);
-    const close = formData.get(`close-${day}`);
-    if (!isHalfHourTime(open) || !isHalfHourTime(close)) throw new Error(`${WEEKDAY_NAMES[day]}: use times on the hour or half hour, for example 09:00 or 18:30.`);
-    if (open >= close) throw new Error(`${WEEKDAY_NAMES[day]}: closing must be after opening.`);
-    hours.push({ open, close });
-  }
-  const supabase = await createServerSupabaseClient();
-  const { error } = await supabase.from("dr_shops").update({ hours: serializeShopHours(hours) }).eq("id", shopId);
-  if (error) throw new Error(error.message);
-  revalidatePath("/admin/drone-rental");
-  revalidatePath("/rent", "layout");
+  if (error) return { ok: false, error: error.message };
+  refresh();
+  return { ok: true };
 }

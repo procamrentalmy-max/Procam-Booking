@@ -19,9 +19,8 @@ function hoursLabel(ms: number): string {
  */
 export default async function DroneBatteriesPage() {
   const supabase = await createServerSupabaseClient();
-  const [{ data: batteries }, { data: drones }, { data: shops }, { data: swaps }] = await Promise.all([
-    supabase.from("dr_batteries").select("id,human_id,name,drone_id,status,at_shop_id,current_booking_id").order("human_id"),
-    supabase.from("dr_drones").select("id,model_key"),
+  const [{ data: batteries }, { data: shops }, { data: swaps }] = await Promise.all([
+    supabase.from("dr_batteries").select("id,human_id,name,model_key,status,at_shop_id,current_booking_id").order("human_id"),
     supabase.from("dr_shops").select("id,name"),
     supabase.from("dr_battery_swaps").select("booking_id,released_battery_id,issued_battery_id,created_at").order("created_at"),
   ]);
@@ -30,7 +29,6 @@ export default async function DroneBatteriesPage() {
     ? await supabase.from("dr_bookings").select("id,human_id,status,actual_return_time").in("id", bookingIds)
     : { data: [] as { id: string; human_id: string; status: string; actual_return_time: string | null }[] };
 
-  const modelByDrone = new Map((drones ?? []).map((d) => [d.id, d.model_key]));
   const shopName = new Map((shops ?? []).map((s) => [s.id, s.name]));
   const bookingById = new Map((bookings ?? []).map((b) => [b.id, b]));
   const now = new Date().getTime();
@@ -60,7 +58,7 @@ export default async function DroneBatteriesPage() {
       id: b.id,
       name: b.name ?? b.human_id,
       serial: b.human_id,
-      make: modelProfile(modelByDrone.get(b.drone_id)).shortName,
+      make: modelProfile(b.model_key).shortName,
       where: b.status === "AT_SHOP" ? `At ${shopName.get(b.at_shop_id) ?? "a shop"}` : b.status === "WITH_CUSTOMER" ? `With a customer${withBooking ? ` (${withBooking.human_id})` : ""}` : b.status,
       uses: issues.length,
       rentals,
