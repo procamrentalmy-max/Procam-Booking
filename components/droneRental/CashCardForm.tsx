@@ -14,15 +14,15 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
  * swap or late fee can go on it. This only saves the card (a SetupIntent), nothing is charged. Stripe brings the browser
  * back to returnUrl, which finishes the setup on the server.
  */
-export function CashCardForm({ clientSecret, returnUrl, locale = "en" }: { clientSecret: string; returnUrl: string; locale?: Locale }) {
+export function CashCardForm({ clientSecret, returnUrl, locale = "en", qr = false }: { clientSecret: string; returnUrl: string; locale?: Locale; qr?: boolean }) {
   return (
     <Elements stripe={stripePromise} options={{ clientSecret, locale }}>
-      <SaveCardForm returnUrl={returnUrl} locale={locale} />
+      <SaveCardForm returnUrl={returnUrl} locale={locale} qr={qr} />
     </Elements>
   );
 }
 
-function SaveCardForm({ returnUrl, locale }: { returnUrl: string; locale: Locale }) {
+function SaveCardForm({ returnUrl, locale, qr }: { returnUrl: string; locale: Locale; qr: boolean }) {
   const t = droneText(locale).pay;
   const stripe = useStripe();
   const elements = useElements();
@@ -52,7 +52,7 @@ function SaveCardForm({ returnUrl, locale }: { returnUrl: string; locale: Locale
         className="flex w-full items-center justify-center gap-2 rounded-full bg-black py-3 font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-black"
       >
         {loading && <Spinner />}
-        {loading ? t.saving : t.saveCard}
+        {loading ? t.saving : qr ? t.saveCardQr : t.saveCard}
       </button>
     </form>
   );

@@ -205,3 +205,43 @@ export async function removeComboPictureAction(formData: FormData) {
   revalidatePath("/rent", "layout");
   revalidatePath("/admin/branding");
 }
+
+/** The QR picture a walk-in customer scans to pay (shown whole, never cropped). Stored like the other pictures; a bigger one is only shrunk. */
+export async function uploadPayQrAction(formData: FormData) {
+  if (!isAdmin(await getAuthContext())) throw new Error("Not authorized");
+  const file = formData.get("picture");
+  if (!(file instanceof File) || file.size === 0) throw new Error("Choose a picture.");
+  const ext = PICTURE_TYPES[file.type];
+  if (!ext) throw new Error("The picture must be a PNG, JPEG or WebP image.");
+  if (file.size > MAX_PICTURE_BYTES) throw new Error("The picture must be under 8MB.");
+
+  const buffer = await sharp(Buffer.from(await file.arrayBuffer()))
+    .rotate()
+    .resize({ width: PICTURE_MAX_WIDTH, withoutEnlargement: true })
+    .toBuffer();
+
+  const supabase = createServiceRoleClient();
+  const path = `pay-qr-${Date.now()}.${ext}`;
+  const { error: uploadError } = await supabase.storage.from(BRANDING_BUCKET).upload(path, buffer, { contentType: file.type, upsert: true });
+  if (uploadError) throw new Error(`Failed to upload the picture: ${uploadError.message}`);
+
+  const { data: current } = await supabase.from("site_settings").select("pay_qr_path").eq("id", 1).maybeSingle();
+  const { error: updateError } = await supabase.from("site_settings").update({ pay_qr_path: path, updated_at: new Date().toISOString() }).eq("id", 1);
+  if (updateError) throw new Error(`Failed to save the picture: ${updateError.message}`);
+
+  if (current?.pay_qr_path && current.pay_qr_path !== path) await supabase.storage.from(BRANDING_BUCKET).remove([current.pay_qr_path]).catch(() => {});
+  revalidatePath("/rent", "layout");
+  revalidatePath("/admin/branding");
+}
+
+/** Takes the payment QR away: paying by QR is no longer offered to walk-in customers. */
+export async function removePayQrAction() {
+  if (!isAdmin(await getAuthContext())) throw new Error("Not authorized");
+  const supabase = createServiceRoleClient();
+  const { data: current } = await supabase.from("site_settings").select("pay_qr_path").eq("id", 1).maybeSingle();
+  const { error } = await supabase.from("site_settings").update({ pay_qr_path: null, updated_at: new Date().toISOString() }).eq("id", 1);
+  if (error) throw new Error(`Failed to remove the picture: ${error.message}`);
+  if (current?.pay_qr_path) await supabase.storage.from(BRANDING_BUCKET).remove([current.pay_qr_path]).catch(() => {});
+  revalidatePath("/rent", "layout");
+  revalidatePath("/admin/branding");
+}

@@ -7,6 +7,9 @@ describe("cardFeeFor", () => {
     expect(cardFeeFor({ amount: 12, method: "CARD" })).toBeCloseTo(1.372, 10);
     expect(cardFeeFor({ amount: 100, method: "CARD" })).toBeCloseTo(4.1, 10);
   });
+  it("is nothing for a QR payment", () => {
+    expect(cardFeeFor({ amount: 30, method: "QR" })).toBe(0);
+  });
   it("is nothing for cash, or for nothing paid", () => {
     expect(cardFeeFor({ amount: 30, method: "CASH" })).toBe(0);
     expect(cardFeeFor({ amount: 0, method: "CARD" })).toBe(0);

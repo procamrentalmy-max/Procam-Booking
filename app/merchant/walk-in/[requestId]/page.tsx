@@ -39,7 +39,7 @@ export default async function WalkInPage({ params }: { params: Promise<{ request
   const hours = request.duration_minutes / 60;
   const batteries = request.batteries_count === 1 ? 1 : 2;
   const controller = requestController(request);
-  const summary = `${modelProfile(request.drone_model).shortName} · ${hours} hour${hours === 1 ? "" : "s"} · ${batteries} ${batteries === 1 ? "battery" : "batteries"}${" · " + controllerLabel(request.drone_model, controller)} · ${formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model, controller))}${booking?.paid_by === "CASH" ? " in cash" : ""} + ${formatMyr(depositMyrFor(request.drone_model, controller))} deposit hold`;
+  const summary = `${modelProfile(request.drone_model).shortName} · ${hours} hour${hours === 1 ? "" : "s"} · ${batteries} ${batteries === 1 ? "battery" : "batteries"}${" · " + controllerLabel(request.drone_model, controller)} · ${formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model, controller))}${booking?.paid_by === "CASH" ? " in cash" : booking?.paid_by === "QR" ? " by QR" : ""} + ${formatMyr(depositMyrFor(request.drone_model, controller))} deposit hold`;
 
   const bookingStatus = booking?.status ?? null;
   const droneOptions = view === "SUBMITTED" ? await eligibleDronesForRequest(request) : [];
@@ -70,7 +70,7 @@ export default async function WalkInPage({ params }: { params: Promise<{ request
         </>
       )}
 
-      {view === "ACCEPTED" && (bookingStatus === "PENDING_PAYMENT" || bookingStatus === null) && booking?.paid_by !== "CASH" && (
+      {view === "ACCEPTED" && (bookingStatus === "PENDING_PAYMENT" || bookingStatus === null) && (booking?.paid_by ?? "CARD") === "CARD" && (
         <Card tone="warn">
           <p className="text-center text-base font-semibold text-amber-900 dark:text-amber-200">Confirmed. Waiting for {request.customer_name} to pay</p>
           <p className="mt-1 text-center text-sm text-amber-800 dark:text-amber-300">Their phone is on the payment page now. This updates by itself.</p>
@@ -89,10 +89,23 @@ export default async function WalkInPage({ params }: { params: Promise<{ request
         </>
       )}
 
+      {view === "ACCEPTED" && bookingStatus === "PENDING_PAYMENT" && booking?.paid_by === "QR" && request.booking_id && (
+        <>
+          <Card tone="warn">
+            <p className="text-center text-base font-semibold text-amber-900 dark:text-amber-200">{request.customer_name} is paying by QR</p>
+            <p className="mt-1 text-center text-sm text-amber-800 dark:text-amber-300">
+              Their card is saved and the deposit is held. They scan the QR on their phone and pay {formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model, controller))}, then show you the
+              paid screen from their banking app (not a page from our site). Check the amount and that it just went through, then tap below.
+            </p>
+          </Card>
+          <CashButton qr requestId={request.id} amount={formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model, controller))} />
+        </>
+      )}
+
       {view === "ACCEPTED" && bookingStatus === "CONFIRMED" && booking && request.booking_id && (
         <>
           <Card tone="good">
-            <p className="text-center text-lg font-bold text-green-900 dark:text-green-100">{booking.paid_by === "CASH" ? "Paid in cash. Ready to hand over" : "Paid. Ready to hand over"}</p>
+            <p className="text-center text-lg font-bold text-green-900 dark:text-green-100">{booking.paid_by === "CASH" ? "Paid in cash. Ready to hand over" : booking.paid_by === "QR" ? "Paid by QR. Ready to hand over" : "Paid. Ready to hand over"}</p>
             <p className="mt-1 text-center text-sm text-green-800 dark:text-green-200">
               {request.customer_name} · {booking.human_id}
             </p>

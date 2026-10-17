@@ -156,11 +156,11 @@ export async function startCashCardSetup(bookingId: string): Promise<{ clientSec
 }
 
 /**
- * The customer's card was saved for a cash rental: keep it on the booking, put the deposit hold on it, and mark the
- * rental fee as to be paid in cash. The booking stays PENDING_PAYMENT until the merchant has the cash and confirms
+ * The customer's card was saved for a rental paid in cash or by QR: keep it on the booking, put the deposit hold on it, and mark the
+ * rental fee as to be paid that way. The booking stays PENDING_PAYMENT until the merchant has the cash and confirms
  * (markDroneBookingPaidCash). Checked against Stripe itself, not the browser, and safe to run twice.
  */
-export async function finishCashCardSetup(bookingId: string, setupIntentId: string): Promise<void> {
+export async function finishCashCardSetup(bookingId: string, setupIntentId: string, method: "CASH" | "QR" = "CASH"): Promise<void> {
   const supabase = createServiceRoleClient();
   const setupIntent = await getStripe().setupIntents.retrieve(setupIntentId);
   if (setupIntent.status !== "succeeded") throw new Error("Your card wasn't saved.");
@@ -174,23 +174,23 @@ export async function finishCashCardSetup(bookingId: string, setupIntentId: stri
 
   await supabase.from("dr_bookings").update({ stripe_payment_method_id: paymentMethodId }).eq("id", bookingId);
   await placeDroneDepositHold(bookingId, paymentMethodId);
-  await supabase.from("dr_bookings").update({ paid_by: "CASH" }).eq("id", bookingId).eq("status", "PENDING_PAYMENT");
+  await supabase.from("dr_bookings").update({ paid_by: method }).eq("id", bookingId).eq("status", "PENDING_PAYMENT");
 }
 
 /**
- * The merchant has the rental fee in cash: the booking is confirmed and the handover can start. Only once the customer
- * has finished the card step (paid_by is CASH then), so there is always a card behind the deposit.
+ * The merchant has the rental fee, in cash or by QR (the customer showed the paid screen): the booking is confirmed and the handover can start.
+ * Only once the customer has finished the card step (paid_by is that method then), so there is always a card behind the deposit.
  *
  * If the customer had also opened the card payment, that is cancelled first so they can't pay twice; if it has in fact
  * gone through, this stops and says so.
  */
-export async function markDroneBookingPaidCash(bookingId: string): Promise<void> {
+export async function markDroneBookingPaidOffline(bookingId: string, method: "CASH" | "QR"): Promise<void> {
   const supabase = createServiceRoleClient();
 
   const { data: booking } = await supabase.from("dr_bookings").select("id,status,paid_by,rental_fee_myr").eq("id", bookingId).single();
   if (!booking) throw new Error("Booking not found.");
   if (booking.status !== "PENDING_PAYMENT") throw new Error("This order isn't waiting for payment any more.");
-  if (booking.paid_by !== "CASH") throw new Error("The customer hasn't chosen cash and saved their card yet.");
+  if (booking.paid_by !== method) throw new Error(method === "QR" ? "The customer hasn't chosen to pay by QR and saved their card yet." : "The customer hasn't chosen cash and saved their card yet.");
 
   // If the customer had also opened the card form, its deposit hold is let go so they can't pay twice (the cash rental has its own hold).
   const { data: checkout } = await supabase.from("dr_bookings").select("deposit_checkout_intent").eq("id", bookingId).single();
@@ -209,10 +209,14 @@ export async function markDroneBookingPaidCash(bookingId: string): Promise<void>
   const claim = await claimBookingSlot(bookingId);
   if (!claim.claimed) {
     await cancelLostBooking(bookingId);
-    throw new Error("That drone was taken by someone else while the customer was paying. Don't take the cash: decline this order.");
+    throw new Error(
+      method === "QR"
+        ? "That drone was taken by someone else while the customer was paying. Decline this order and tell the customer their QR payment will need to be refunded."
+        : "That drone was taken by someone else while the customer was paying. Don't take the cash: decline this order.",
+    );
   }
 
-  await supabase.from("dr_payments").insert({ booking_id: bookingId, kind: "RENTAL_FEE", amount_myr: booking.rental_fee_myr, provider: "cash", provider_ref: `cash-${bookingId}`, status: "SUCCEEDED" });
+  await supabase.from("dr_payments").insert({ booking_id: bookingId, kind: "RENTAL_FEE", amount_myr: booking.rental_fee_myr, provider: method === "QR" ? "qr" : "cash", provider_ref: `${method === "QR" ? "qr" : "cash"}-${bookingId}`, status: "SUCCEEDED" });
 }
 
 /** What happened when the card form's deposit hold was taken to the end (see finishCardBooking). */

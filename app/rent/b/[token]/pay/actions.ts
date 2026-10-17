@@ -91,7 +91,7 @@ export async function devBypassCashChoiceAction(formData: FormData) {
   if (booking.status !== "PENDING_PAYMENT") throw new Error("This booking has already been paid.");
   if (booking.source !== "MERCHANT_INSTANT") throw new Error("Paying in cash is only for walk-in rentals.");
 
-  await supabase.from("dr_bookings").update({ paid_by: "CASH" }).eq("id", booking.id);
+  await supabase.from("dr_bookings").update({ paid_by: formData.get("method") === "QR" ? "QR" : "CASH" }).eq("id", booking.id);
 
   redirect(`/rent/b/${token}/pay${next ? `?next=${encodeURIComponent(next)}` : ""}`);
 }

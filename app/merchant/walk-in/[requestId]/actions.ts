@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { uuidSchema } from "@/lib/zod-helpers";
 import { getAuthContext, hasMerchantAccess } from "@/lib/auth/session";
 import { canAccessShop } from "@/lib/droneRental/access";
-import { markDroneBookingPaidCash } from "@/lib/droneRental/payment";
+import { markDroneBookingPaidOffline } from "@/lib/droneRental/payment";
 import { acceptWalkInRequest, closeWalkInRequest, getWalkInRequestById, WalkInError } from "@/lib/droneRental/walkInRequests";
 
 async function authorize(requestId: string) {
@@ -40,7 +40,16 @@ export async function declineWalkInOrderAction(requestId: string): Promise<void>
 export async function markWalkInPaidCashAction(requestId: string): Promise<void> {
   const { request } = await authorize(requestId);
   if (!request.booking_id) throw new Error("Confirm the order first.");
-  await markDroneBookingPaidCash(request.booking_id);
+  await markDroneBookingPaidOffline(request.booking_id, "CASH");
+  revalidatePath(`/merchant/walk-in/${request.id}`);
+  revalidatePath("/merchant");
+}
+
+/** The customer paid by scanning the QR and showed the paid screen from their banking app: the order is confirmed and handover can start. */
+export async function markWalkInPaidQrAction(requestId: string): Promise<void> {
+  const { request } = await authorize(requestId);
+  if (!request.booking_id) throw new Error("Confirm the order first.");
+  await markDroneBookingPaidOffline(request.booking_id, "QR");
   revalidatePath(`/merchant/walk-in/${request.id}`);
   revalidatePath("/merchant");
 }

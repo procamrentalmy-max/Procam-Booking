@@ -35,3 +35,11 @@ export async function getComboPictureUrls(): Promise<Record<string, string>> {
     (data ?? []).map((r) => [comboKey(r.drone_model, r.controller_kind, r.batteries), supabase.storage.from(BRANDING_BUCKET).getPublicUrl(r.image_path).data.publicUrl])
   );
 }
+
+/** The uploaded picture of the QR a walk-in customer scans to pay, or null until the admin uploads one (paying by QR is then not offered). */
+export async function getPayQrUrl(): Promise<string | null> {
+  const supabase = createServiceRoleClient();
+  const { data } = await supabase.from("site_settings").select("pay_qr_path").eq("id", 1).maybeSingle();
+  if (!data?.pay_qr_path) return null;
+  return supabase.storage.from(BRANDING_BUCKET).getPublicUrl(data.pay_qr_path).data.publicUrl;
+}

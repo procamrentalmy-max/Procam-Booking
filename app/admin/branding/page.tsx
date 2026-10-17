@@ -1,7 +1,7 @@
-import { getComboPictureUrls, getLandingImageUrls, getLogoUrl, type LandingImageSlot } from "@/lib/branding";
+import { getComboPictureUrls, getLandingImageUrls, getLogoUrl, getPayQrUrl, type LandingImageSlot } from "@/lib/branding";
 import { BATTERY_OPTIONS, DRONE_MODEL_PROFILES, ENABLED_DRONE_MODELS, comboKey, controllerLabel } from "@/lib/droneRental/pricingRules";
 import { inputClass, primaryButtonClass, dangerButtonClass } from "@/components/formStyles";
-import { uploadLogoAction, removeLogoAction, uploadLandingImageAction, removeLandingImageAction, uploadComboPictureAction, removeComboPictureAction } from "./actions";
+import { uploadLogoAction, removeLogoAction, uploadLandingImageAction, removeLandingImageAction, uploadComboPictureAction, removeComboPictureAction, uploadPayQrAction, removePayQrAction } from "./actions";
 
 const PICTURES: { slot: LandingImageSlot; title: string; note: string }[] = [
   { slot: "hero", title: "Picture at the top of the landing page", note: "Shown big in the top part of the home page, beside the headline. A landscape or square picture works best. Until you upload one, the drawn drone is shown." },
@@ -9,7 +9,7 @@ const PICTURES: { slot: LandingImageSlot; title: string; note: string }[] = [
 ];
 
 export default async function BrandingPage() {
-  const [logoUrl, pictureUrls, comboUrls] = await Promise.all([getLogoUrl(), getLandingImageUrls(), getComboPictureUrls()]);
+  const [logoUrl, pictureUrls, comboUrls, payQrUrl] = await Promise.all([getLogoUrl(), getLandingImageUrls(), getComboPictureUrls(), getPayQrUrl()]);
   // Every combination a customer can book: drone x how it is flown x batteries.
   const combos = ENABLED_DRONE_MODELS.flatMap((model) =>
     DRONE_MODEL_PROFILES[model].controllerOptions.flatMap((controller) =>
@@ -63,6 +63,35 @@ export default async function BrandingPage() {
           </button>
         </form>
       )}
+
+      <div className="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+        <div>
+          <p className="text-sm font-medium">Payment QR (walk-in customers)</p>
+          <p className="text-xs text-zinc-500">
+            A walk-in customer can choose Pay by QR: after their card is saved for the deposit hold, this picture is shown whole (nothing cropped) for them to scan and pay. They then show the paid screen from
+            their banking app to the merchant, who confirms it. Until you upload a picture, Pay by QR is not offered.
+          </p>
+        </div>
+        {payQrUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local optimizable asset
+          <img src={payQrUrl} alt="Payment QR" className="h-auto w-full max-w-xs rounded-lg border border-zinc-200 dark:border-zinc-800" />
+        ) : (
+          <p className="text-sm text-zinc-500">No picture uploaded yet.</p>
+        )}
+        <form action={uploadPayQrAction} className="space-y-3">
+          <input type="file" name="picture" accept="image/png,image/jpeg,image/webp" required className={`w-full ${inputClass}`} />
+          <button type="submit" className={primaryButtonClass}>
+            {payQrUrl ? "Replace picture" : "Upload picture"}
+          </button>
+        </form>
+        {payQrUrl && (
+          <form action={removePayQrAction}>
+            <button type="submit" className={dangerButtonClass}>
+              Remove picture
+            </button>
+          </form>
+        )}
+      </div>
 
       <div className="border-t border-zinc-200 pt-6 dark:border-zinc-800">
         <h2 className="text-lg font-semibold">Landing page pictures</h2>

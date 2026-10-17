@@ -42,9 +42,9 @@ export type Earnings = {
   procam: number;
 };
 
-/** The card fee on one payment: nothing for cash, otherwise a percentage plus the fixed RM1. */
+/** The card fee on one payment: nothing for cash or a QR payment, otherwise a percentage plus the fixed RM1. */
 export function cardFeeFor(payment: Payment): number {
-  return payment.method === "CASH" || payment.amount <= 0 ? 0 : payment.amount * CARD_FEE_RATE + CARD_FEE_FIXED_MYR;
+  return payment.method !== "CARD" || payment.amount <= 0 ? 0 : payment.amount * CARD_FEE_RATE + CARD_FEE_FIXED_MYR;
 }
 
 export const ZERO_EARNINGS: Earnings = { income: 0, costs: { platform: 0, payment: 0, kyc: 0 }, totalCosts: 0, net: 0, partner: 0, procam: 0 };

@@ -535,6 +535,8 @@ export type SiteSettingsRow = {
   hero_image_path: string | null;
   /** The picture beside "What is in the kit" on the landing page. */
   kit_image_path: string | null;
+  /** The picture of the QR a walk-in customer scans to pay (Admin > Branding). */
+  pay_qr_path: string | null;
   updated_at: string;
 };
 
@@ -549,7 +551,8 @@ export type DrBookingStatus = "PENDING_PAYMENT" | "CONFIRMED" | "ACTIVE" | "COMP
 export type DrBookingSource = "ONLINE" | "MERCHANT_INSTANT";
 export type DrDepositOutcome = "NONE" | "DAMAGED" | "LOST";
 /** How a drone booking was paid: by card through Stripe, or in cash at the shop (the merchant marks it). */
-export type DrPaidBy = "CARD" | "CASH";
+/** How a payment was made: by card, in cash at the shop, or (the rental fee of a walk-in only) by scanning the shop's QR. */
+export type DrPaidBy = "CARD" | "CASH" | "QR";
 export type DrPaymentKind = "RENTAL_FEE" | "BATTERY_SWAP_FEE" | "LATE_FEE";
 export type DrChecklistPhase = "PICKUP" | "RETURN";
 
