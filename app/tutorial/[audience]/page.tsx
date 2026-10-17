@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Brand } from "@/components/Brand";
+import { PendingLink } from "@/components/PendingLink";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { getLogoUrl } from "@/lib/branding";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -36,7 +37,15 @@ export default async function TutorialPage({ params }: { params: Promise<{ audie
         <LanguageToggle locale={locale} inline />
       </div>
 
-      <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">{audience === "CONTROLLER" ? t.titleController : t.titlePhone}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">{audience === "CONTROLLER" ? t.titleController : t.titlePhone}</h1>
+          <PendingLink
+            href={audience === "CONTROLLER" ? "/tutorial/phone" : "/tutorial/controller"}
+            className="inline-flex min-h-10 shrink-0 items-center rounded-full bg-black px-5 text-sm font-semibold text-white transition hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+          >
+            {audience === "CONTROLLER" ? t.usePhone : t.useController}
+          </PendingLink>
+        </div>
 
       {shown.length === 0 ? (
         <p className="rounded-xl border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500 dark:border-zinc-700">{t.empty}</p>
