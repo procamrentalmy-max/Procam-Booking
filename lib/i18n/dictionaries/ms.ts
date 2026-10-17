@@ -93,6 +93,7 @@ export const ms: Dictionary = {
       "**Tukar** bateri yang telah digunakan dengan yang **dicas penuh** di kedai.",
       "Pemulangan lewat dikenakan **kadar sejam** bagi **setiap jam**.",
       "**Deposit dilepaskan** apabila semuanya dipulangkan dalam **keadaan baik**.",
+      "Jika berlaku **kerosakan**, **kos pembaikan ditolak** daripada deposit anda dan **invois pembaikan dihantar** kepada anda.",
     ],
     terms: "Terma",
     refunds: "Bayaran balik",

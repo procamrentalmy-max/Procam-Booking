@@ -86,7 +86,7 @@ export const legalEn = {
         blocks: [
           {
             ul: [
-              "If the drone or controller comes back damaged, the shop records what is damaged with photos. Your deposit stays on hold, and we review the damage that evening. We then charge only the cost of the repair, up to the amount held. The rest of the deposit is released.",
+              "If the drone or controller comes back damaged, the shop records what is damaged with photos. Your deposit stays on hold, and we review the damage that evening. We then charge only the cost of the repair, up to the amount held. In the event of damage, the repair cost is deducted from your deposit and the repair invoice is sent to you. The rest of the deposit is released.",
               "If a drone, controller or goggles set is lost (including flown out of reach, into the sea or a river, or not returned), we keep the deposit held for that item in full.",
               "Normal wear that comes from careful use is not damage.",
               "If you think a charge is wrong, contact us within 14 days of the return. We will look at the photos with you.",
@@ -189,7 +189,7 @@ export const legalEn = {
           {
             ul: [
               "The deposit is only ever a hold on your card. If everything comes back in good condition, the whole hold is released. No money was taken, so there is nothing to refund.",
-              "If something is damaged, we charge only the cost of the repair, up to the amount held, and release the rest. If something is lost we keep the deposit held for that item. See the Terms for how this works.",
+              "If something is damaged, the repair cost is deducted from your deposit (up to the amount held) and the repair invoice is sent to you; we release the rest. If something is lost we keep the deposit held for that item. See the Terms for how this works.",
               "Your bank decides how fast a released hold disappears from your statement. This usually takes a few working days. A hold that is not captured is released automatically after about {holdDays} days.",
             ],
           },
@@ -395,7 +395,7 @@ export const legalMs: LegalText = {
         blocks: [
           {
             ul: [
-              "Jika dron atau alat kawalan dipulangkan dalam keadaan rosak, kedai merekodkan apa yang rosak dengan gambar. Deposit anda kekal ditahan, dan kami menyemak kerosakan itu pada petang tersebut. Kami kemudian hanya mengecaj kos pembaikan, sehingga jumlah yang ditahan. Baki deposit dilepaskan.",
+              "Jika dron atau alat kawalan dipulangkan dalam keadaan rosak, kedai merekodkan apa yang rosak dengan gambar. Deposit anda kekal ditahan, dan kami menyemak kerosakan itu pada petang tersebut. Kami kemudian hanya mengecaj kos pembaikan, sehingga jumlah yang ditahan. Jika berlaku kerosakan, kos pembaikan ditolak daripada deposit anda dan invois pembaikan dihantar kepada anda. Baki deposit dilepaskan.",
               "Jika dron, alat kawalan atau set gogal hilang (termasuk diterbangkan di luar jangkauan, ke dalam laut atau sungai, atau tidak dipulangkan), kami menyimpan penuh deposit yang ditahan untuk item itu.",
               "Kehausan biasa akibat penggunaan yang berhati-hati bukan kerosakan.",
               "Jika anda fikir sesuatu caj itu salah, hubungi kami dalam tempoh 14 hari selepas pemulangan. Kami akan meneliti gambar bersama anda.",
@@ -498,7 +498,7 @@ export const legalMs: LegalText = {
           {
             ul: [
               "Deposit hanyalah tahanan pada kad anda. Jika semuanya dipulangkan dalam keadaan baik, seluruh tahanan dilepaskan. Tiada wang diambil, jadi tiada apa yang perlu dikembalikan.",
-              "Jika sesuatu rosak, kami hanya mengecaj kos pembaikan, sehingga jumlah yang ditahan, dan melepaskan bakinya. Jika sesuatu hilang kami menyimpan deposit yang ditahan untuk item itu. Lihat Terma untuk cara ini berfungsi.",
+              "Jika sesuatu rosak, kos pembaikan ditolak daripada deposit anda (sehingga jumlah yang ditahan) dan invois pembaikan dihantar kepada anda; kami melepaskan bakinya. Jika sesuatu hilang kami menyimpan deposit yang ditahan untuk item itu. Lihat Terma untuk cara ini berfungsi.",
               "Bank anda menentukan berapa cepat tahanan yang dilepaskan hilang daripada penyata anda. Ini biasanya mengambil beberapa hari bekerja. Tahanan yang tidak dikutip dilepaskan secara automatik selepas kira-kira {holdDays} hari.",
             ],
           },
@@ -702,7 +702,7 @@ export const legalZh: LegalText = {
         blocks: [
           {
             ul: [
-              "如果无人机或遥控器归还时有损坏，门店会拍照记录损坏情况。您的押金继续冻结，我们会在当天傍晚评估损坏，然后只收取维修费用，最高不超过冻结金额，其余押金解除冻结。",
+              "如果无人机或遥控器归还时有损坏，门店会拍照记录损坏情况。您的押金继续冻结，我们会在当天傍晚评估损坏，然后只收取维修费用，最高不超过冻结金额。如发生损坏，维修费用将从您的押金中扣除，维修发票将发送给您。其余押金解除冻结。",
               "如果无人机、遥控器或眼镜套装丢失（包括飞出控制范围、掉进海里或河里，或未归还），我们会全额扣留该物品对应的押金。",
               "小心使用造成的正常磨损不算损坏。",
               "如果您认为某笔费用有误，请在归还后 14 天内联系我们。我们会与您一起查看照片。",
@@ -803,7 +803,7 @@ export const legalZh: LegalText = {
           {
             ul: [
               "押金始终只是银行卡上的冻结。如果所有物品完好归还，整笔冻结都会解除。没有扣过钱，所以无需退款。",
-              "如果有损坏，我们只收取维修费用，最高不超过冻结金额，并解除其余部分。如果有物品丢失，我们会扣留该物品对应的押金。具体规定见条款。",
+              "如果有损坏，维修费用从您的押金中扣除（最高不超过冻结金额），维修发票会发送给您，其余部分解除冻结。如果有物品丢失，我们会扣留该物品对应的押金。具体规定见条款。",
               "已解除的冻结多久从您的账单上消失，由您的银行决定，通常需要几个工作日。未扣取的冻结会在约 {holdDays} 天后自动解除。",
             ],
           },

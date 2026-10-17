@@ -146,6 +146,7 @@ export default async function DroneBookingDashboardPage({ params, searchParams }
         <Row label={t.common.rentalFee} value={formatMyr(booking.rental_fee_myr)} />
         <Row label={t.booking.depositRefundable} value={formatMyr(booking.deposit_myr)} />
       </div>
+      <p className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs leading-snug text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">{t.common.damageWarning}</p>
 
       <FaqLink locale={locale} />
     </div>

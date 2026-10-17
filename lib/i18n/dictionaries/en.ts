@@ -91,6 +91,7 @@ export const en = {
       "**Swap** used batteries for **fully charged** ones at the shop.",
       "Returning late costs the **hourly rate** for **each hour**.",
       "The **deposit is released** when everything comes back in **good condition**.",
+      "If anything is **damaged**, the **repair cost is deducted** from your deposit and the **repair invoice is sent** to you.",
     ],
     terms: "Terms",
     refunds: "Refunds",

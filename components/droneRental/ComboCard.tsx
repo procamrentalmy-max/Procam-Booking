@@ -37,6 +37,7 @@ export function TotalSummary({ totalMyr, depositMyr, locale = "en", onDark = fal
         <span className={`text-sm font-medium ${onDark ? "text-slate-300" : "text-zinc-500"}`}>{t.common.deposit}</span>
         <span className={`text-base font-semibold tabular-nums ${strong}`}>{formatMyr(depositMyr)}</span>
       </div>
+      <p className={`rounded-lg border p-2 text-xs leading-snug ${onDark ? "border-amber-500/40 bg-amber-950/40 text-amber-200" : "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"}`}>{t.common.damageWarning}</p>
     </div>
   );
 }

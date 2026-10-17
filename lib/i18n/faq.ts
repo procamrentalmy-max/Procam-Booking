@@ -130,7 +130,7 @@ export const faqEn: FaqPage = {
           blocks: [
             {
               ul: [
-                "Damage: the shop records it with photos, we review it that evening, and we charge only the repair cost, up to the amount held. The rest is released.",
+                "Damage: the shop records it with photos and we review it that evening. The repair cost is deducted from your deposit, up to the amount held, and the repair invoice is sent to you. The rest is released.",
                 "Lost (flown out of reach, into water, or not returned): we keep the deposit held for that item.",
                 "The deposit is the most we take for damage or loss. Late fees and extra batteries are charged separately.",
               ],
@@ -343,7 +343,7 @@ export const faqMs: FaqPage = {
           blocks: [
             {
               ul: [
-                "Kerosakan: kedai merekodkannya dengan gambar, kami menyemaknya pada petang itu, dan kami hanya mengenakan kos pembaikan, setakat jumlah yang ditahan. Selebihnya dilepaskan.",
+                "Kerosakan: kedai merekodkannya dengan gambar dan kami menyemaknya pada petang itu. Kos pembaikan ditolak daripada deposit anda, setakat jumlah yang ditahan, dan invois pembaikan dihantar kepada anda. Selebihnya dilepaskan.",
                 "Hilang (diterbangkan di luar capaian, ke dalam air, atau tidak dipulangkan): kami menyimpan deposit yang ditahan bagi item itu.",
                 "Deposit ialah jumlah paling banyak yang kami ambil untuk kerosakan atau kehilangan. Yuran lewat dan bateri tambahan dicaj secara berasingan.",
               ],
@@ -556,7 +556,7 @@ export const faqZh: FaqPage = {
           blocks: [
             {
               ul: [
-                "损坏：门店会拍照记录，我们在当晚审核，只收取维修费用，最多以冻结金额为限，其余解除冻结。",
+                "损坏：门店会拍照记录，我们在当晚审核。维修费用从您的押金中扣除，最多以冻结金额为限，维修发票会发送给您，其余解除冻结。",
                 "遗失（飞出可控范围、掉入水中或未归还）：我们会扣下该物品对应的押金。",
                 "押金是我们因损坏或遗失所收取的上限。逾期费和额外电池费另行收取。",
               ],

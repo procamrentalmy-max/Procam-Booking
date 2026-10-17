@@ -140,6 +140,7 @@ export default async function DroneBookingPayPage({
       <p className="-mt-2 text-xs text-zinc-400">
         {includesController(booking.drone_model, storedController(booking.drone_model, booking.controller_kind)) ? t.pay.depositNoteWithController : t.pay.depositNoteDrone}
       </p>
+      <p className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs leading-snug text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">{t.common.damageWarning}</p>
       <p className="-mt-2 text-xs text-zinc-400">
         <AgreeLine locale={locale} />
       </p>

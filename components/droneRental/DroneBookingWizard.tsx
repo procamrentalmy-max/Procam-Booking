@@ -438,6 +438,7 @@ export function DroneBookingWizard({
             <span className="text-zinc-500">{t.common.depositHold}</span>
             <span className="font-medium">{formatMyr(deposit)}</span>
           </div>
+          <p className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs leading-snug text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">{t.common.damageWarning}</p>
         </div>
       )}
 

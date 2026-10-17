@@ -79,6 +79,7 @@ export default async function WalkInCustomerPage({ params }: { params: Promise<{
           <span className="font-medium">{formatMyr(depositMyrFor(request.drone_model, controller))}</span>
         </div>
       </div>
+      <p className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs leading-snug text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">{t.common.damageWarning}</p>
 
       {view === "SUBMITTED" && (
         <Message title={t.waiting.thanks(request.customer_name ?? "")}>{t.waiting.waiting}</Message>
