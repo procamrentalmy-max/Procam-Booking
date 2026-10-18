@@ -4,6 +4,7 @@ import { getAuthContext } from "@/lib/auth/session";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
+import { WalkInAlert } from "@/components/droneRental/WalkInAlert";
 import { batteryLabel, describeDue, formatClock, formatDayLabel, formatDuration, pickupDay } from "@/lib/droneRental/format";
 import { walkInView } from "@/lib/droneRental/walkIn";
 import { modelProfile } from "@/lib/droneRental/pricingRules";
@@ -164,7 +165,8 @@ export default async function MerchantHomePage() {
 
   return (
     <div className="space-y-5 pb-10 pt-4">
-      <AutoRefresh seconds={walkIns.length ? 5 : 30} />
+      <AutoRefresh seconds={walkIns.length ? 5 : 10} />
+      <WalkInAlert waitingIds={walkIns.filter((w) => w.view === "SUBMITTED").map((w) => w.id)} waitingNames={walkIns.filter((w) => w.view === "SUBMITTED").map((w) => w.customer_name ?? "A customer")} />
 
       <Link
         href="/merchant/walk-in-qr"

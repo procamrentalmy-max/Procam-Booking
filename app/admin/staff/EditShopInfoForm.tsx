@@ -18,6 +18,8 @@ export type ShopInfo = {
   hours: DayHours[];
   /** The address is still the one a new account starts with, so the form asks for the real one. */
   needsDetails: boolean;
+  /** What is still missing before the location can be opened to customers (empty when it can). */
+  openGaps: string[];
 };
 
 /** Edit info: everything about the merchant's shop in one form: name, address, map position, opening hours, and whether customers can see it. */
@@ -68,8 +70,18 @@ export function EditShopInfoForm({ shop }: { shop: ShopInfo }) {
 
         <label className="flex items-center gap-2 text-sm sm:col-span-2">
           <input type="checkbox" name="active" defaultChecked={shop.active} />
-          Open to customers (shown on the shop list and map)
+          Open to customers (shows Book here and Get direction)
         </label>
+        {!shop.active && shop.openGaps.length > 0 && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 sm:col-span-2 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+            <p className="font-semibold">Before this location can be opened to customers it still needs:</p>
+            <ul className="mt-1 list-disc pl-5">
+              {shop.openGaps.map((gap) => (
+                <li key={gap}>{gap}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </ActionForm>
     </details>
   );

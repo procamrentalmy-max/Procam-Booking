@@ -7,7 +7,8 @@ import { getAuthContext, isAdmin } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { isValidUsername, usernameToEmail } from "@/lib/auth/username";
 import { isHalfHourTime, serializeShopHours, WEEKDAY_NAMES, type ShopHours } from "@/lib/droneRental/hours";
-import { shopInfoComplete } from "@/lib/droneRental/shopInfo";
+import { openGaps, openGapsMessage } from "@/lib/droneRental/openReadiness";
+import { shopFleetCounts } from "@/lib/droneRental/shopFleetCounts";
 
 const shopPlaceSchema = z.object({
   address: z.string().trim().min(1),
@@ -167,8 +168,11 @@ export async function updateShopInfoAction(formData: FormData): Promise<StaffAct
 
   const active = formData.get("active") === "on";
   if (!formData.get("lat") || !formData.get("lng")) return { ok: false, error: "Click the shop's position on the map." };
-  if (active && !shopInfoComplete({ address: parsed.data.address, lat: parsed.data.lat, lng: parsed.data.lng })) {
-    return { ok: false, error: "To open the shop to customers, give its real address and its map position (latitude and longitude) first." };
+  // Opening a location to customers needs everything a rental starts from; refused with what is still missing.
+  if (active) {
+    const fleet = await shopFleetCounts(parsed.data.shopId);
+    const gaps = openGaps({ address: parsed.data.address, lat: parsed.data.lat, lng: parsed.data.lng, hours, ...fleet });
+    if (gaps.length > 0) return { ok: false, error: openGapsMessage(gaps) };
   }
 
   const supabase = createServiceRoleClient();

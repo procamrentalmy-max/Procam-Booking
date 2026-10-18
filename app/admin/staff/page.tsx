@@ -8,6 +8,7 @@ import { EditLoginForm } from "./EditLoginForm";
 import { EditShopInfoForm, type ShopInfo } from "./EditShopInfoForm";
 import { parseShopHours } from "@/lib/droneRental/hours";
 import { shopInfoComplete } from "@/lib/droneRental/shopInfo";
+import { openGaps } from "@/lib/droneRental/openReadiness";
 
 export default async function StaffAdminPage() {
   const supabase = await createServerSupabaseClient();
@@ -27,6 +28,12 @@ export default async function StaffAdminPage() {
     assignedPartnerIdsByWorkerId.get(a.worker_id)!.add(a.partner_id);
   }
 
+  const [{ data: allDrones }, { data: allBatteries }] = await Promise.all([supabase.from("dr_drones").select("shop_id,status"), supabase.from("dr_batteries").select("shop_id")]);
+  const workingDronesByShop = new Map<string, number>();
+  for (const d of allDrones ?? []) if (d.status !== "RETIRED" && d.status !== "LOST") workingDronesByShop.set(d.shop_id, (workingDronesByShop.get(d.shop_id) ?? 0) + 1);
+  const batteriesByShop = new Map<string, number>();
+  for (const b of allBatteries ?? []) batteriesByShop.set(b.shop_id, (batteriesByShop.get(b.shop_id) ?? 0) + 1);
+
   const shopById = new Map((shops ?? []).map((sh) => [sh.id, sh]));
   const shopInfoForStaff = (staffId: string): ShopInfo | null => {
     const link = (merchantShops ?? []).find((m) => m.staff_user_id === staffId);
@@ -42,6 +49,7 @@ export default async function StaffAdminPage() {
       active: shop.active,
       hours: parseShopHours(shop.hours),
       needsDetails: !shopInfoComplete(shop),
+      openGaps: openGaps({ address: shop.address, lat: shop.lat, lng: shop.lng, hours: parseShopHours(shop.hours), workingDrones: workingDronesByShop.get(shop.id) ?? 0, batteries: batteriesByShop.get(shop.id) ?? 0 }),
     };
   };
 
