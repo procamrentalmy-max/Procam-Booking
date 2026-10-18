@@ -18,10 +18,10 @@ export function isBatteryCount(value: unknown): value is BatteryCount {
 }
 
 /**
- * What each battery choice costs: 1 battery RM8, 2 batteries RM15. The same prices apply to swapping used
- * batteries for fully charged ones mid-rental (1 swapped RM8, 2 swapped RM15).
+ * What each battery choice costs: 1 battery RM8, 2 batteries RM14. The same prices apply to swapping used
+ * batteries for fully charged ones mid-rental (1 swapped RM8, 2 swapped RM14).
  */
-export const BATTERY_PACKAGE_FEE_MYR: Record<BatteryCount, number> = { 1: 8, 2: 15 };
+export const BATTERY_PACKAGE_FEE_MYR: Record<BatteryCount, number> = { 1: 8, 2: 14 };
 
 /**
  * The drone models the shop rents out. Everything that differs between them lives in DRONE_MODEL_PROFILES below;

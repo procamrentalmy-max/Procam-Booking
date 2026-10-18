@@ -37,19 +37,19 @@ describe("rentalFeeMyr (Neo 2, drone only)", () => {
     expect(rentalFeeMyr(180, 2, "NEO2", NO_CONTROLLER) - BATTERY_PACKAGE_FEE_MYR[2]).toBe(3 * HOURLY_RATE_MYR);
   });
 
-  it("adds RM8 for one battery or RM15 for two", () => {
+  it("adds RM8 for one battery or RM14 for two", () => {
     expect(rentalFeeMyr(60, 1, "NEO2", NO_CONTROLLER)).toBe(23);
-    expect(rentalFeeMyr(60, 2, "NEO2", NO_CONTROLLER)).toBe(30);
+    expect(rentalFeeMyr(60, 2, "NEO2", NO_CONTROLLER)).toBe(29);
     expect(rentalFeeMyr(120, 1, "NEO2", NO_CONTROLLER)).toBe(38);
-    expect(rentalFeeMyr(120, 2, "NEO2", NO_CONTROLLER)).toBe(45);
+    expect(rentalFeeMyr(120, 2, "NEO2", NO_CONTROLLER)).toBe(44);
   });
 
   it("defaults to two batteries", () => {
-    expect(rentalFeeMyr(60, undefined, "NEO2", NO_CONTROLLER)).toBe(30);
+    expect(rentalFeeMyr(60, undefined, "NEO2", NO_CONTROLLER)).toBe(29);
   });
 
   it("rounds a partial hour up to a full hour", () => {
-    expect(rentalFeeMyr(61, 2, "NEO2", NO_CONTROLLER)).toBe(45);
+    expect(rentalFeeMyr(61, 2, "NEO2", NO_CONTROLLER)).toBe(44);
     expect(rentalFeeMyr(30, 1, "NEO2", NO_CONTROLLER)).toBe(23);
   });
 
@@ -169,7 +169,7 @@ describe("the three ways to fly: phone only, the RC-N3 or the Goggles N3 + Motio
     expect(rentalFeeMyr(60, 1, "NEO2", "NONE")).toBe(23);
     expect(rentalFeeMyr(60, 1, "NEO2", "RC_N3")).toBe(32);
     expect(rentalFeeMyr(60, 1, "NEO2", "GOGGLES_N3")).toBe(33);
-    expect(rentalFeeMyr(120, 2, "NEO2", "GOGGLES_N3")).toBe(65);
+    expect(rentalFeeMyr(120, 2, "NEO2", "GOGGLES_N3")).toBe(64);
     expect(rentalFeeMyr(180, 1, "NEO2", "RC_N3")).toBe(80);
   });
 
@@ -226,9 +226,9 @@ describe("the three ways to fly: phone only, the RC-N3 or the Goggles N3 + Motio
   });
 
   it("leaves the batteries and swaps alone: the same prices whichever way it is flown", () => {
-    expect(BATTERY_PACKAGE_FEE_MYR).toEqual({ 1: 8, 2: 15 });
+    expect(BATTERY_PACKAGE_FEE_MYR).toEqual({ 1: 8, 2: 14 });
     for (const kind of ["NONE", "RC_N3", "GOGGLES_N3"] as const) {
-      expect(rentalFeeMyr(60, 2, "NEO2", kind) - rentalFeeMyr(60, 1, "NEO2", kind)).toBe(7);
+      expect(rentalFeeMyr(60, 2, "NEO2", kind) - rentalFeeMyr(60, 1, "NEO2", kind)).toBe(6);
     }
   });
 
@@ -257,10 +257,10 @@ describe("the DJI Neo (the original)", () => {
 
   it("is RM1 cheaper than the Neo 2 on the hour and on both battery choices (also the swap prices)", () => {
     expect(DRONE_MODEL_PROFILES.NEO.hourlyRateMyr).toBe(14);
-    expect(DRONE_MODEL_PROFILES.NEO.batteryFeeMyr).toEqual({ 1: 7, 2: 14 });
+    expect(DRONE_MODEL_PROFILES.NEO.batteryFeeMyr).toEqual({ 1: 7, 2: 13 });
     expect(rentalFeeMyr(60, 1, "NEO", "NONE")).toBe(21);
-    expect(rentalFeeMyr(60, 2, "NEO", "NONE")).toBe(28);
-    expect(rentalFeeMyr(120, 2, "NEO", "RC_N3")).toBe(60);
+    expect(rentalFeeMyr(60, 2, "NEO", "NONE")).toBe(27);
+    expect(rentalFeeMyr(120, 2, "NEO", "RC_N3")).toBe(59);
   });
 
   it("bills a late return at the hourly rate, RM14 on its own", () => {
@@ -334,7 +334,7 @@ describe("the GT50", () => {
     expect(modelProfile(undefined).key).toBe("NEO2");
     expect(modelProfile(null).key).toBe("NEO2");
     expect(modelProfile("SOMETHING_ELSE").key).toBe("NEO2");
-    expect(rentalFeeMyr(60, 2, undefined, "NONE")).toBe(30);
+    expect(rentalFeeMyr(60, 2, undefined, "NONE")).toBe(29);
     expect(depositMyrFor(undefined)).toBe(DEPOSIT_MYR);
   });
 });
