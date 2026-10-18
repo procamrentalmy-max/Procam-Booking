@@ -26,6 +26,7 @@ const createDroneSchema = z.object({
   shopId: uuidSchema,
   model: z.enum(ENABLED_DRONE_MODELS),
   serialNumber: z.string().optional(),
+  djiAccount: z.string().trim().max(60).optional(),
   costPriceMyr: z.coerce.number().min(0),
 });
 
@@ -35,6 +36,7 @@ export async function createDroneAction(formData: FormData): Promise<InventoryRe
     shopId: formData.get("shopId"),
     model: formData.get("model"),
     serialNumber: formData.get("serialNumber"),
+    djiAccount: formData.get("djiAccount") ?? undefined,
     costPriceMyr: formData.get("costPriceMyr"),
   });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
@@ -45,8 +47,22 @@ export async function createDroneAction(formData: FormData): Promise<InventoryRe
     model_key: parsed.data.model,
     model: DRONE_MODEL_PROFILES[parsed.data.model].name,
     serial_number: parsed.data.serialNumber || null,
+    dji_account: parsed.data.djiAccount || null,
     cost_price_myr: parsed.data.costPriceMyr,
   });
+  if (error) return { ok: false, error: error.message };
+  refresh();
+  return { ok: true };
+}
+
+const droneDetailsSchema = z.object({ id: uuidSchema, serialNumber: z.string().trim().max(60), djiAccount: z.string().trim().max(60) });
+
+/** A drone's serial number and the DJI account it is bound to: for the admin's own records, so they are on the drone's card and not only in a spreadsheet. */
+export async function updateDroneDetailsAction(formData: FormData): Promise<InventoryResult> {
+  const parsed = droneDetailsSchema.safeParse({ id: formData.get("id"), serialNumber: formData.get("serialNumber") ?? "", djiAccount: formData.get("djiAccount") ?? "" });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.from("dr_drones").update({ serial_number: parsed.data.serialNumber || null, dji_account: parsed.data.djiAccount || null }).eq("id", parsed.data.id);
   if (error) return { ok: false, error: error.message };
   refresh();
   return { ok: true };

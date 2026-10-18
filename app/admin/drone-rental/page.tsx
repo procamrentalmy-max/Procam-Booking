@@ -10,6 +10,7 @@ import {
   deleteControllerAction,
   setDroneStatusAction,
   moveDroneAction,
+  updateDroneDetailsAction,
   createBatteriesAction,
   assignBatteryAction,
 } from "./actions";
@@ -50,7 +51,7 @@ export default async function DroneRentalAdminPage() {
   const [{ data: shops }, { data: drones }, { data: batteries }, { data: controllers }, { data: merchants }, { data: assignments }, { data: recent }, { data: monthBookings }] =
     await Promise.all([
       supabase.from("dr_shops").select("id,human_id,name,address,lat,lng,active,hours").order("created_at", { ascending: true }),
-      supabase.from("dr_drones").select("id,human_id,shop_id,status,serial_number,cost_price_myr,model_key").order("human_id"),
+      supabase.from("dr_drones").select("id,human_id,shop_id,status,serial_number,dji_account,cost_price_myr,model_key").order("human_id"),
       supabase.from("dr_batteries").select("id,human_id,name,shop_id,model_key,status,at_shop_id").order("human_id"),
       supabase.from("dr_controllers").select("id,human_id,shop_id,kind").order("human_id"),
       supabase.from("staff_users").select("id,name,active").eq("role", "DRONE_MERCHANT"),
@@ -193,6 +194,9 @@ export default async function DroneRentalAdminPage() {
                   {d.human_id} · {modelProfile(d.model_key).shortName} — {shopNameById.get(d.shop_id) ?? "—"}
                 </p>
                 <p className="text-sm text-zinc-500">RM{d.cost_price_myr} cost</p>
+                <p className="text-sm text-zinc-500">
+                  Serial: {d.serial_number || "not entered"} · DJI account: {d.dji_account || "not entered"}
+                </p>
               </div>
               <div className="flex flex-col gap-2">
                 <ActionForm action={moveDroneAction} submitLabel="Move" savedText="Moved." compact className="flex flex-wrap items-center gap-2">
@@ -204,6 +208,11 @@ export default async function DroneRentalAdminPage() {
                 </option>
               ))}
                   </select>
+                </ActionForm>
+                <ActionForm action={updateDroneDetailsAction} submitLabel="Save details" savedText="Saved." compact className="flex flex-wrap items-center gap-2">
+                  <input type="hidden" name="id" value={d.id} />
+                  <input name="serialNumber" defaultValue={d.serial_number ?? ""} maxLength={60} placeholder="Serial number" aria-label={`Serial number of ${d.human_id}`} className={`w-36 ${inputClass}`} />
+                  <input name="djiAccount" defaultValue={d.dji_account ?? ""} maxLength={60} placeholder="DJI account, e.g. procam1" aria-label={`DJI account of ${d.human_id}`} className={`w-44 ${inputClass}`} />
                 </ActionForm>
                 <ActionForm action={setDroneStatusAction} submitLabel="Save status" compact className="flex flex-wrap items-center gap-2">
                   <input type="hidden" name="id" value={d.id} />
@@ -240,6 +249,7 @@ export default async function DroneRentalAdminPage() {
               ))}
             </select>
             <input name="serialNumber" placeholder="Serial number (optional)" className={inputClass} />
+            <input name="djiAccount" placeholder="DJI account, e.g. procam1 (optional)" className={inputClass} />
             <input name="costPriceMyr" type="number" step="0.01" min="0" placeholder="What you paid for it (RM)" required className={inputClass} />
           </ActionForm>
         </details>

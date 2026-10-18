@@ -587,6 +587,8 @@ export type DrDroneRow = {
   /** Which rental model this drone is: "NEO2", "NEO" or "GT50" (see lib/droneRental/pricingRules.ts). */
   model_key: string;
   serial_number: string | null;
+  /** The DJI account the drone is bound to (for example "procam1"), kept for the admin's own records. */
+  dji_account: string | null;
   cost_price_myr: number;
   status: DrDroneStatus;
   notes: string | null;
