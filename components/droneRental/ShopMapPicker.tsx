@@ -328,25 +328,25 @@ export function ShopMapPicker({ initialShops, locale = "en", carry }: { initialS
                       target="_blank"
                       rel="noreferrer"
                       onClick={() => trackLocation("DIRECTIONS", shop.id)}
-                      className={`flex h-11 items-center justify-center rounded-full border px-4 text-sm font-medium ${pressableClass}`}
+                      className={`flex h-11 items-center justify-center rounded-full border px-4 text-sm font-semibold ${pressableClass}`}
                     >
                       {t.directions}
                     </a>
                   </div>
                 ) : (
                   <div className="mt-3 flex gap-2">
-                    <span
-                      aria-disabled="true"
-                      className="flex h-11 flex-1 cursor-not-allowed items-center justify-center rounded-full border border-zinc-200 text-sm font-semibold text-zinc-400 dark:border-zinc-800 dark:text-zinc-600"
-                    >
-                      {t.tooFar}
-                    </span>
                     <PendingLink
                       href={carry ? `/rent/${shop.id}?${carry}` : `/rent/${shop.id}`}
                       className={`flex h-11 flex-1 items-center justify-center rounded-full border px-4 text-sm font-semibold ${pressableClass}`}
                     >
                       {t.checkRates}
                     </PendingLink>
+                    <span
+                      aria-disabled="true"
+                      className="flex h-11 flex-1 cursor-not-allowed items-center justify-center rounded-full border border-zinc-200 text-sm font-semibold text-zinc-400 dark:border-zinc-800 dark:text-zinc-600"
+                    >
+                      {t.tooFar}
+                    </span>
                   </div>
                 ))}
             </div>
