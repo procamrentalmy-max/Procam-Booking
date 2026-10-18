@@ -9,7 +9,7 @@ import { nextBatteryNames } from "@/lib/droneRental/batteryNames";
 
 /**
  * Admin > Drone Rental: the drones, batteries and controllers, and which shop each one is at. Shops themselves (name, address, opening hours) belong to each
- * Drone Merchant account and are edited under Admin > Staff. Actions here return `{ ok, error }` instead of throwing, because a thrown error never reaches the screen
+ * Drone Merchant account and are edited under Admin > Merchants. Actions here return `{ ok, error }` instead of throwing, because a thrown error never reaches the screen
  * on production: it shows the "page couldn't load" screen instead.
  */
 export type InventoryResult = { ok: true } | { ok: false; error: string };
@@ -18,6 +18,7 @@ const firstIssue = (e: z.ZodError) => e.issues.map((i) => i.message).join(", ");
 
 function refresh() {
   revalidatePath("/admin/drone-rental");
+  revalidatePath("/admin/merchants");
   revalidatePath("/admin/drone-rental/batteries");
   revalidatePath("/rent", "layout");
 }

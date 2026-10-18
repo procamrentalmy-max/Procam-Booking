@@ -5,21 +5,37 @@ type Section = { href: string; label: string; note: string };
 
 const GROUPS: { title: string; sections: Section[] }[] = [
   {
-    title: "Drone rental",
+    title: "Day to day",
     sections: [
-      { href: "/admin/drone-rental", label: "Drone Rental", note: "Drones, batteries and controllers, and which shop each one is at" },
-      { href: "/admin/drone-rental/batteries", label: "Drone Batteries", note: "Every battery by number, and how much each one has been used" },
-      { href: "/admin/drone-rental/locations", label: "Locations", note: "Which locations customers tap, open and ask directions for, location by location and overall" },
-      { href: "/admin/drone-rental/walk-in-qrs", label: "Walk-in QR codes", note: "Every shop's permanent walk-in QR, to download and print" },
-      { href: "/admin/drone-rental/funnel", label: "Drone Funnel", note: "Where customers drop off between the home page and paying" },
-      { href: "/admin/drone-rental/profit", label: "Drone Profit", note: "Sales minus what each rental costs, against the 65% goal, with charts, payback and a forecast by day" },
-      { href: "/admin/drone-rental/sales", label: "Drone Sales", note: "Drone revenue only: by month, shop, drone and rental length" },
+      { href: "/admin/drone-rental/bookings", label: "Bookings", note: "This month's numbers, the latest bookings, and the damage review waiting on you" },
+      { href: "/admin/drone-rental/damage", label: "Damage Review", note: "Type the amount to keep for each damaged item and capture it from the deposit" },
     ],
   },
   {
-    title: "Damage review",
+    title: "Locations and fleet",
     sections: [
-      { href: "/admin/drone-rental/damage", label: "Damage Review", note: "Tonight: type the amount to keep for each damaged item and capture it from the deposit" },
+      { href: "/admin/merchants", label: "Merchants", note: "Every location and its merchant: add one, edit its name, address, map and hours, open it to customers, change its login" },
+      { href: "/admin/drone-rental", label: "Fleet", note: "Drones, batteries and controllers, location by location, and adding to them" },
+      { href: "/admin/drone-rental/batteries", label: "Drone Batteries", note: "Every battery by number, and how much each one has been used" },
+      { href: "/admin/drone-rental/walk-in-qrs", label: "Walk-in QR codes", note: "Every location's permanent walk-in QR, to download and print" },
+    ],
+  },
+  {
+    title: "Performance",
+    sections: [
+      { href: "/admin/drone-rental/sales", label: "Sales", note: "Drone revenue by month, location, drone and rental length" },
+      { href: "/admin/drone-rental/profit", label: "Profit", note: "Sales minus what each rental costs, against the 65% goal, with charts, payback and a forecast by day" },
+      { href: "/admin/drone-rental/locations", label: "Location traffic", note: "Which locations customers tap, open and ask directions for, location by location and overall" },
+      { href: "/admin/drone-rental/funnel", label: "Funnel", note: "Where customers drop off between the home page and paying" },
+    ],
+  },
+  {
+    title: "Settings",
+    sections: [
+      { href: "/admin/staff", label: "Staff and admins", note: "Add and manage staff and admin logins (merchants are on the Merchants page)" },
+      { href: "/admin/branding", label: "Branding", note: "The logo, the pictures on the landing page, and the payment QR" },
+      { href: "/admin/whatsapp", label: "WhatsApp", note: "Booking messages on WhatsApp and by SMS: connection, templates to approve, what was sent" },
+      { href: "/admin/tutorials", label: "Tutorials", note: "Headers with photos and videos for the Tutorial page" },
     ],
   },
   {
@@ -41,15 +57,6 @@ const GROUPS: { title: string; sections: Section[] }[] = [
       { href: "/admin/partners", label: "Partners", note: "Properties, commission rates, QR codes" },
       { href: "/admin/products", label: "Products", note: "Rental product lines, phone compatibility" },
       { href: "/admin/rental-packages", label: "Rental Packages", note: "Durations, pricing, deposits" },
-    ],
-  },
-  {
-    title: "Settings",
-    sections: [
-      { href: "/admin/staff", label: "Staff", note: "Add and manage staff, merchant and admin accounts" },
-      { href: "/admin/branding", label: "Branding", note: "The logo, and the pictures on the landing page" },
-      { href: "/admin/whatsapp", label: "WhatsApp", note: "Booking messages on WhatsApp and by SMS: connection, templates to approve, what was sent" },
-      { href: "/admin/tutorials", label: "Tutorials", note: "Headers with photos and videos for the Tutorial page" },
     ],
   },
 ];

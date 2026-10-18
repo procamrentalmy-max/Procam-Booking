@@ -123,6 +123,7 @@ export async function createStaffAction(formData: FormData): Promise<StaffAction
   }
 
   revalidatePath("/admin/staff");
+  revalidatePath("/admin/merchants");
   return { ok: true };
 }
 
@@ -136,7 +137,7 @@ const shopInfoSchema = z.object({
 });
 
 /**
- * Edit info under a Drone Merchant account: the shop's name, address, map position, Google Maps link, opening hours, and whether it is open to customers.
+ * Edit info under a merchant (Admin > Merchants): the shop's name, address, map position, Google Maps link, opening hours, and whether it is open to customers.
  * Opening hours: one line per weekday (Sunday first), closed or an opening and closing time on the half hour, Malaysia time; customers can only book inside them.
  */
 export async function updateShopInfoAction(formData: FormData): Promise<StaffActionResult> {
@@ -191,6 +192,7 @@ export async function updateShopInfoAction(formData: FormData): Promise<StaffAct
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/admin/staff");
+  revalidatePath("/admin/merchants");
   revalidatePath("/admin/drone-rental");
   revalidatePath("/rent", "layout");
   return { ok: true };
@@ -244,6 +246,7 @@ export async function updateStaffCredentialsAction(formData: FormData): Promise<
   if (error) return { ok: false, error: friendlyAuthError(error.message) };
 
   revalidatePath("/admin/staff");
+  revalidatePath("/admin/merchants");
   return { ok: true };
 }
 
@@ -285,6 +288,7 @@ export async function updateWorkerLockersAction(formData: FormData) {
   }
 
   revalidatePath("/admin/staff");
+  revalidatePath("/admin/merchants");
 }
 
 const setStaffActiveSchema = z.object({
@@ -310,4 +314,5 @@ export async function setStaffActiveAction(formData: FormData) {
   if (error) throw new Error(error.message);
 
   revalidatePath("/admin/staff");
+  revalidatePath("/admin/merchants");
 }

@@ -5,20 +5,15 @@ import { emailToUsername } from "@/lib/auth/username";
 import { setStaffActiveAction, updateWorkerLockersAction } from "./actions";
 import { CreateStaffForm } from "./CreateStaffForm";
 import { EditLoginForm } from "./EditLoginForm";
-import { EditShopInfoForm, type ShopInfo } from "./EditShopInfoForm";
-import { parseShopHours } from "@/lib/droneRental/hours";
-import { shopInfoComplete } from "@/lib/droneRental/shopInfo";
-import { openGaps } from "@/lib/droneRental/openReadiness";
+import { HOTEL_LOCKERS_ENABLED } from "@/lib/features";
 
 export default async function StaffAdminPage() {
   const supabase = await createServerSupabaseClient();
-  const [{ data: staff }, { data: workers }, { data: lockers }, { data: assignments }, { data: shops }, { data: merchantShops }] = await Promise.all([
-    supabase.from("staff_users").select("id,auth_user_id,name,role,active,created_at").order("created_at", { ascending: true }),
+  const [{ data: staff }, { data: workers }, { data: lockers }, { data: assignments }] = await Promise.all([
+    supabase.from("staff_users").select("id,auth_user_id,name,role,active,created_at").neq("role", "DRONE_MERCHANT").order("created_at", { ascending: true }),
     supabase.from("workers").select("id,staff_user_id"),
     supabase.from("partners").select("id,name").eq("pickup_method", "LOCKER").eq("status", "ACTIVE").order("name"),
     supabase.from("worker_locker_assignments").select("worker_id,partner_id"),
-    supabase.from("dr_shops").select("id,name,address,lat,lng,google_maps_url,active,hours").order("created_at", { ascending: true }),
-    supabase.from("dr_merchant_shops").select("staff_user_id,shop_id"),
   ]);
 
   const workerByStaffId = new Map((workers ?? []).map((w) => [w.staff_user_id, w]));
@@ -34,35 +29,16 @@ export default async function StaffAdminPage() {
   const batteriesByShop = new Map<string, number>();
   for (const b of allBatteries ?? []) batteriesByShop.set(b.shop_id, (batteriesByShop.get(b.shop_id) ?? 0) + 1);
 
-  const shopById = new Map((shops ?? []).map((sh) => [sh.id, sh]));
-  const shopInfoForStaff = (staffId: string): ShopInfo | null => {
-    const link = (merchantShops ?? []).find((m) => m.staff_user_id === staffId);
-    const shop = link ? shopById.get(link.shop_id) : undefined;
-    if (!shop) return null;
-    return {
-      id: shop.id,
-      name: shop.name,
-      address: shop.address,
-      lat: shop.lat,
-      lng: shop.lng,
-      googleMapsUrl: shop.google_maps_url,
-      active: shop.active,
-      hours: parseShopHours(shop.hours),
-      needsDetails: !shopInfoComplete(shop),
-      openGaps: openGaps({ address: shop.address, lat: shop.lat, lng: shop.lng, hours: parseShopHours(shop.hours), workingDrones: workingDronesByShop.get(shop.id) ?? 0, batteries: batteriesByShop.get(shop.id) ?? 0 }),
-    };
-  };
-
   const { data: usersPage } = await createServiceRoleClient().auth.admin.listUsers();
   const emailByAuthId = new Map(usersPage?.users.map((u) => [u.id, u.email]));
 
   return (
     <div className="space-y-6 pt-4">
       <section className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-        <h2 className="mb-3 text-sm font-semibold">Add Staff</h2>
-        <CreateStaffForm />
+        <h2 className="mb-3 text-sm font-semibold">Add staff or an admin</h2>
+        <CreateStaffForm mode="staff" />
         <p className="mt-2 text-xs text-zinc-500">
-          Share the username and password with them directly. Workers don&apos;t manage their own login — use
+          Merchants (locations) are added and managed on the Merchants page. Share the username and password with them directly. Workers don&apos;t manage their own login — use
           &quot;Edit Login&quot; below to change a worker&apos;s username or password later.
         </p>
       </section>
@@ -81,7 +57,7 @@ export default async function StaffAdminPage() {
                   <p className="font-medium text-black dark:text-zinc-50">
                     {s.name}{" "}
                     <span className="text-zinc-400">
-                      — {s.role === "ADMIN" ? "Admin" : s.role === "DRONE_MERCHANT" ? "Drone Merchant" : "Staff"}
+                      — {s.role === "ADMIN" ? "Admin" : "Staff"}
                     </span>
                   </p>
                   <p className="text-sm text-zinc-500">
@@ -106,17 +82,12 @@ export default async function StaffAdminPage() {
                 </form>
               </div>
 
-              {s.role === "DRONE_MERCHANT" &&
-                (() => {
-                  const info = shopInfoForStaff(s.id);
-                  return info ? <EditShopInfoForm shop={info} /> : <p className="text-sm text-zinc-500">No shop is linked to this account yet.</p>;
-                })()}
-
               <EditLoginForm id={s.id} authUserId={s.auth_user_id} mode={mode} initialIdentifier={identifier} />
 
               {(() => {
                 const worker = workerByStaffId.get(s.id);
-                if (!worker) return null;
+                // Locker routes belong to the hotel-locker side, which is paused.
+                if (!worker || !HOTEL_LOCKERS_ENABLED) return null;
                 const assignedIds = assignedPartnerIdsByWorkerId.get(worker.id) ?? new Set<string>();
                 return (
                   <details>

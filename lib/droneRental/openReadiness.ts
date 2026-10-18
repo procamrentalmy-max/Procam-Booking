@@ -23,8 +23,8 @@ export function openGaps(shop: ShopReadiness): string[] {
     gaps.push("a real address and its position on the map");
   }
   if (shop.hours.every((day) => day === null)) gaps.push("opening hours (it is marked closed every day)");
-  if (shop.workingDrones < 1) gaps.push("a drone at this shop (move one here from Drone Rental)");
-  if (shop.batteries < 1) gaps.push("a battery at this shop (move one here from Drone Rental)");
+  if (shop.workingDrones < 1) gaps.push("a drone at this shop (add or move one here on the Fleet page)");
+  if (shop.batteries < 1) gaps.push("a battery at this shop (add or move one here on the Fleet page)");
   return gaps;
 }
 

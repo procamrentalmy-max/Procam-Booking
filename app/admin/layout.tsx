@@ -6,7 +6,13 @@ import { BackToDashboard } from "@/components/BackToDashboard";
 
 // Titles for admin pages that don't draw their own heading.
 const PAGE_TITLES: Record<string, string> = {
-  "/admin/drone-rental": "Drone Rental",
+  "/admin/drone-rental": "Fleet",
+  "/admin/drone-rental/bookings": "Drone Bookings",
+  "/admin/drone-rental/damage": "Damage Review",
+  "/admin/drone-rental/batteries": "Drone Batteries",
+  "/admin/drone-rental/locations": "Locations traffic",
+  "/admin/drone-rental/walk-in-qrs": "Walk-in QR codes",
+  "/admin/merchants": "Merchants",
   "/admin/drone-rental/sales": "Drone Sales",
   "/admin/drone-rental/profit": "Drone Profit",
   "/admin/bookings": "Bookings",
@@ -16,7 +22,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/admin/rental-packages": "Rental Packages",
   "/admin/rental-assets": "Rental Assets",
   "/admin/batteries": "Batteries",
-  "/admin/staff": "Staff",
+  "/admin/staff": "Staff and admins",
   "/admin/tutorials": "Tutorials",
   "/admin/tutorials/phone": "Phone tutorial",
   "/admin/tutorials/controller": "Controller tutorial",

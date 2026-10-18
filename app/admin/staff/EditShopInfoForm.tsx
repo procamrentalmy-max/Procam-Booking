@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ActionForm } from "@/components/admin/ActionForm";
 import { inputClass } from "@/components/formStyles";
 import { LocationPicker } from "@/components/admin/LocationPicker";
@@ -24,8 +25,10 @@ export type ShopInfo = {
 
 /** Edit info: everything about the merchant's shop in one form: name, address, map position, opening hours, and whether customers can see it. */
 export function EditShopInfoForm({ shop }: { shop: ShopInfo }) {
+  // The map is only loaded once this form has been opened: a list of many merchants must not start a map for each one.
+  const [opened, setOpened] = useState(shop.needsDetails);
   return (
-    <details open={shop.needsDetails || undefined}>
+    <details open={shop.needsDetails || undefined} onToggle={(e) => e.currentTarget.open && setOpened(true)}>
       <summary className="flex w-fit cursor-pointer items-center gap-1.5 text-sm text-zinc-500 underline underline-offset-2">
         Edit info
         {shop.needsDetails && (
@@ -40,7 +43,9 @@ export function EditShopInfoForm({ shop }: { shop: ShopInfo }) {
           <span className="text-zinc-500">Shop name</span>
           <input name="name" defaultValue={shop.name} required className={`w-full ${inputClass}`} />
         </label>
-        <LocationPicker defaultAddress={shop.needsDetails ? "" : shop.address} defaultLat={shop.needsDetails ? null : shop.lat} defaultLng={shop.needsDetails ? null : shop.lng} />
+        {opened ? (
+          <LocationPicker defaultAddress={shop.needsDetails ? "" : shop.address} defaultLat={shop.needsDetails ? null : shop.lat} defaultLng={shop.needsDetails ? null : shop.lng} />
+        ) : null}
         <label className="space-y-1 text-sm sm:col-span-2">
           <span className="text-zinc-500">Google Maps link (optional)</span>
           <input name="googleMapsUrl" type="url" defaultValue={shop.googleMapsUrl ?? ""} className={`w-full ${inputClass}`} />
