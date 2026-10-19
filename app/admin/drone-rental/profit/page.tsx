@@ -161,9 +161,6 @@ export default async function DroneProfitPage({ searchParams }: { searchParams: 
   return (
     <div className="space-y-8 pt-2 pb-10">
       <div className="space-y-3">
-        <Link href="/admin/drone-rental" className="inline-flex min-h-10 items-center text-sm font-medium text-zinc-600 dark:text-zinc-400">
-          ← Drone Rental
-        </Link>
         <p className="text-sm text-zinc-500">
           Drone rental only, no monthly or fixed costs. Profit is what customers paid ({inRange.length} paid bookings, {rangeLabel}) minus what each rental costs to take: card fees, battery wear and
           WhatsApp messages. The 65% line is the goal, not a measurement.

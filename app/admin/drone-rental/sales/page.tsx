@@ -200,9 +200,6 @@ export default async function DroneSalesPage({ searchParams }: { searchParams: P
   return (
     <div className="space-y-8 pt-2 pb-10">
       <div className="space-y-3">
-        <Link href="/admin/drone-rental" className="inline-flex min-h-10 items-center text-sm font-medium text-zinc-600 dark:text-zinc-400">
-          ← Drone Rental
-        </Link>
         <p className="text-sm text-zinc-500">
           Drone rental only. Counts every booking that reached payment ({paid.length} of {inRange.length} bookings, {rangeLabel}). Revenue is the rental fee plus battery swaps, late fees and any deposit kept for damage or loss.
         </p>

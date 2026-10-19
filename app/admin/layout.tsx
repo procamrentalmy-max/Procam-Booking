@@ -8,10 +8,6 @@ import { BackToDashboard } from "@/components/BackToDashboard";
 const PAGE_TITLES: Record<string, string> = {
   "/admin/drone-rental": "Fleet",
   "/admin/drone-rental/bookings": "Drone Bookings",
-  "/admin/drone-rental/damage": "Damage Review",
-  "/admin/drone-rental/batteries": "Drone Batteries",
-  "/admin/drone-rental/locations": "Locations traffic",
-  "/admin/drone-rental/walk-in-qrs": "Walk-in QR codes",
   "/admin/merchants": "Merchants",
   "/admin/drone-rental/sales": "Drone Sales",
   "/admin/drone-rental/profit": "Drone Profit",

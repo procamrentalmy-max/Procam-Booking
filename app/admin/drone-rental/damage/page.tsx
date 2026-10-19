@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getChecklistPhotoSignedUrl } from "@/lib/droneRental/storage";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
@@ -140,10 +139,7 @@ export default async function DamageReviewPage() {
   return (
     <div className="max-w-2xl space-y-6 pb-12 pt-4">
       <div>
-        <Link href="/admin/drone-rental" className="text-sm text-zinc-500 underline underline-offset-2">
-          ← Drone Rental
-        </Link>
-        <h1 className="mt-2 text-lg font-semibold">Damage review</h1>
+        <h1 className="text-lg font-semibold">Damage review</h1>
         <p className="text-sm text-zinc-500">
           Drones that came back with something damaged. Look at the photos, type the amount to keep next to each damaged item, and that exact amount is captured from the held deposit; the rest is released.
           A lost item is kept in full. An amount of 0 charges nothing.
