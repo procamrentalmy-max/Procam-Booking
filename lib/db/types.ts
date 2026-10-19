@@ -684,6 +684,20 @@ export type DrBookingRow = {
   updated_at: string;
 };
 
+/** A customer paying by QR (a walk-in rental fee or a battery swap): the merchant sees it as an incoming QR payment until they confirm it or say it was not received. */
+export type DrQrPaymentRow = {
+  id: string;
+  shop_id: string;
+  booking_id: string;
+  kind: "RENTAL_FEE" | "BATTERY_SWAP_FEE";
+  amount_myr: number;
+  battery_count: number | null;
+  status: "PENDING" | "CONFIRMED" | "USED" | "CANCELLED";
+  created_at: string;
+  resolved_at: string | null;
+  resolved_by_staff_id: string | null;
+};
+
 export type DrBatterySwapRow = {
   id: string;
   booking_id: string;
@@ -882,6 +896,7 @@ export interface Database {
       dr_payments: TableDef<DrPaymentRow>;
       dr_deposit_authorizations: TableDef<DrDepositAuthorizationRow>;
       dr_walkin_requests: TableDef<DrWalkInRequestRow>;
+      dr_qr_payments: TableDef<DrQrPaymentRow>;
     };
     Views: Record<string, never>;
     Functions: {

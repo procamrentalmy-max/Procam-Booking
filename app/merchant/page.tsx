@@ -5,6 +5,10 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
 import { WalkInAlert } from "@/components/droneRental/WalkInAlert";
+import { IncomingQrPayments } from "@/components/droneRental/IncomingQrPayments";
+import { listIncomingQrPayments } from "@/lib/droneRental/qrPayments";
+import { describeQrPayment } from "@/lib/droneRental/qrPaymentLabel";
+import { formatMyr as formatMyrQr } from "@/lib/droneRental/pricingRules";
 import { batteryLabel, describeDue, formatClock, formatDayLabel, formatDuration, pickupDay } from "@/lib/droneRental/format";
 import { walkInView } from "@/lib/droneRental/walkIn";
 import { modelProfile } from "@/lib/droneRental/pricingRules";
@@ -114,6 +118,9 @@ export default async function MerchantHomePage() {
     .map((w) => ({ ...w, view: walkInView(w.status, new Date(w.expires_at), now) }))
     .filter((w) => w.view === "SUBMITTED" || (w.view === "ACCEPTED" && bookingStatusById.get(w.booking_id ?? "") === "PENDING_PAYMENT"));
 
+  // QR payments waiting for this merchant to check (they stay until resolved)
+  const qrPayments = await listIncomingQrPayments(scoped);
+
   const droneIds = drones.map((d) => d.id);
   const customerIds = [...new Set(bookings.map((b) => b.customer_id))];
   const shopIdsShown = [...new Set(drones.map((d) => d.shop_id))];
@@ -166,7 +173,13 @@ export default async function MerchantHomePage() {
   return (
     <div className="space-y-5 pb-10 pt-4">
       <AutoRefresh seconds={walkIns.length ? 5 : 10} />
-      <WalkInAlert waitingIds={walkIns.filter((w) => w.view === "SUBMITTED").map((w) => w.id)} waitingNames={walkIns.filter((w) => w.view === "SUBMITTED").map((w) => w.customer_name ?? "A customer")} />
+      <WalkInAlert
+        waiting={[
+          ...qrPayments.filter((p) => p.status === "PENDING").map((p) => ({ id: p.id, title: "Incoming QR payment", body: `${p.customerName}: ${describeQrPayment({ kind: p.kind, batteryCount: p.batteryCount })}, ${formatMyrQr(p.amountMyr)}` })),
+          ...walkIns.filter((w) => w.view === "SUBMITTED").map((w) => ({ id: w.id, title: "New walk-in order", body: `${w.customer_name ?? "A customer"} is waiting for you to confirm.` })),
+        ]}
+      />
+      <IncomingQrPayments items={qrPayments} />
 
       <Link
         href="/merchant/walk-in-qr"

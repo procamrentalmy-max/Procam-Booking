@@ -53,9 +53,9 @@ export const WA_TEMPLATES: Record<WaKind, WaTemplate> = {
     variables: ["Customer name", "Shop name", "Pickup time"],
     examples: ["Aina", "Country Heights, Kajang", "10:00"],
     body: {
-      en: `Hi {{1}}, a reminder: you collect your ProCam drone at {{2}} at {{3}}. Bring the same photo ID you used for the ID check. A quick tutorial: ${WA_APP_URL}/tutorial`,
-      ms: `Hai {{1}}, peringatan: anda mengambil dron ProCam anda di {{2}} pada {{3}}. Bawa ID bergambar yang sama yang anda gunakan untuk semakan ID. Tutorial ringkas: ${WA_APP_URL}/tutorial`,
-      zh: `您好 {{1}}，温馨提醒：您将在 {{3}} 到 {{2}} 取 ProCam 无人机。请带上身份验证时用的同一份带照片证件。简短教程：${WA_APP_URL}/tutorial`,
+      en: `Hi {{1}}, a reminder: you collect your ProCam drone at {{2}} at {{3}}. Bring your photo ID (MyKad or passport). A quick tutorial: ${WA_APP_URL}/tutorial`,
+      ms: `Hai {{1}}, peringatan: anda mengambil dron ProCam anda di {{2}} pada {{3}}. Bawa MyKad atau pasport anda. Tutorial ringkas: ${WA_APP_URL}/tutorial`,
+      zh: `您好 {{1}}，温馨提醒：您将在 {{3}} 到 {{2}} 取 ProCam 无人机。请带上您的 MyKad 或护照。简短教程：${WA_APP_URL}/tutorial`,
     },
     button: { en: "View booking", ms: "Lihat tempahan", zh: "查看预订" },
   },

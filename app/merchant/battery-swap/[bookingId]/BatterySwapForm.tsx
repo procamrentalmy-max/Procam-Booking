@@ -15,6 +15,7 @@ export function BatterySwapForm({
   heldBatteries,
   options,
   batteryFees,
+  paidByQr = null,
 }: {
   bookingId: string;
   /** The shop doing the swap (the one this merchant is at). */
@@ -25,12 +26,14 @@ export function BatterySwapForm({
   options: BatteryOption[];
   /** What swapping 1 or 2 batteries costs for this booking's drone model. */
   batteryFees: Record<BatteryCount, number>;
+  /** The customer paid this swap by QR and the merchant confirmed it: this many batteries are paid for, and no other way of paying is offered. */
+  paidByQr?: { count: number; amount: number } | null;
 }) {
   const router = useRouter();
-  const [selected, setSelected] = useState<string[]>(heldBatteries[0] ? [heldBatteries[0].id] : []);
+  const [selected, setSelected] = useState<string[]>(heldBatteries.slice(0, paidByQr?.count ?? 1).map((b) => b.id));
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [payMethod, setPayMethod] = useState<DrPaidBy>("CARD");
+  const [payMethod, setPayMethod] = useState<DrPaidBy>(paidByQr ? "QR" : "CARD");
 
   const count = selected.length;
   const fee = isBatteryCount(count) ? batteryFees[count] : 0;
@@ -87,18 +90,28 @@ export function BatterySwapForm({
           </p>
         ))}
 
-      <PayMethodChoice label="How does the customer pay the swap fee?" value={payMethod} onChange={setPayMethod} />
+      {paidByQr ? (
+        <p className="rounded-xl border border-green-300 bg-green-50 p-3 text-center text-sm font-semibold text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-100">
+          Paid by QR: {formatMyr(paidByQr.amount)} for {paidByQr.count} {paidByQr.count === 1 ? "battery" : "batteries"}, confirmed. Hand over the batteries.
+        </p>
+      ) : (
+        <PayMethodChoice label="How does the customer pay the swap fee?" value={payMethod} onChange={setPayMethod} />
+      )}
       {payMethod === "CASH" && count > 0 && <p className="text-center text-sm font-semibold text-amber-700 dark:text-amber-400">Take {formatMyr(fee)} in cash before you hand over the batteries.</p>}
 
       {error && <p className="text-center text-sm text-red-600">{error}</p>}
-      <button type="button" disabled={loading || !ready} onClick={submit} className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}>
+      <button type="button" disabled={loading || !ready || (!!paidByQr && count !== paidByQr.count)} onClick={submit} className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}>
         {loading
           ? `Saving ${formatMyr(fee)}…`
           : count === 0
             ? "Pick the batteries being returned"
             : !enough
               ? "Not enough charged batteries"
-              : `Swap ${count} ${count === 1 ? "battery" : "batteries"} (${payMethod === "CASH" ? "cash" : "charge"} ${formatMyr(fee)})`}
+              : paidByQr && count !== paidByQr.count
+                ? `Swap exactly ${paidByQr.count} ${paidByQr.count === 1 ? "battery" : "batteries"}, as paid`
+                : payMethod === "QR"
+                  ? `Swap ${count} ${count === 1 ? "battery" : "batteries"} (paid by QR)`
+                  : `Swap ${count} ${count === 1 ? "battery" : "batteries"} (${payMethod === "CASH" ? "cash" : "charge"} ${formatMyr(fee)})`}
       </button>
     </div>
   );

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Brand } from "@/components/Brand";
+import { getPayQrUrl } from "@/lib/branding";
+import { SwapQrPay, type OpenSwapQr } from "./SwapQrPay";
 import { getLogoUrl } from "@/lib/branding";
 import { formatMyr, modelProfile } from "@/lib/droneRental/pricingRules";
 import { generateQrDataUrl } from "@/lib/qr";
@@ -31,6 +33,14 @@ export default async function SwapAtShopPage({ params }: { params: Promise<{ tok
   const fees = modelProfile(booking.drone_model).batteryFeeMyr;
   const qr = await generateQrDataUrl(`${await requestOrigin()}/merchant/swap/${token}?shop=${shopId}`);
 
+  // Paying the swap by QR: offered once the admin has uploaded the payment QR picture.
+  const payQrUrl = await getPayQrUrl();
+  const [{ count: held }, { data: openQr }] = await Promise.all([
+    supabase.from("dr_batteries").select("id", { count: "exact", head: true }).eq("current_booking_id", booking.id).eq("status", "WITH_CUSTOMER"),
+    supabase.from("dr_qr_payments").select("id,status,battery_count,amount_myr,shop_id").eq("booking_id", booking.id).eq("kind", "BATTERY_SWAP_FEE").in("status", ["PENDING", "CONFIRMED"]).maybeSingle(),
+  ]);
+  const open: OpenSwapQr | null = openQr ? { id: openQr.id, status: openQr.status as "PENDING" | "CONFIRMED", count: openQr.battery_count ?? 1, amountMyr: Number(openQr.amount_myr), sameShop: openQr.shop_id === shopId } : null;
+
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-5 px-6 py-6">
       <Brand logoUrl={logoUrl} size={22} />
@@ -51,6 +61,8 @@ export default async function SwapAtShopPage({ params }: { params: Promise<{ tok
         <p className="mt-3 text-xs text-zinc-400">{t.swap.qrNote}</p>
         <p className="mt-2 text-xs text-zinc-500">{t.swap.price(formatMyr(fees[1]), formatMyr(fees[2]))}</p>
       </div>
+
+      {payQrUrl && <SwapQrPay token={token} shopId={shopId} locale={locale} payQrUrl={payQrUrl} held={held ?? 0} fees={fees} open={open} />}
 
       <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">{t.swap.rule(homeShop?.name ?? "")}</p>
 

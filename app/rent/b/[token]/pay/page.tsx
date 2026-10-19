@@ -19,6 +19,7 @@ import { devBypassDronePaymentAction, devBypassCashChoiceAction, adminSkipPaymen
 import { getAuthContext, isAdmin } from "@/lib/auth/session";
 import { pressableClass } from "@/components/formStyles";
 import { getPayQrUrl } from "@/lib/branding";
+import { createQrPayment } from "@/lib/droneRental/qrPayments";
 
 /** Only ever a same-origin relative path (e.g. /merchant/pickup/<id> for a walk-in) — never an absolute/protocol-relative URL, so this can't be turned into an open redirect via the `next` query param. */
 function safeNextPath(next: string | undefined): string | null {
@@ -48,6 +49,17 @@ export default async function DroneBookingPayPage({
     .maybeSingle();
   if (!booking) notFound();
   // The last drone for this time was taken by someone who paid first: say so (their details are still on the booking page they came from).
+  if (booking.status === "CANCELLED" && booking.source === "MERCHANT_INSTANT") {
+    const { count: refused } = await supabase.from("dr_qr_payments").select("id", { count: "exact", head: true }).eq("booking_id", booking.id).eq("status", "CANCELLED");
+    if ((refused ?? 0) > 0) {
+      return (
+        <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-3 px-6 py-8 text-center">
+          <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">{t.pay.qrNotReceived}</h1>
+          <p className="text-sm text-zinc-500">{t.pay.qrNotReceivedSub}</p>
+        </div>
+      );
+    }
+  }
   if (booking.status === "CANCELLED") return <SlotTakenDialog shopId={booking.shop_id} walkIn={booking.source === "MERCHANT_INSTANT"} locale={locale} />;
   if (booking.status !== "PENDING_PAYMENT") redirect(nextPath ?? `/rent/b/${token}`);
   if (booking.source === "ONLINE" && !(await isSlotStillFree(booking.id))) {
@@ -72,7 +84,10 @@ export default async function DroneBookingPayPage({
   let cashSetupError: string | null = null;
   if (canPayCash && setupIntentId && booking.paid_by === "CARD") {
     try {
-      await finishCashCardSetup(booking.id, setupIntentId, canPayQr && method === "qr" ? "QR" : "CASH");
+      const chosen = canPayQr && method === "qr" ? "QR" : "CASH";
+      await finishCashCardSetup(booking.id, setupIntentId, chosen);
+      // The merchant is told a QR payment is on its way; it stays on their dashboard until they have confirmed it.
+      if (chosen === "QR") await createQrPayment({ shopId: booking.shop_id, bookingId: booking.id, kind: "RENTAL_FEE", amountMyr: Number(booking.rental_fee_myr) });
     } catch (err) {
       console.error("[drone cash] card setup failed", err);
       cashSetupError = t.pay.cashSetupError;

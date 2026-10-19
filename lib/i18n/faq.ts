@@ -1,4 +1,8 @@
 import type { LegalBlock } from "./legal";
+import { DRONE_ID_CHECK_ENABLED } from "@/lib/features";
+
+/** The text with the online ID check (on) or without it (off): see DRONE_ID_CHECK_ENABLED in lib/features.ts. */
+const idc = (on: string, off: string) => (DRONE_ID_CHECK_ENABLED ? on : off);
 
 /**
  * The FAQ page, in English, Bahasa Melayu and Chinese. English is the master and the other two are typed against it. Answers are
@@ -20,7 +24,7 @@ export type FaqPage = {
 
 export const faqEn: FaqPage = {
   title: "Frequently asked questions",
-  description: "Quick answers about booking, the ID check, the card deposit, flying, collecting and returning a ProCam Rental drone, and refunds.",
+  description: idc("Quick answers about booking, the ID check, the card deposit, flying, collecting and returning a ProCam Rental drone, and refunds.", "Quick answers about booking, the card deposit, flying, collecting and returning a ProCam Rental drone, and refunds."),
   intro: "Short answers to what customers ask most. The {link:terms} and {link:refunds} have the full rules.",
   sections: [
     {
@@ -30,7 +34,7 @@ export const faqEn: FaqPage = {
           q: "How do I book a drone?",
           blocks: [
             {
-              p: "Open the booking page, pick a shop (on the map, or tap Nearest to me), choose your drone, how you want to fly it and the batteries, then a day and a time. Enter your name, phone and email, do a quick ID check, and pay. You then get a booking page with a QR code to show at the shop.",
+              p: idc("Open the booking page, pick a shop (on the map, or tap Nearest to me), choose your drone, how you want to fly it and the batteries, then a day and a time. Enter your name, phone and email, do a quick ID check, and pay. You then get a booking page with a QR code to show at the shop.", "Open the booking page, pick a shop (on the map, or tap Nearest to me), choose your drone, how you want to fly it and the batteries, then a day and a time. Enter your name, phone and email, and pay. You then get a booking page with a QR code to show at the shop."),
             },
           ],
         },
@@ -74,13 +78,13 @@ export const faqEn: FaqPage = {
       ],
     },
     {
-      title: "ID check and who can rent",
+      title: idc("ID check and who can rent", "Who can rent"),
       items: [
         {
-          q: "Why do you ask for an ID check?",
+          q: idc("Why do you ask for an ID check?", "Why do staff check my ID?"),
           blocks: [
             {
-              p: "So a drone is only rented to a real person who can be held responsible for it. It is a photo of your MyKad or passport and a live selfie, done on your phone through our verification provider. It comes before payment, so you are not charged if it does not pass. If you think it was wrong, contact us.",
+              p: idc("So a drone is only rented to a real person who can be held responsible for it. It is a photo of your MyKad or passport and a live selfie, done on your phone through our verification provider. It comes before payment, so you are not charged if it does not pass. If you think it was wrong, contact us.", "So a drone is only rented to a real person who can be held responsible for it. The staff check your MyKad or passport against your booking when you collect the drone. If you think they were wrong, contact us."),
             },
           ],
         },
@@ -88,7 +92,7 @@ export const faqEn: FaqPage = {
           q: "Do I need to bring my ID?",
           blocks: [
             {
-              p: "Yes. Bring the same photo ID to the shop. The staff check it against your booking, and the person collecting must be the person who booked. The drone cannot be lent to someone else. If the ID cannot be shown or does not match, the rental is refunded in full.",
+              p: idc("Yes. Bring the same photo ID to the shop. The staff check it against your booking, and the person collecting must be the person who booked. The drone cannot be lent to someone else. If the ID cannot be shown or does not match, the rental is refunded in full.", "Yes. Bring your MyKad or passport to the shop. The staff check it against your booking, and the person collecting must be the person who booked. The drone cannot be lent to someone else. If the ID cannot be shown or does not match, the rental is refunded in full."),
             },
           ],
         },
@@ -243,7 +247,7 @@ export const faqMs: FaqPage = {
           q: "Bagaimana saya menempah dron?",
           blocks: [
             {
-              p: "Buka halaman tempahan, pilih kedai (pada peta, atau tekan Paling dekat dengan saya), pilih dron, cara anda ingin menerbangkannya serta bateri, kemudian hari dan masa. Masukkan nama, telefon dan e-mel anda, lakukan semakan ID yang ringkas, dan buat bayaran. Anda kemudian akan mendapat halaman tempahan dengan kod QR untuk ditunjukkan di kedai.",
+              p: idc("Buka halaman tempahan, pilih kedai (pada peta, atau tekan Paling dekat dengan saya), pilih dron, cara anda ingin menerbangkannya serta bateri, kemudian hari dan masa. Masukkan nama, telefon dan e-mel anda, lakukan semakan ID yang ringkas, dan buat bayaran. Anda kemudian akan mendapat halaman tempahan dengan kod QR untuk ditunjukkan di kedai.", "Buka halaman tempahan, pilih kedai (pada peta, atau tekan Paling dekat dengan saya), pilih dron, cara anda ingin menerbangkannya serta bateri, kemudian hari dan masa. Masukkan nama, telefon dan e-mel anda, dan buat bayaran. Anda kemudian akan mendapat halaman tempahan dengan kod QR untuk ditunjukkan di kedai."),
             },
           ],
         },
@@ -287,13 +291,13 @@ export const faqMs: FaqPage = {
       ],
     },
     {
-      title: "Semakan ID dan siapa boleh menyewa",
+      title: idc("Semakan ID dan siapa boleh menyewa", "Siapa boleh menyewa"),
       items: [
         {
-          q: "Mengapa anda meminta semakan ID?",
+          q: idc("Mengapa anda meminta semakan ID?", "Mengapa kakitangan menyemak ID saya?"),
           blocks: [
             {
-              p: "Supaya dron hanya disewakan kepada orang sebenar yang boleh dipertanggungjawabkan ke atasnya. Ia ialah gambar MyKad atau pasport anda dan swafoto langsung, dilakukan pada telefon anda melalui penyedia pengesahan kami. Ia dibuat sebelum pembayaran, jadi anda tidak dicaj jika semakan tidak lulus. Jika anda rasa ia salah, hubungi kami.",
+              p: idc("Supaya dron hanya disewakan kepada orang sebenar yang boleh dipertanggungjawabkan ke atasnya. Ia ialah gambar MyKad atau pasport anda dan swafoto langsung, dilakukan pada telefon anda melalui penyedia pengesahan kami. Ia dibuat sebelum pembayaran, jadi anda tidak dicaj jika semakan tidak lulus. Jika anda rasa ia salah, hubungi kami.", "Supaya dron hanya disewakan kepada orang sebenar yang boleh dipertanggungjawabkan ke atasnya. Kakitangan menyemak MyKad atau pasport anda dengan tempahan anda apabila anda mengambil dron. Jika anda rasa mereka tersilap, hubungi kami."),
             },
           ],
         },
@@ -301,7 +305,7 @@ export const faqMs: FaqPage = {
           q: "Adakah saya perlu membawa ID saya?",
           blocks: [
             {
-              p: "Ya. Bawa ID bergambar yang sama ke kedai. Kakitangan menyemaknya dengan tempahan anda, dan orang yang mengambil dron mestilah orang yang menempah. Dron tidak boleh dipinjamkan kepada orang lain. Jika ID tidak dapat ditunjukkan atau tidak sepadan, sewaan dipulangkan wang sepenuhnya.",
+              p: idc("Ya. Bawa ID bergambar yang sama ke kedai. Kakitangan menyemaknya dengan tempahan anda, dan orang yang mengambil dron mestilah orang yang menempah. Dron tidak boleh dipinjamkan kepada orang lain. Jika ID tidak dapat ditunjukkan atau tidak sepadan, sewaan dipulangkan wang sepenuhnya.", "Ya. Bawa MyKad atau pasport anda ke kedai. Kakitangan menyemaknya dengan tempahan anda, dan orang yang mengambil dron mestilah orang yang menempah. Dron tidak boleh dipinjamkan kepada orang lain. Jika ID tidak dapat ditunjukkan atau tidak sepadan, sewaan dipulangkan wang sepenuhnya."),
             },
           ],
         },
@@ -456,7 +460,7 @@ export const faqZh: FaqPage = {
           q: "如何预订无人机？",
           blocks: [
             {
-              p: "打开预订页面，选择门店（在地图上选，或点“离我最近”），选择无人机、操控方式和电池，再选择日期和时间。填写姓名、手机号码和电子邮箱，完成简单的身份验证，然后付款。之后您会得到一个带二维码的预订页面，到店时出示即可。",
+              p: idc("打开预订页面，选择门店（在地图上选，或点“离我最近”），选择无人机、操控方式和电池，再选择日期和时间。填写姓名、手机号码和电子邮箱，完成简单的身份验证，然后付款。之后您会得到一个带二维码的预订页面，到店时出示即可。", "打开预订页面，选择门店（在地图上选，或点“离我最近”），选择无人机、操控方式和电池，再选择日期和时间。填写姓名、手机号码和电子邮箱，然后付款。之后您会得到一个带二维码的预订页面，到店时出示即可。"),
             },
           ],
         },
@@ -500,13 +504,13 @@ export const faqZh: FaqPage = {
       ],
     },
     {
-      title: "身份验证与租借资格",
+      title: idc("身份验证与租借资格", "租借资格"),
       items: [
         {
-          q: "为什么要做身份验证？",
+          q: idc("为什么要做身份验证？", "为什么店员要核对我的证件？"),
           blocks: [
             {
-              p: "这样无人机只会租给可以为其负责的真实本人。验证内容是您的 MyKad 或护照照片加一张现场自拍，通过我们的验证服务商在您的手机上完成。验证在付款之前进行，所以未通过时不会向您收费。如果您认为结果有误，请联系我们。",
+              p: idc("这样无人机只会租给可以为其负责的真实本人。验证内容是您的 MyKad 或护照照片加一张现场自拍，通过我们的验证服务商在您的手机上完成。验证在付款之前进行，所以未通过时不会向您收费。如果您认为结果有误，请联系我们。", "这样无人机只会租给可以为其负责的真实本人。取机时，店员会对照您的预订核对您的 MyKad 或护照。如果您认为他们弄错了，请联系我们。"),
             },
           ],
         },
@@ -514,7 +518,7 @@ export const faqZh: FaqPage = {
           q: "取机时需要带证件吗？",
           blocks: [
             {
-              p: "需要。请带上同一份带照片的证件到门店。店员会与您的预订核对，取机的人必须是预订人本人，无人机不能借给别人。如果无法出示证件或证件不符，租金将全额退还。",
+              p: idc("需要。请带上同一份带照片的证件到门店。店员会与您的预订核对，取机的人必须是预订人本人，无人机不能借给别人。如果无法出示证件或证件不符，租金将全额退还。", "需要。请带上您的 MyKad 或护照到门店。店员会与您的预订核对，取机的人必须是预订人本人，无人机不能借给别人。如果无法出示证件或证件不符，租金将全额退还。"),
             },
           ],
         },

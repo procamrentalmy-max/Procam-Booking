@@ -4,6 +4,7 @@ import { z } from "zod";
 import { submitWalkInOrder } from "@/lib/droneRental/walkInRequests";
 import { findOrCreateCustomer } from "@/lib/droneRental/createBooking";
 import { claimVerification, releaseVerification } from "@/lib/droneRental/kyc";
+import { DRONE_ID_CHECK_ENABLED } from "@/lib/features";
 import { droneText, fieldError } from "@/lib/i18n/drone";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { toWhatsAppNumber } from "@/lib/whatsapp/phone";
@@ -20,7 +21,8 @@ const schema = z.object({
   name: z.string().trim().min(1, "Enter your name").max(100),
   phone: z.string().trim().regex(/^[0-9+\-()\s]{6,30}$/, "Enter a valid phone number"),
   email: z.string().trim().email("Enter a valid email").max(200),
-  verificationId: uuidSchema,
+  // Only needed while the online ID check is switched on (lib/features.ts).
+  verificationId: DRONE_ID_CHECK_ENABLED ? uuidSchema : z.string().optional(),
   whatsappNumber: z.string().trim().max(30).optional(),
 });
 
@@ -38,7 +40,7 @@ export async function submitWalkInOrderAction(input: {
   phone: string;
   email: string;
   /** The passed ID check this order relies on (see lib/droneRental/kyc.ts). */
-  verificationId: string;
+  verificationId?: string;
   /** The WhatsApp number for the booking messages (see lib/whatsapp); empty means an SMS to the phone number. */
   whatsappNumber?: string;
 }): Promise<SubmitOrderResult> {
@@ -51,7 +53,7 @@ export async function submitWalkInOrderAction(input: {
   if (d.whatsappNumber && !toWhatsAppNumber(d.whatsappNumber)) return { ok: false, message: text.common.whatsappNumberInvalid };
 
   const customerId = await findOrCreateCustomer({ name: d.name, phone: d.phone, email: d.email });
-  if (!(await claimVerification(d.verificationId, customerId))) return { ok: false, message: t.idCheckNeeded };
+  if (DRONE_ID_CHECK_ENABLED && !(await claimVerification(d.verificationId ?? "", customerId))) return { ok: false, message: t.idCheckNeeded };
 
   const result = await submitWalkInOrder({
     walkinCode: d.code,
@@ -68,6 +70,6 @@ export async function submitWalkInOrderAction(input: {
     await createServiceRoleClient().from("dr_walkin_requests").update({ whatsapp_number: d.whatsappNumber || null, locale: await getLocale() }).eq("public_token", result.publicToken);
     return { ok: true, token: result.publicToken };
   }
-  await releaseVerification(d.verificationId);
+  if (DRONE_ID_CHECK_ENABLED) await releaseVerification(d.verificationId ?? "");
   return { ok: false, message: reasons[result.reason] };
 }

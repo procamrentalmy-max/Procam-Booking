@@ -9,6 +9,7 @@ import { getShopHours } from "@/lib/droneRental/shopHours";
 import { isValidRentalMinutes, CONTROLLER_KINDS, ENABLED_DRONE_MODELS, effectiveController, type ControllerKind, type DroneModel } from "@/lib/droneRental/pricingRules";
 import { findOrCreateCustomer, createPendingDroneBooking, NoControllerAvailableError, NoDroneAvailableError, TooWindyError } from "@/lib/droneRental/createBooking";
 import { claimVerification, releaseVerification } from "@/lib/droneRental/kyc";
+import { DRONE_ID_CHECK_ENABLED } from "@/lib/features";
 import { getShopWindForecast } from "@/lib/droneRental/wind";
 import { droneText, fieldError } from "@/lib/i18n/drone";
 import { getLocale } from "@/lib/i18n/getLocale";
@@ -65,7 +66,8 @@ const createBookingSchema = z.object({
   name: z.string().trim().min(1, "Enter your name"),
   phone: z.string().trim().regex(/^[0-9+\-()\s]{6,30}$/, "Enter a valid phone number"),
   email: z.string().trim().email("Enter a valid email"),
-  verificationId: uuidSchema,
+  // Only needed while the online ID check is switched on (lib/features.ts).
+  verificationId: DRONE_ID_CHECK_ENABLED ? uuidSchema : z.string().optional(),
   /** The WhatsApp number to send the booking messages to; empty means they are texted to the phone number. */
   whatsappNumber: z.string().trim().max(30).optional(),
 });
@@ -82,7 +84,7 @@ export async function createDroneBookingAction(input: {
   phone: string;
   email: string;
   /** The passed ID check this booking relies on (see lib/droneRental/kyc.ts). */
-  verificationId: string;
+  verificationId?: string;
   /** The WhatsApp number for the booking messages (see lib/whatsapp); empty means an SMS to the phone number. */
   whatsappNumber?: string;
 }): Promise<{ secureToken: string; startTime: string; endTime: string } | { slotTaken: true } | { error: string }> {
@@ -102,7 +104,7 @@ export async function createDroneBookingAction(input: {
 
   const customerId = await findOrCreateCustomer({ name: data.name, phone: data.phone, email: data.email });
   // Every booking needs its own passed ID check; it is used up here and given back if the booking doesn't go through.
-  if (!(await claimVerification(data.verificationId, customerId))) return { error: t.idCheckNeeded };
+  if (DRONE_ID_CHECK_ENABLED && !(await claimVerification(data.verificationId ?? "", customerId))) return { error: t.idCheckNeeded };
 
   try {
     const booking = await createPendingDroneBooking({
@@ -118,7 +120,7 @@ export async function createDroneBookingAction(input: {
     await createServiceRoleClient().from("dr_bookings").update({ whatsapp_number: data.whatsappNumber || null, locale: await getLocale() }).eq("id", booking.id);
     return { secureToken: booking.secure_token, startTime: booking.start_time, endTime: booking.end_time };
   } catch (err) {
-    await releaseVerification(data.verificationId);
+    if (DRONE_ID_CHECK_ENABLED) await releaseVerification(data.verificationId ?? "");
     if (err instanceof TooWindyError) return { error: t.tooWindy(formatWind(err.windMps), formatWind(err.limitMps)) };
     // Someone paid for the last drone (or the controller) first: the page shows its popup and keeps everything typed.
     if (err instanceof NoDroneAvailableError || err instanceof NoControllerAvailableError) return { slotTaken: true };

@@ -33,3 +33,11 @@ export function lockerGate(pathname: string): "pass" | "paused" | "admin-home" |
   if (LOCKER_ADMIN_PREFIXES.some((p) => under(pathname, p))) return "admin-home";
   return "pass";
 }
+
+/**
+ * The online ID check (a photo of the MyKad or passport and a live selfie, done on the customer's phone through Didit) before a drone is held.
+ * Switched off: the booking and walk-in forms go straight on, nothing is sent to Didit, there is no ID check cost in the earnings, and the legal pages
+ * and FAQ say the staff check the photo ID at collection. Setting this back to true brings the check back exactly as it was (the code, the Didit
+ * keys and the ID-check texts are all still there).
+ */
+export const DRONE_ID_CHECK_ENABLED = false;

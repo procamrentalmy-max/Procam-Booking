@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { vi } from "vitest";
+
+// These tests are about the sums when the online ID check is on (its RM1.30 cost is in them); the cost is nothing while it is off: see idCheckOff.test.ts.
+vi.mock("@/lib/features", () => ({ DRONE_ID_CHECK_ENABLED: true }));
 import { monthStartMs, summariseIncome, type IncomeBooking } from "./income";
 
 const NOW = new Date("2026-10-06T10:00:00Z").getTime(); // 18:00 on 6 Oct, Malaysia time

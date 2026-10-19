@@ -1,3 +1,5 @@
+import { DRONE_ID_CHECK_ENABLED } from "@/lib/features";
+
 /** The steps of the drone booking flow, in order, for the drop-off funnel (Admin > Drone Funnel). Shared by the browser and the admin page. */
 export const DRONE_FUNNEL_STEPS = [
   { key: "HOME", label: "Home page" },
@@ -6,7 +8,7 @@ export const DRONE_FUNNEL_STEPS = [
   { key: "PACKAGE", label: "Booking page: drone, how to fly, batteries" },
   { key: "TIME", label: "Booking page: day and time" },
   { key: "DETAILS", label: "Booking page: their details" },
-  { key: "ID_CHECK", label: "Tapped Book and pay (ID check starts)" },
+  { key: "ID_CHECK", label: DRONE_ID_CHECK_ENABLED ? "Tapped Book and pay (ID check starts)" : "Tapped Book and pay" },
   { key: "PAY", label: "Payment page" },
   { key: "PAID", label: "Paid" },
 ] as const;

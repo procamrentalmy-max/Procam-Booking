@@ -328,7 +328,7 @@ async function finishCardBookingLocked(bookingId: string, depositIntentId: strin
 }
 
 /** Lets go of the booking's deposit hold (the money was only reserved, never charged) and records that it is released. Safe to run twice. */
-async function releaseDepositHold(bookingId: string): Promise<void> {
+export async function releaseDepositHold(bookingId: string): Promise<void> {
   const supabase = createServiceRoleClient();
   const { data: hold } = await supabase.from("dr_deposit_authorizations").select("id,provider_ref,status").eq("booking_id", bookingId).maybeSingle();
   if (!hold || hold.status !== "AUTHORIZED") return;
@@ -467,15 +467,16 @@ async function chargeOffSessionFee(params: {
   const { data: booking } = await supabase.from("dr_bookings").select("customer_id").eq("id", params.bookingId).single();
   if (!booking) throw new Error("Booking not found.");
 
-  // Paid in cash: nothing to charge, the merchant takes it. It's recorded so the sales and the earnings count it.
-  if (params.method === "CASH") {
-    const providerRef = `cash-${randomUUID()}`;
+  // Paid in cash or by QR: nothing to charge, the merchant has it. It's recorded so the sales and the earnings count it.
+  if (params.method === "CASH" || params.method === "QR") {
+    const provider = params.method === "QR" ? "qr" : "cash";
+    const providerRef = `${provider}-${randomUUID()}`;
     const { data: cashPayment, error: cashError } = await supabase
       .from("dr_payments")
-      .insert({ booking_id: params.bookingId, kind: params.dbKind, provider: "cash", provider_ref: providerRef, amount_myr: params.amountMyr, status: "SUCCEEDED" })
+      .insert({ booking_id: params.bookingId, kind: params.dbKind, provider, provider_ref: providerRef, amount_myr: params.amountMyr, status: "SUCCEEDED" })
       .select("id")
       .single();
-    if (cashError || !cashPayment) throw new Error("Could not record the cash payment.");
+    if (cashError || !cashPayment) throw new Error("Could not record the payment.");
     return { paymentId: cashPayment.id, providerRef };
   }
 

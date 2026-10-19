@@ -6,6 +6,7 @@ import { confirmDroneKycAction, skipDroneKycAction, startDroneKycAction } from "
 import { primaryButtonClass } from "@/components/formStyles";
 import { droneText } from "@/lib/i18n/drone";
 import type { Locale } from "@/lib/i18n/locale";
+import { DRONE_ID_CHECK_ENABLED } from "@/lib/features";
 
 type Pending = { verificationId: string; sessionUrl: string };
 
@@ -23,6 +24,15 @@ export function useDroneKyc({ adminCanSkip = false, locale = "en" }: { adminCanS
 
   async function verifyThen(details: { name: string; phone: string; email: string }, proceed: (verificationId: string) => Promise<void>) {
     setBusy(true);
+    // The ID check is switched off (lib/features.ts): go straight on, with no check to rely on.
+    if (!DRONE_ID_CHECK_ENABLED) {
+      try {
+        await proceed("");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     setMessage(null);
     try {
       const start = await startDroneKycAction(details);

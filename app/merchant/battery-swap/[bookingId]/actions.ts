@@ -6,6 +6,7 @@ import { getAuthContext, hasMerchantAccess } from "@/lib/auth/session";
 import { canAccessShop } from "@/lib/droneRental/access";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { chargeBatterySwapFee } from "@/lib/droneRental/payment";
+import { useQrSwapPayment } from "@/lib/droneRental/qrPayments";
 import { findChargedBatteries, validateHandoutBatteries, type ChargedBattery } from "@/lib/droneRental/batteries";
 import { isBatteryCount, MAX_BATTERIES_HELD, modelProfile } from "@/lib/droneRental/pricingRules";
 
@@ -15,7 +16,7 @@ const schema = z.object({
   swapShopId: uuidSchema.optional(),
   returnedBatteryIds: z.array(uuidSchema).min(1, "Pick at least one battery").max(MAX_BATTERIES_HELD),
   // Each swap is paid for on its own: by the saved card or in cash, whatever the rental fee was.
-  paidBy: z.enum(["CARD", "CASH"]).default("CARD"),
+  paidBy: z.enum(["CARD", "CASH", "QR"]).default("CARD"),
 });
 
 /**
@@ -72,6 +73,8 @@ export async function submitBatterySwapAction(formData: FormData) {
     );
   }
 
+  // Paid by QR: only with a QR payment the merchant has already confirmed, for this booking, this shop and this many batteries.
+  if (parsed.data.paidBy === "QR") await useQrSwapPayment({ bookingId, shopId: swapShopId, batteryCount: count });
   await chargeBatterySwapFee(bookingId, count, parsed.data.paidBy);
 
   for (let i = 0; i < count; i++) {

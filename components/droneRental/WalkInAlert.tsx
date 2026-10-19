@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const STORAGE_KEY = "procam-walkin-alerts";
+
+export type WaitingItem = { id: string; title: string; body: string };
 
 /** Three short beeps. The audio context is made after a tap (browsers keep sound off until the person has tapped something). */
 function beep(ctx: AudioContext) {
@@ -22,16 +24,18 @@ function beep(ctx: AudioContext) {
 }
 
 /**
- * A new walk-in order waiting for the merchant to confirm makes this phone beep, vibrate, flash the tab title and (if allowed) show a
- * notification, so the customer isn't left standing. It works while the merchant dashboard is open, which is how it is left at the counter.
- * The merchant turns it on once with the button (that tap is what lets the browser play sound).
+ * Something new waiting for the merchant (a walk-in order to confirm, an incoming QR payment to check) makes this phone beep, vibrate, flash the tab
+ * title and (if allowed) show a notification, so the customer isn't left standing. It works while the merchant dashboard is open, which is how it
+ * is left at the counter. The merchant turns it on once with the button (that tap is what lets the browser play sound).
  */
-export function WalkInAlert({ waitingIds, waitingNames }: { waitingIds: string[]; waitingNames: string[] }) {
+export function WalkInAlert({ waiting }: { waiting: WaitingItem[] }) {
   const [on, setOn] = useState(false);
   const [ready, setReady] = useState(false);
   const seen = useRef<Set<string> | null>(null);
   const audio = useRef<AudioContext | null>(null);
   const originalTitle = useRef<string>("");
+  // A stable key so the effect below only runs when the set of waiting things really changes (the list is rebuilt on every refresh).
+  const key = useMemo(() => waiting.map((w) => w.id).join(","), [waiting]);
 
   function context(): AudioContext | null {
     try {
@@ -61,14 +65,14 @@ export function WalkInAlert({ waitingIds, waitingNames }: { waitingIds: string[]
     return () => window.removeEventListener("pointerdown", unlock);
   }, [on]);
 
-  // Which orders were already waiting when the page was opened is the baseline; only ones that arrive later make a noise.
+  // What was already waiting when the page was opened is the baseline; only things that arrive later make a noise.
   useEffect(() => {
     if (seen.current === null) {
-      seen.current = new Set(waitingIds);
+      seen.current = new Set(waiting.map((w) => w.id));
       return;
     }
-    const fresh = waitingIds.filter((id) => !seen.current!.has(id));
-    waitingIds.forEach((id) => seen.current!.add(id));
+    const fresh = waiting.filter((w) => !seen.current!.has(w.id));
+    waiting.forEach((w) => seen.current!.add(w.id));
     if (fresh.length === 0 || !on) return;
     const ctx = context();
     if (ctx) beep(ctx);
@@ -77,21 +81,21 @@ export function WalkInAlert({ waitingIds, waitingNames }: { waitingIds: string[]
     } catch {
       // not every phone can vibrate
     }
-    const who = waitingNames[waitingIds.indexOf(fresh[0])] ?? "A customer";
     try {
-      if ("Notification" in window && Notification.permission === "granted") new Notification("New walk-in order", { body: `${who} is waiting for you to confirm.` });
+      if ("Notification" in window && Notification.permission === "granted") new Notification(fresh[0].title, { body: fresh[0].body });
     } catch {
       // a notification is a bonus
     }
-    document.title = "(1) New walk-in order";
+    document.title = `(${fresh.length}) ${fresh[0].title}`;
     const stop = setTimeout(() => (document.title = originalTitle.current), 15000);
     return () => clearTimeout(stop);
-  }, [waitingIds, waitingNames, on]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, on]);
 
   // Nothing waiting any more: put the tab title back.
   useEffect(() => {
-    if (waitingIds.length === 0 && originalTitle.current) document.title = originalTitle.current;
-  }, [waitingIds.length]);
+    if (waiting.length === 0 && originalTitle.current) document.title = originalTitle.current;
+  }, [waiting.length]);
 
   async function turnOn() {
     // On straight away: the permission question for notifications can wait for an answer, and the sound does not depend on it.
@@ -122,11 +126,11 @@ export function WalkInAlert({ waitingIds, waitingNames }: { waitingIds: string[]
   if (!ready) return null;
   return on ? (
     <button type="button" onClick={turnOff} className="w-full rounded-2xl border border-green-300 bg-green-50 px-4 py-2 text-left text-xs text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
-      Walk-in alerts are on: this phone beeps when a customer sends an order. Keep this page open. Tap to turn off.
+      Alerts are on: this phone beeps when a customer sends a walk-in order or an incoming QR payment. Keep this page open. Tap to turn off.
     </button>
   ) : (
     <button type="button" onClick={turnOn} className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold dark:border-zinc-700 dark:bg-zinc-900">
-      Turn on walk-in alerts (sound and vibration)
+      Turn on alerts (sound and vibration)
     </button>
   );
 }

@@ -36,6 +36,10 @@ export default async function BatterySwapPage({ params, searchParams }: { params
   // Every charged battery at THIS shop that fits this drone's model, for the merchant to pick from.
   const options = booking.status === "ACTIVE" ? await listChargedBatteries(booking.drone_id, swapShopId) : [];
 
+  // A swap the customer already paid for by QR and the merchant confirmed: the batteries just have to be handed over.
+  const { data: qr } = await supabase.from("dr_qr_payments").select("id,battery_count,amount_myr,shop_id").eq("booking_id", bookingId).eq("kind", "BATTERY_SWAP_FEE").eq("status", "CONFIRMED").maybeSingle();
+  const paidByQr = qr && qr.shop_id === swapShopId ? { count: qr.battery_count ?? 1, amount: Number(qr.amount_myr) } : null;
+
   return (
     <div className="space-y-4 pt-4">
       {elsewhere && (
@@ -57,6 +61,7 @@ export default async function BatterySwapPage({ params, searchParams }: { params
           heldBatteries={(heldBatteries ?? []).map((b) => ({ id: b.id, label: batteryLabel(b) }))}
           options={options.map((b) => ({ id: b.id, label: batteryLabel(b) }))}
           batteryFees={fees}
+          paidByQr={paidByQr}
         />
       )}
     </div>

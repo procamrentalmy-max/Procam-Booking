@@ -70,7 +70,7 @@ export default async function ShopIncomePage() {
     controller_charge_myr: b.controller_charge_myr,
     // A swap of two batteries is two rows, with the fee on the first only; the zero-fee row is not a payment.
     // A swap done at another shop earns that shop the fee, so only this shop's own swaps (and old ones, with no shop recorded) count here.
-    swaps: (b.dr_battery_swaps ?? []).filter((s) => Number(s.fee_myr) > 0 && (!s.swap_shop_id || s.swap_shop_id === b.shop_id)).map((s) => ({ feeMyr: Number(s.fee_myr), paidBy: s.paid_by === "CASH" ? ("CASH" as const) : ("CARD" as const) })),
+    swaps: (b.dr_battery_swaps ?? []).filter((s) => Number(s.fee_myr) > 0 && (!s.swap_shop_id || s.swap_shop_id === b.shop_id)).map((s) => ({ feeMyr: Number(s.fee_myr), paidBy: s.paid_by === "CASH" ? ("CASH" as const) : s.paid_by === "QR" ? ("QR" as const) : ("CARD" as const) })),
     lateFees: (b.dr_payments ?? [])
       .filter((p) => p.kind === "LATE_FEE" && p.status === "SUCCEEDED")
       .map((p) => ({ amountMyr: Number(p.amount_myr), paidBy: p.provider === "cash" ? ("CASH" as const) : ("CARD" as const) })),
@@ -100,7 +100,7 @@ export default async function ShopIncomePage() {
         rental_fee_myr: 0,
         drone_charge_myr: 0,
         controller_charge_myr: 0,
-        swaps: (foreignSwaps ?? []).filter((x) => x.booking_id === fb.id).map((x) => ({ feeMyr: Number(x.fee_myr), paidBy: x.paid_by === "CASH" ? ("CASH" as const) : ("CARD" as const) })),
+        swaps: (foreignSwaps ?? []).filter((x) => x.booking_id === fb.id).map((x) => ({ feeMyr: Number(x.fee_myr), paidBy: x.paid_by === "CASH" ? ("CASH" as const) : x.paid_by === "QR" ? ("QR" as const) : ("CARD" as const) })),
         lateFees: [],
         swapOnly: true,
       });
@@ -149,11 +149,13 @@ export default async function ShopIncomePage() {
             value={`− ${myr2(e.costs.payment)}`}
             info={`The card fee Stripe charges on each card payment: ${(CARD_FEE_RATE * 100).toFixed(1)}% plus RM${CARD_FEE_FIXED_MYR.toFixed(2)} per payment. (It is 3% + RM1 on a Malaysian card and 4% + RM1 on a foreign one; 3.1% allows for the odd foreign card.) The rental, a battery swap and a late fee are each a separate payment. Cash has no card fee, so a payment in cash costs nothing here.`}
           />
-          <EarningsRow
-            label="KYC / verification"
-            value={`− ${myr2(e.costs.kyc)}`}
-            info={`RM${KYC_PER_BOOKING_MYR.toFixed(2)} for every drone booking, for checking the customer's ID and face before they get a drone.`}
-          />
+          {KYC_PER_BOOKING_MYR > 0 && (
+            <EarningsRow
+              label="KYC / verification"
+              value={`− ${myr2(e.costs.kyc)}`}
+              info={`RM${KYC_PER_BOOKING_MYR.toFixed(2)} for every drone booking, for checking the customer's ID and face before they get a drone.`}
+            />
+          )}
           <EarningsRow label="Left after costs" value={myr2(e.net)} strong />
           <EarningsRow label={`ProCam ${percent(1 - PARTNER_SHARE)}`} value={myr2(e.procam)} />
           <EarningsRow label={`You ${percent(PARTNER_SHARE)}`} value={myr2(e.partner)} strong highlight />

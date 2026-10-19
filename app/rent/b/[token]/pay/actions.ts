@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { cancelLostBooking, claimBookingSlot, isSlotStillFree } from "@/lib/droneRental/claimSlot";
 import { startDepositConfirmation } from "@/lib/droneRental/payment";
+import { createQrPayment } from "@/lib/droneRental/qrPayments";
 import { getAuthContext, isAdmin } from "@/lib/auth/session";
 
 /**
@@ -86,12 +87,14 @@ export async function devBypassCashChoiceAction(formData: FormData) {
   const next = typeof rawNext === "string" && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : null;
   const supabase = createServiceRoleClient();
 
-  const { data: booking } = await supabase.from("dr_bookings").select("id,status,source").eq("secure_token", token).single();
+  const { data: booking } = await supabase.from("dr_bookings").select("id,status,source,shop_id,rental_fee_myr").eq("secure_token", token).single();
   if (!booking) throw new Error("Booking not found.");
   if (booking.status !== "PENDING_PAYMENT") throw new Error("This booking has already been paid.");
   if (booking.source !== "MERCHANT_INSTANT") throw new Error("Paying in cash is only for walk-in rentals.");
 
-  await supabase.from("dr_bookings").update({ paid_by: formData.get("method") === "QR" ? "QR" : "CASH" }).eq("id", booking.id);
+  const chosen = formData.get("method") === "QR" ? "QR" : "CASH";
+  await supabase.from("dr_bookings").update({ paid_by: chosen }).eq("id", booking.id);
+  if (chosen === "QR") await createQrPayment({ shopId: booking.shop_id, bookingId: booking.id, kind: "RENTAL_FEE", amountMyr: Number(booking.rental_fee_myr) });
 
   redirect(`/rent/b/${token}/pay${next ? `?next=${encodeURIComponent(next)}` : ""}`);
 }

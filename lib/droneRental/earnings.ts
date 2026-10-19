@@ -9,6 +9,7 @@
 //   - KYC: a flat RM1.30 for every drone booking.
 
 import type { DrPaidBy } from "@/lib/db/types";
+import { DRONE_ID_CHECK_ENABLED } from "@/lib/features";
 
 export const PLATFORM_RATE = 0.18;
 
@@ -19,8 +20,11 @@ export const PLATFORM_RATE = 0.18;
 export const CARD_FEE_RATE = 0.031;
 export const CARD_FEE_FIXED_MYR = 1;
 
-/** The identity check, per drone booking. */
-export const KYC_PER_BOOKING_MYR = 1.3;
+/** What the identity check costs per drone booking when it is switched on. */
+export const KYC_RATE_MYR = 1.3;
+
+/** The identity check, per drone booking: nothing while the online ID check is switched off (lib/features.ts). */
+export const KYC_PER_BOOKING_MYR = DRONE_ID_CHECK_ENABLED ? KYC_RATE_MYR : 0;
 
 /** The partner's share of what is left after costs. */
 export const PARTNER_SHARE = 0.5;

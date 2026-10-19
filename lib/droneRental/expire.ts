@@ -25,8 +25,12 @@ export async function expireStalePendingDroneBookings(): Promise<{ expired: numb
     .eq("status", "PENDING_PAYMENT")
     .lt("created_at", staleCutoff);
 
+  // A walk-in whose customer says they paid by QR waits for the merchant, however long that takes: it is on their dashboard until they resolve it.
+  const { data: waitingOnQr } = await supabase.from("dr_qr_payments").select("booking_id").eq("kind", "RENTAL_FEE").eq("status", "PENDING");
+  const waiting = new Set((waitingOnQr ?? []).map((r) => r.booking_id));
+
   let expired = 0;
-  for (const booking of staleBookings ?? []) {
+  for (const booking of (staleBookings ?? []).filter((b) => !waiting.has(b.id))) {
     const { error } = await supabase.from("dr_bookings").update({ status: "EXPIRED" }).eq("id", booking.id).eq("status", "PENDING_PAYMENT");
     if (error) {
       errors.push(`expire ${booking.id}: ${error.message}`);
