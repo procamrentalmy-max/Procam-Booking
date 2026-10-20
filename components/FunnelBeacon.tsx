@@ -2,22 +2,37 @@
 
 import { useEffect } from "react";
 import { logDroneFunnelAction, logLocationEventAction } from "@/app/funnelActions";
-import { FUNNEL_PAYING_KEY, FUNNEL_SESSION_KEY, type DroneFunnelStep } from "@/lib/droneFunnel";
+import { DEVICE_ID_KEY, FUNNEL_PAYING_KEY, FUNNEL_SESSION_KEY, type DroneFunnelStep } from "@/lib/droneFunnel";
 
+/**
+ * A random id for this browser on this device, kept for good (localStorage), so the same device is counted once however many times it comes back,
+ * not once per visit. It is not linked to a person or an account. Where the browser has no lasting memory it falls back to the tab's own, and where
+ * it has neither (a private window, say) that visit simply isn't counted.
+ */
 function sessionId(): string | null {
+  const make = () => crypto.randomUUID();
   try {
-    let id = sessionStorage.getItem(FUNNEL_SESSION_KEY);
+    let id = localStorage.getItem(DEVICE_ID_KEY);
     if (!id) {
-      id = crypto.randomUUID();
-      sessionStorage.setItem(FUNNEL_SESSION_KEY, id);
+      id = make();
+      localStorage.setItem(DEVICE_ID_KEY, id);
     }
     return id;
   } catch {
-    return null; // no tab memory (a private window, say): that visit simply isn't counted
+    try {
+      let id = sessionStorage.getItem(FUNNEL_SESSION_KEY);
+      if (!id) {
+        id = make();
+        sessionStorage.setItem(FUNNEL_SESSION_KEY, id);
+      }
+      return id;
+    } catch {
+      return null;
+    }
   }
 }
 
-/** Counts that this visit reached a step of the booking flow (see lib/droneFunnel.ts). Never breaks the page it is called from. */
+/** Counts that this device reached a step of the booking flow (see lib/droneFunnel.ts). Never breaks the page it is called from. */
 export function trackStep(step: DroneFunnelStep, shopId?: string): void {
   try {
     const id = sessionId();

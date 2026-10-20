@@ -47,7 +47,7 @@ export default async function DroneFunnelPage({ searchParams }: { searchParams: 
     <div className="max-w-3xl space-y-6 pt-4 pb-10">
       <div>
         <h1 className="text-lg font-semibold">Drone Funnel</h1>
-        <p className="text-sm text-zinc-500">Where customers drop off between the home page and paying. Visits are counted by a random id in the browser tab; the admin&apos;s own testing is not counted.</p>
+        <p className="text-sm text-zinc-500">Where customers drop off between the home page and paying. A device is counted once, by a random id kept in its browser, however many times it comes back; the admin&apos;s own testing is not counted.</p>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -63,12 +63,12 @@ export default async function DroneFunnelPage({ searchParams }: { searchParams: 
       </div>
 
       {visits === 0 ? (
-        <p className="rounded-xl border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500 dark:border-zinc-700">No visits counted in this period yet. Counting starts when the new version of the site is live.</p>
+        <p className="rounded-xl border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500 dark:border-zinc-700">No devices counted in this period yet. Counting starts when the new version of the site is live.</p>
       ) : (
         <>
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: "Visits", value: String(visits) },
+              { label: "Devices", value: String(visits) },
               { label: "Paid", value: `${reached[last]} (${pct(reached[last], visits)})` },
               { label: "Most leave at", value: `${DRONE_FUNNEL_STEPS[biggest].label.replace(/^Booking page: /, "")}` },
             ].map((c) => (
@@ -85,7 +85,7 @@ export default async function DroneFunnelPage({ searchParams }: { searchParams: 
                 <tr>
                   <th className="px-3 py-2">Step</th>
                   <th className="px-3 py-2 text-right">Reached</th>
-                  <th className="px-3 py-2 text-right">Of all visits</th>
+                  <th className="px-3 py-2 text-right">Of all devices</th>
                   <th className="px-3 py-2 text-right">Left here</th>
                 </tr>
               </thead>
@@ -111,7 +111,7 @@ export default async function DroneFunnelPage({ searchParams }: { searchParams: 
             </table>
           </div>
           <p className="text-xs text-zinc-500">
-            Reached: visits that got at least this far. Left here: visits whose last step was this one, so the page they dropped off at. The step with the most people leaving is in red. Walk-ins at a
+            Reached: devices that got at least this far (a device is counted once, from the first time it reached each step). Left here: devices whose last step was this one, so the page they dropped off at. The step with the most people leaving is in red. Walk-ins at a
             shop and swaps are not part of this funnel.
           </p>
         </>

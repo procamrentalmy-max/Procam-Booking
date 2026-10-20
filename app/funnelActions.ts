@@ -5,8 +5,8 @@ import { getAuthContext, isAdmin } from "@/lib/auth/session";
 import { DRONE_FUNNEL_KEYS } from "@/lib/droneFunnel";
 
 /**
- * Counts one step of the drone booking flow for one visit. Public (customers have no login) and best effort: it never throws, stores no
- * personal data (just a random id from the browser tab, the step and the shop), keeps one row per visit per step, and ignores the admin's
+ * Counts one step of the drone booking flow for one device. Public (customers have no login) and best effort: it never throws, stores no
+ * personal data (just a random id kept in the browser, the step and the shop), keeps one row per device per step, and ignores the admin's
  * own testing so it doesn't skew the numbers.
  */
 export async function logDroneFunnelAction(input: { sessionId: string; step: string; shopId?: string }): Promise<void> {

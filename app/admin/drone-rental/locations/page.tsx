@@ -68,7 +68,7 @@ export default async function LocationTrafficPage({ searchParams }: { searchPara
       <div>
         <h1 className="text-lg font-semibold">Locations</h1>
         <p className="text-sm text-zinc-500">
-          Who looked at which location on the shop list. Visits are counted by a random id in the browser tab; the admin&apos;s own testing is not counted.
+          Who looked at which location on the shop list. A device is counted once, by a random id kept in its browser; the admin&apos;s own testing is not counted.
         </p>
       </div>
 
@@ -90,9 +90,9 @@ export default async function LocationTrafficPage({ searchParams }: { searchPara
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              { label: "People", value: String(allVisits.size), note: "different visits that tapped or opened a location" },
+              { label: "Devices", value: String(allVisits.size), note: "different devices that tapped or opened a location" },
               { label: "Taps", value: String(total("taps")), note: "on a location in the list or map" },
-              { label: "Pages opened", value: String(total("opens")), note: `by ${allOpeners.size} ${allOpeners.size === 1 ? "visit" : "visits"}` },
+              { label: "Pages opened", value: String(total("opens")), note: `by ${allOpeners.size} ${allOpeners.size === 1 ? "device" : "devices"}` },
               { label: "Get direction", value: String(total("directions")), note: "clicks" },
             ].map((c) => (
               <div key={c.label} className="rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">
@@ -106,7 +106,7 @@ export default async function LocationTrafficPage({ searchParams }: { searchPara
           {top && (
             <p className="rounded-xl border border-zinc-200 p-3 text-sm dark:border-zinc-800">
               Most clicked: <span className="font-semibold">{top.name}</span> with {top.taps} {top.taps === 1 ? "tap" : "taps"} and {top.opens} {top.opens === 1 ? "page opened" : "pages opened"} by {top.people}{" "}
-              {top.people === 1 ? "person" : "people"}.
+              {top.people === 1 ? "device" : "devices"}.
             </p>
           )}
 
@@ -118,7 +118,7 @@ export default async function LocationTrafficPage({ searchParams }: { searchPara
                   <th className="px-3 py-2 text-right">Taps</th>
                   <th className="px-3 py-2 text-right">Opened</th>
                   <th className="px-3 py-2 text-right">Directions</th>
-                  <th className="px-3 py-2 text-right">People</th>
+                  <th className="px-3 py-2 text-right">Devices</th>
                 </tr>
               </thead>
               <tbody>
@@ -143,7 +143,7 @@ export default async function LocationTrafficPage({ searchParams }: { searchPara
             </table>
           </div>
           <p className="text-xs text-zinc-500">
-            Taps: a location tapped on the list or the map. Opened: its page opened with Check Rates or Book here, or arrived on directly. Directions: Get direction clicked. People: different visits that did
+            Taps: a location tapped on the list or the map. Opened: its page opened with Check Rates or Book here, or arrived on directly. Directions: Get direction clicked. Devices: different devices that did
             any of these at that location. Locations are ranked by taps plus pages opened.
           </p>
         </>

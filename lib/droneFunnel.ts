@@ -15,5 +15,8 @@ export const DRONE_FUNNEL_STEPS = [
 
 export type DroneFunnelStep = (typeof DRONE_FUNNEL_STEPS)[number]["key"];
 export const DRONE_FUNNEL_KEYS: readonly string[] = DRONE_FUNNEL_STEPS.map((s) => s.key);
+/** The tab-only fallback id (see components/FunnelBeacon.tsx). */
 export const FUNNEL_SESSION_KEY = "procam_funnel_sid";
+/** The lasting id of this browser on this device: the funnel and the location traffic count a device once. */
+export const DEVICE_ID_KEY = "procam_device_id";
 export const FUNNEL_PAYING_KEY = "procam_funnel_paying";
