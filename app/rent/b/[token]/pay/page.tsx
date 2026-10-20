@@ -19,6 +19,7 @@ import { devBypassDronePaymentAction, devBypassCashChoiceAction, adminSkipPaymen
 import { getAuthContext, isAdmin } from "@/lib/auth/session";
 import { pressableClass } from "@/components/formStyles";
 import { getPayQrUrl } from "@/lib/branding";
+import { DepositHoldNote } from "@/components/droneRental/DepositHoldNote";
 import { createQrPayment } from "@/lib/droneRental/qrPayments";
 
 /** Only ever a same-origin relative path (e.g. /merchant/pickup/<id> for a walk-in) — never an absolute/protocol-relative URL, so this can't be turned into an open redirect via the `next` query param. */
@@ -161,9 +162,7 @@ export default async function DroneBookingPayPage({
           <span className="font-medium">{formatMyr(booking.deposit_myr)}</span>
         </div>
       </div>
-      <p className="-mt-2 text-xs text-zinc-400">
-        {includesController(booking.drone_model, storedController(booking.drone_model, booking.controller_kind)) ? t.pay.depositNoteWithController : t.pay.depositNoteDrone}
-      </p>
+      <DepositHoldNote depositMyr={Number(booking.deposit_myr)} locale={locale} />
       <p className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs leading-snug text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">{t.common.damageWarning}</p>
       <p className="-mt-2 text-xs text-zinc-400">
         <AgreeLine locale={locale} />

@@ -35,7 +35,7 @@ export const en = {
     },
     compare: {
       title: "DJI Neo or DJI Neo 2",
-      sub: "Two drones, same shops. These prices are for flying from your own phone; a controller adds to them (see below). The deposit is a card hold, not a charge.",
+      sub: "Two drones, same shops. These prices are for flying from your own phone; a controller adds to them (see below). The deposit is only a card hold: it is never deducted from your bank account.",
       neo: "DJI Neo",
       neo2: "DJI Neo 2",
       priceGroup: "Price",
@@ -90,7 +90,7 @@ export const en = {
     kitPoints: [
       "**Swap** used batteries for **fully charged** ones at the shop.",
       "Returning late costs the **hourly rate** for **each hour**.",
-      "The **deposit is released** when everything comes back in **good condition**.",
+      "The **deposit is only a hold**, never deducted from your bank account, and it is **released** when everything comes back in **good condition**.",
       "If anything is **damaged**, the **repair cost is deducted** from your deposit and the **repair invoice is sent** to you.",
     ],
     terms: "Terms",

@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getWalkInRequestByToken, requestController, viewOf } from "@/lib/droneRental/walkInRequests";
 import { controllerLabel, depositMyrFor, formatMyr, modelProfile, rentalFeeMyr } from "@/lib/droneRental/pricingRules";
+import { DepositHoldNote } from "@/components/droneRental/DepositHoldNote";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { droneText } from "@/lib/i18n/drone";
@@ -79,6 +80,7 @@ export default async function WalkInCustomerPage({ params }: { params: Promise<{
           <span className="font-medium">{formatMyr(depositMyrFor(request.drone_model, controller))}</span>
         </div>
       </div>
+      <DepositHoldNote depositMyr={depositMyrFor(request.drone_model, controller)} locale={locale} />
       <p className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs leading-snug text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">{t.common.damageWarning}</p>
 
       {view === "SUBMITTED" && (

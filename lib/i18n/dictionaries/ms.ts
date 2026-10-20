@@ -37,7 +37,7 @@ export const ms: Dictionary = {
     },
     compare: {
       title: "DJI Neo atau DJI Neo 2",
-      sub: "Dua dron, kedai yang sama. Harga ini untuk menerbangkan dari telefon anda sendiri; alat kawalan menambah harga (lihat di bawah). Deposit ialah tahanan kad, bukan caj.",
+      sub: "Dua dron, kedai yang sama. Harga ini untuk menerbangkan dari telefon anda sendiri; alat kawalan menambah harga (lihat di bawah). Deposit hanyalah tahanan kad: ia tidak pernah ditolak daripada akaun bank anda.",
       neo: "DJI Neo",
       neo2: "DJI Neo 2",
       priceGroup: "Harga",
@@ -92,7 +92,7 @@ export const ms: Dictionary = {
     kitPoints: [
       "**Tukar** bateri yang telah digunakan dengan yang **dicas penuh** di kedai.",
       "Pemulangan lewat dikenakan **kadar sejam** bagi **setiap jam**.",
-      "**Deposit dilepaskan** apabila semuanya dipulangkan dalam **keadaan baik**.",
+      "**Deposit hanyalah tahanan**, tidak pernah ditolak daripada akaun bank anda, dan **dilepaskan** apabila semuanya dipulangkan dalam **keadaan baik**.",
       "Jika berlaku **kerosakan**, **kos pembaikan ditolak** daripada deposit anda dan **invois pembaikan dihantar** kepada anda.",
     ],
     terms: "Terma",

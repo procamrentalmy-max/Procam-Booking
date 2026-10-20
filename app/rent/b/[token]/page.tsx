@@ -12,6 +12,7 @@ import { SlotTakenDialog } from "@/components/droneRental/SlotTakenDialog";
 import { durationLabel, droneText } from "@/lib/i18n/drone";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { DepositConfirm } from "@/components/droneRental/DepositConfirm";
+import { DepositHoldNote } from "@/components/droneRental/DepositHoldNote";
 import { finishCardBooking, finishDepositConfirmation, needsDepositConfirmation } from "@/lib/droneRental/payment";
 
 // The QR stops being offered the moment the merchant accepts it — never cache this page.
@@ -165,6 +166,7 @@ export default async function DroneBookingDashboardPage({ params, searchParams }
         <Row label={t.common.rentalFee} value={formatMyr(booking.rental_fee_myr)} />
         <Row label={t.booking.depositRefundable} value={formatMyr(booking.deposit_myr)} />
       </div>
+      <DepositHoldNote depositMyr={Number(booking.deposit_myr)} locale={locale} />
       <p className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs leading-snug text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">{t.common.damageWarning}</p>
 
       <FaqLink locale={locale} />

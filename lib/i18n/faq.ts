@@ -109,7 +109,7 @@ export const faqEn: FaqPage = {
           q: "What is the deposit?",
           blocks: [
             {
-              p: "A refundable hold on your card, not a charge: {neo2Dep} for the Neo 2 or {neoDep} for the Neo, plus {rcDep} if you add the RC-N3 or {goggDep} if you add the goggles. The exact amount is shown before you pay. Nothing is taken from it unless something is damaged, lost or owed.",
+              p: "Only a hold on your card, never deducted from your bank account: {neo2Dep} for the Neo 2 or {neoDep} for the Neo, plus {rcDep} if you add the RC-N3 or {goggDep} if you add the goggles. The exact amount is shown before you pay. Nothing is taken from it unless something is damaged, lost or owed.",
             },
           ],
         },
@@ -322,7 +322,7 @@ export const faqMs: FaqPage = {
           q: "Apakah deposit itu?",
           blocks: [
             {
-              p: "Tahanan yang boleh dipulangkan pada kad anda, bukan caj: {neo2Dep} untuk Neo 2 atau {neoDep} untuk Neo, ditambah {rcDep} jika anda menambah RC-N3 atau {goggDep} jika anda menambah goggles. Jumlah tepat ditunjukkan sebelum anda membayar. Tiada apa-apa diambil daripadanya kecuali sesuatu rosak, hilang atau terhutang.",
+              p: "Hanya tahanan pada kad anda, tidak pernah ditolak daripada akaun bank anda: {neo2Dep} untuk Neo 2 atau {neoDep} untuk Neo, ditambah {rcDep} jika anda menambah RC-N3 atau {goggDep} jika anda menambah goggles. Jumlah tepat ditunjukkan sebelum anda membayar. Tiada apa-apa diambil daripadanya kecuali sesuatu rosak, hilang atau terhutang.",
             },
           ],
         },
@@ -535,7 +535,7 @@ export const faqZh: FaqPage = {
           q: "押金是什么？",
           blocks: [
             {
-              p: "是信用卡上可退还的冻结金额，不是扣款：Neo 2 为 {neo2Dep}，Neo 为 {neoDep}，加 RC-N3 另加 {rcDep}，加 Goggles 另加 {goggDep}。具体金额在付款前显示。除非有损坏、遗失或欠款，否则不会从中扣任何钱。",
+              p: "只是信用卡上的冻结金额，不会从您的银行账户扣款：Neo 2 为 {neo2Dep}，Neo 为 {neoDep}，加 RC-N3 另加 {rcDep}，加 Goggles 另加 {goggDep}。具体金额在付款前显示。除非有损坏、遗失或欠款，否则不会从中扣任何钱。",
             },
           ],
         },

@@ -36,6 +36,7 @@ import {
 import { DEFAULT_SHOP_HOURS, formatSlotTime, generateDaySlots, type ShopHours } from "@/lib/droneRental/hours";
 import { getUnavailableDroneStartsAction, createDroneBookingAction } from "@/app/rent/[shopId]/actions";
 import { useDroneKyc } from "@/components/droneRental/useDroneKyc";
+import { DepositHoldNote } from "@/components/droneRental/DepositHoldNote";
 
 const DAYS_AHEAD = 7;
 
@@ -452,6 +453,7 @@ export function DroneBookingWizard({
             <span className="text-zinc-500">{t.common.depositHold}</span>
             <span className="font-medium">{formatMyr(deposit)}</span>
           </div>
+          <DepositHoldNote depositMyr={deposit} locale={locale} />
           <p className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs leading-snug text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">{t.common.damageWarning}</p>
         </div>
       )}
