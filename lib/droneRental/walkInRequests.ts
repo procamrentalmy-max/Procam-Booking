@@ -14,8 +14,11 @@ import {
   DEFAULT_CONTROLLER,
   DEFAULT_DRONE_MODEL,
   ENABLED_DRONE_MODELS,
+  batteriesFor,
   effectiveController,
+  isDailyMinutes,
   isDroneModel,
+  offersDaily,
   modelProfile,
   storedController,
   type BatteryCount,
@@ -55,8 +58,11 @@ export async function shopIdForWalkInCode(code: string): Promise<string | null> 
  * some drone of that model at the shop can actually take (and, with a controller, only while the shop has one of that kind free).
  */
 export async function walkInDurationOptions(shopId: string, model: DroneModel = DEFAULT_DRONE_MODEL, controller: ControllerKind = "NONE"): Promise<number[]> {
-  const snapshot = await buildShopFleetSnapshot(shopId, model, effectiveController(model, controller));
-  return walkInDurationsForShop(snapshot.drones, snapshot.bookings, new Date(), snapshot.controllers);
+  const kind = effectiveController(model, controller);
+  const snapshot = await buildShopFleetSnapshot(shopId, model, kind);
+  const lengths = walkInDurationsForShop(snapshot.drones, snapshot.bookings, new Date(), snapshot.controllers, await getShopHours(shopId));
+  // A length of days only with a way of flying that has a daily rate (phone only or the RC-N3).
+  return lengths.filter((minutes) => !isDailyMinutes(minutes) || offersDaily(model, kind));
 }
 
 /** What a walk-in customer can choose: for each model, for each way of flying it, the lengths on offer. Anything with no length left is left out. */
@@ -135,7 +141,8 @@ export async function submitWalkInOrder(params: {
     shop_id: shop.id,
     drone_id: null,
     duration_minutes: params.durationMinutes,
-    batteries_count: params.batteries,
+    // By the day the 3 batteries come with it, whatever was sent.
+    batteries_count: batteriesFor(params.durationMinutes, params.batteries),
     drone_model: model,
     controller_kind: controller,
     status: "SUBMITTED",

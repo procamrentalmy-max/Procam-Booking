@@ -915,7 +915,10 @@ export function dayLabelFor(now: Date, dayOffset: number, locale: Locale): strin
 
 /** A rental length for a customer ("1h 30m", in their language) from milliseconds. */
 export function durationLabel(ms: number, locale: Locale): string {
-  return droneText(locale).common.duration(Math.max(0, Math.round(ms / 60_000)));
+  const minutes = Math.max(0, Math.round(ms / 60_000));
+  // A whole number of days reads as days ("2 days"), not as 48 hours.
+  if (minutes >= 1440 && minutes % 1440 === 0) return droneText(locale).common.rentalLength(minutes);
+  return droneText(locale).common.duration(minutes);
 }
 
 /** "Phone only", or the controller's own name (RC-N3, Goggles N3 + Motion 3: product names, never translated). */

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeMerchantInstantOptions, eligibleWalkInDrones, walkInDurationsForShop } from "./merchantBooking";
+import { DEFAULT_SHOP_HOURS } from "./hours";
 import type { BookingWindow } from "./slots";
 
 const NOW = new Date("2026-09-02T04:01:00Z");
@@ -16,7 +17,13 @@ function bookingIn(minutesFromNow: number, status = "CONFIRMED"): BookingWindow 
 describe("computeMerchantInstantOptions", () => {
   it("offers the full duration menu when the drone has no upcoming booking", () => {
     const result = computeMerchantInstantOptions([], "d1", NOW);
-    expect(result).toEqual({ allowed: true, maxDurationMinutes: 240, offeredDurationsMinutes: [60, 120, 180, 240] });
+    expect(result).toEqual({ allowed: true, maxDurationMinutes: 4320, offeredDurationsMinutes: [60, 120, 180, 240, 1440, 2880, 4320] });
+  });
+
+  it("keeps a day length off the menu when a booking would collide with it", () => {
+    // next booking in 30 hours: 1 day (back in 24h, plus the buffer) fits, 2 days does not
+    const result = computeMerchantInstantOptions([bookingIn(30 * 60)], "d1", NOW);
+    expect(result).toEqual({ allowed: true, maxDurationMinutes: 1440, offeredDurationsMinutes: [60, 120, 180, 240, 1440] });
   });
 
   it("blocks the walk-in entirely when the next booking starts within an hour", () => {
@@ -87,7 +94,20 @@ describe("eligibleWalkInDrones / walkInDurationsForShop", () => {
   it("offers only the lengths some drone can actually take", () => {
     const limited: BookingWindow = { ...bookingIn(120), droneId: "d1" }; // d1 only has room for 1 hour
     expect(walkInDurationsForShop([drone("d1")], [limited], NOW)).toEqual([60]);
-    expect(walkInDurationsForShop([drone("d1"), drone("d2")], [limited], NOW)).toEqual([60, 120, 180, 240]);
+    expect(walkInDurationsForShop([drone("d1"), drone("d2")], [limited], NOW)).toEqual([60, 120, 180, 240, 1440, 2880, 4320]);
+  });
+
+  it("offers 1 to 3 days at the shop, only while the shop is open when the drone would come back", () => {
+    // NOW is Wednesday 12:01 Malaysia time. With the shop closed on Thursday, a 1-day rental (back Thursday) is out, 2 and 3 days (Friday, Saturday) are fine.
+    const closedThursday = DEFAULT_SHOP_HOURS.map((d, i) => (i === 4 ? null : d));
+    expect(walkInDurationsForShop([drone("d1")], [], NOW, null, DEFAULT_SHOP_HOURS)).toEqual([60, 120, 180, 240, 1440, 2880, 4320]);
+    expect(walkInDurationsForShop([drone("d1")], [], NOW, null, closedThursday)).toEqual([60, 120, 180, 240, 2880, 4320]);
+  });
+
+  it("does not offer a day length when the shop closes before the drone could come back", () => {
+    // Wednesday 21:45 Malaysia time (13:45 UTC): back at 21:45 + 30 minutes margin is after Thursday's 22:00 closing
+    const lateEvening = new Date("2026-09-02T13:45:00Z");
+    expect(walkInDurationsForShop([drone("d1")], [], lateEvening, null, DEFAULT_SHOP_HOURS)).toEqual([60, 120, 180, 240]);
   });
 
   it("offers nothing when no drone is free", () => {

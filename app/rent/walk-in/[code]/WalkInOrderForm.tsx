@@ -14,11 +14,17 @@ import {
   DEFAULT_BATTERIES,
   DRONE_MODEL_PROFILES,
   ENABLED_DRONE_MODELS,
+  DAY_MINUTES,
+  MULTI_DAY_DISCOUNT_PERCENT,
   comboKey,
   controllerLabel,
+  dailyBreakdown,
+  dailyFeeMyr,
+  dailyRateFor,
   depositMyrFor,
   formatMyr,
   hourlyRateFor,
+  isDailyMinutes,
   rentalFeeMyr,
   type BatteryCount,
   type ControllerKind,
@@ -43,16 +49,23 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false,
   const profile = DRONE_MODEL_PROFILES[model];
   // Every way of flying is listed; only those with a length on offer (a controller the shop has none of, or has out, has none) can be picked.
   const controllerOptions = profile.controllerOptions;
-  const selectableControllers = controllerOptions.filter((o) => (options[model]?.[o] ?? []).length > 0);
+  const lengthsOf = (o: ControllerKind) => options[model]?.[o] ?? [];
+  // By the hour or by the day: the days toggle is there only when some way of flying has a length of days on offer right now.
+  const canDaily = controllerOptions.some((o) => lengthsOf(o).some(isDailyMinutes));
+  const [wantsDays, setWantsDays] = useState(false);
+  const byDay = wantsDays && canDaily;
+  const ofThisKind = (minutes: number) => isDailyMinutes(minutes) === byDay;
+  const selectableControllers = controllerOptions.filter((o) => lengthsOf(o).some(ofThisKind));
   const [pickedController, setPickedController] = useState<ControllerKind>("NONE");
   const controller = selectableControllers.includes(pickedController) ? pickedController : selectableControllers[0];
-  const durationsMinutes = options[model]?.[controller] ?? [];
+  const durationsMinutes = lengthsOf(controller).filter(ofThisKind);
   const [chosenMinutes, setChosenMinutes] = useState(durationsMinutes[0] ?? 60);
   // Another model may offer different lengths; fall back to its first if the current pick isn't on offer.
   const durationMinutes = durationsMinutes.includes(chosenMinutes) ? chosenMinutes : (durationsMinutes[0] ?? 60);
   const setDurationMinutes = setChosenMinutes;
   const [batteries, setBatteries] = useState<BatteryCount>(DEFAULT_BATTERIES);
   const hourly = hourlyRateFor(model, controller);
+  const perDay = dailyRateFor(model, controller);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -71,7 +84,7 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false,
   async function sendOrder(verificationId: string) {
     setLoading(true);
     setError(null);
-    const result = await submitWalkInOrderAction({ code, durationMinutes, batteries, model, controller, name, phone, email, verificationId, whatsappNumber });
+    const result = await submitWalkInOrderAction({ code, durationMinutes, batteries: byDay ? DEFAULT_BATTERIES : batteries, model, controller, name, phone, email, verificationId, whatsappNumber });
     if (result.ok) {
       router.push(`/rent/w/${result.token}`);
       return;
@@ -98,10 +111,20 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false,
         onChange={setPickedController}
         unavailable={controllerOptions.filter((o) => !selectableControllers.includes(o))}
         compare={tables?.fly}
+        daily={byDay}
       />
 
       <div>
-        <p className="mb-2 text-sm font-medium">{t.wizard.howLong}</p>
+        <p className="mb-2 text-sm font-medium">{byDay ? t.wizard.howManyDays : t.wizard.howLong}</p>
+        {canDaily && (
+          <div className="mb-2 grid grid-cols-2 gap-2" role="group" aria-label={t.wizard.howLong}>
+            {([false, true] as const).map((days) => (
+              <button key={String(days)} type="button" onClick={() => setWantsDays(days)} aria-pressed={byDay === days} className={`rounded-xl border py-2.5 text-center text-sm font-semibold ${byDay === days ? selectedClass : idleClass}`}>
+                {days ? t.wizard.byDay : t.wizard.byHour}
+              </button>
+            ))}
+          </div>
+        )}
         <div className={`grid gap-2 ${durationsMinutes.length > 3 ? "grid-cols-4" : "grid-cols-3"}`}>
           {durationsMinutes.map((m) => (
             <button
@@ -111,13 +134,25 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false,
               aria-pressed={durationMinutes === m}
               className={`rounded-xl border py-3 text-center ${durationMinutes === m ? selectedClass : idleClass}`}
             >
-              <span className="block text-sm font-semibold">{t.common.shortHours(m / 60)}</span>
-              <span className={`block text-xs ${durationMinutes === m ? "opacity-80" : "text-zinc-500"}`}>{formatMyr((m / 60) * hourly)}</span>
+              <span className="block text-sm font-semibold">{byDay ? t.common.days(m / DAY_MINUTES) : t.common.shortHours(m / 60)}</span>
+              <span className={`block text-xs ${durationMinutes === m ? "opacity-80" : "text-zinc-500"}`}>{byDay ? formatMyr(dailyFeeMyr(m / DAY_MINUTES, model, controller) ?? 0) : formatMyr((m / 60) * hourly)}</span>
+              {byDay && (
+                <span className={`block text-xs ${durationMinutes === m ? "opacity-80" : "text-zinc-500"}`}>
+                  {m === DAY_MINUTES && perDay !== null ? t.wizard.perDay(formatMyr(perDay)) : t.wizard.savePct(MULTI_DAY_DISCOUNT_PERCENT * (m / DAY_MINUTES - 1))}
+                </span>
+              )}
             </button>
           ))}
         </div>
       </div>
 
+      {byDay && (
+        <p className="text-xs leading-snug text-zinc-500">
+          {t.wizard.dailyIncludes} · {t.wizard.dailyDiscount}. {t.wizard.dailyReturn}
+        </p>
+      )}
+
+      {!byDay && (
       <div>
         <p className="mb-2 text-sm font-medium">{t.wizard.howMany}</p>
         <div className="grid grid-cols-2 gap-2">
@@ -139,14 +174,15 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false,
           ))}
         </div>
       </div>
+      )}
 
       <ComboCard
         locale={locale}
         pictureUrl={pictures[comboKey(model, controller, batteries)]}
         depositMyr={depositMyrFor(model, controller)}
-        alt={`${profile.shortName}, ${controller === "NONE" ? t.common.phoneOnly : controllerLabel(model, controller)}, ${t.common.batteries(batteries)}`}
+        alt={`${profile.shortName}, ${controller === "NONE" ? t.common.phoneOnly : controllerLabel(model, controller)}${byDay ? "" : `, ${t.common.batteries(batteries)}`}`}
       />
-      <TotalSummary locale={locale} totalMyr={rentalFeeMyr(durationMinutes, batteries, model, controller)} depositMyr={depositMyrFor(model, controller)} />
+      <TotalSummary locale={locale} breakdown={dailyBreakdown(durationMinutes, model, controller)} totalMyr={rentalFeeMyr(durationMinutes, batteries, model, controller)} depositMyr={depositMyrFor(model, controller)} />
 
       <div className="space-y-3">
         <p className="text-sm font-medium">{t.walkIn.yourDetails}</p>

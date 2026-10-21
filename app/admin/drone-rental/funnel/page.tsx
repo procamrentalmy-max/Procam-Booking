@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { DRONE_FUNNEL_STEPS } from "@/lib/droneFunnel";
+import { DRONE_FUNNEL_STEPS, countryName, devicesByCountry } from "@/lib/droneFunnel";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +23,7 @@ export default async function DroneFunnelPage({ searchParams }: { searchParams: 
   const range = RANGES.find((r) => r.key === rangeParam) ?? RANGES[1];
   const supabase = await createServerSupabaseClient();
 
-  let query = supabase.from("dr_funnel_events").select("session_id,step").limit(50000);
+  let query = supabase.from("dr_funnel_events").select("session_id,step,country").limit(50000);
   if (range.days) query = query.gte("created_at", new Date(new Date().getTime() - range.days * 86_400_000).toISOString());
   const { data: events } = await query;
 
@@ -41,6 +41,12 @@ export default async function DroneFunnelPage({ searchParams }: { searchParams: 
   const reached = DRONE_FUNNEL_STEPS.map((_, i) => [...furthest.values()].filter((f) => f >= i).length);
   const leftHere = DRONE_FUNNEL_STEPS.map((_, i) => [...furthest.values()].filter((f) => f === i).length);
   const last = DRONE_FUNNEL_STEPS.length - 1;
+  const byCountry = devicesByCountry(events ?? []).map((g) => ({
+    country: g.country,
+    devices: g.devices.size,
+    paid: [...g.devices].filter((d) => (furthest.get(d) ?? -1) >= last).length,
+    reachedPay: [...g.devices].filter((d) => (furthest.get(d) ?? -1) >= (order.get("PAY") ?? last)).length,
+  }));
   const biggest = leftHere.slice(0, last).reduce((best, n, i) => (n > leftHere[best] ? i : best), 0);
 
   return (
@@ -110,9 +116,37 @@ export default async function DroneFunnelPage({ searchParams }: { searchParams: 
               </tbody>
             </table>
           </div>
+          <div className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
+            <p className="border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900">Where devices came from</p>
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-zinc-200 text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                <tr>
+                  <th className="px-3 py-2">Country</th>
+                  <th className="px-3 py-2 text-right">Devices</th>
+                  <th className="px-3 py-2 text-right">Of all</th>
+                  <th className="px-3 py-2 text-right">Reached payment</th>
+                  <th className="px-3 py-2 text-right">Paid</th>
+                </tr>
+              </thead>
+              <tbody>
+                {byCountry.map((c) => (
+                  <tr key={c.country ?? "none"} className="border-b border-zinc-100 last:border-b-0 dark:border-zinc-900">
+                    <td className="px-3 py-2 font-medium text-black dark:text-zinc-50">
+                      {countryName(c.country)}
+                      {c.country && <span className="ml-1.5 text-xs font-normal text-zinc-400">{c.country}</span>}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">{c.devices}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-zinc-500">{pct(c.devices, visits)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{c.reachedPay}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{c.paid}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <p className="text-xs text-zinc-500">
             Reached: devices that got at least this far (a device is counted once, from the first time it reached each step). Left here: devices whose last step was this one, so the page they dropped off at. The step with the most people leaving is in red. Walk-ins at a
-            shop and swaps are not part of this funnel.
+            shop and swaps are not part of this funnel. The country is worked out from the connection when the device first reached each step, and only the country is kept, never an address; visits from before this was added have no country (Not known).
           </p>
         </>
       )}

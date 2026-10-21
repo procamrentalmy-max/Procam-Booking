@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { countryName, devicesByCountry } from "@/lib/droneFunnel";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ const RANGES = [
   { key: "all", label: "Everything", days: null as number | null },
 ];
 
-type Row = { session_id: string; shop_id: string; kind: "SELECT" | "OPEN" | "DIRECTIONS" };
+type Row = { session_id: string; shop_id: string; kind: "SELECT" | "OPEN" | "DIRECTIONS"; country: string | null };
 
 /**
  * Traffic on the shop list, location by location: how many times each location was tapped (on the map or the list), how many times its page was
@@ -26,7 +27,7 @@ export default async function LocationTrafficPage({ searchParams }: { searchPara
   const events: Row[] = [];
   // The database hands back at most 1000 rows at a time, so read the period page by page.
   for (let from = 0; from < 200_000; from += 1000) {
-    let q = supabase.from("dr_location_events").select("session_id,shop_id,kind").order("created_at", { ascending: true }).range(from, from + 999);
+    let q = supabase.from("dr_location_events").select("session_id,shop_id,kind,country").order("created_at", { ascending: true }).range(from, from + 999);
     if (since) q = q.gte("created_at", since);
     const { data } = await q;
     events.push(...((data ?? []) as Row[]));
@@ -58,6 +59,7 @@ export default async function LocationTrafficPage({ searchParams }: { searchPara
       return { id: s.id, name: s.name, humanId: s.human_id, active: s.active, taps: c?.taps ?? 0, opens: c?.opens ?? 0, directions: c?.directions ?? 0, people: c?.visits.size ?? 0, openedBy: c?.openers.size ?? 0 };
     })
     .sort((a, b) => b.taps + b.opens - (a.taps + a.opens) || b.people - a.people || a.name.localeCompare(b.name));
+  const byCountry = devicesByCountry(events);
   const touched = rows.filter((r) => r.taps + r.opens + r.directions > 0);
   const top = touched[0];
   const total = (key: "taps" | "opens" | "directions") => rows.reduce((n, r) => n + r[key], 0);
@@ -137,6 +139,22 @@ export default async function LocationTrafficPage({ searchParams }: { searchPara
                     <td className="px-3 py-2 text-right tabular-nums">{r.opens}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{r.directions}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-zinc-500">{r.people}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
+            <p className="border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900">Where devices came from</p>
+            <table className="w-full text-left text-sm">
+              <tbody>
+                {byCountry.map((c) => (
+                  <tr key={c.country ?? "none"} className="border-b border-zinc-100 last:border-b-0 dark:border-zinc-900">
+                    <td className="px-3 py-2 font-medium text-black dark:text-zinc-50">
+                      {countryName(c.country)}
+                      {c.country && <span className="ml-1.5 text-xs font-normal text-zinc-400">{c.country}</span>}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">{c.devices.size} {c.devices.size === 1 ? "device" : "devices"}</td>
                   </tr>
                 ))}
               </tbody>

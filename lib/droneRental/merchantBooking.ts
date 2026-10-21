@@ -1,4 +1,6 @@
 import { TERMINAL_BOOKING_STATUSES, alignToNextInterval, findEligibleDrone, type BookingWindow, type ControllerPool, type DroneCandidate } from "./slots";
+import { DEFAULT_SHOP_HOURS, isWithinOperatingHours, type ShopHours } from "./hours";
+import { DAY_MINUTES, MAX_RENTAL_DAYS, isDailyMinutes } from "./pricingRules";
 
 /**
  * Merchant "instant" bookings are for walk-ins at the shop — they start
@@ -16,6 +18,12 @@ export const MERCHANT_BUFFER_MINUTES = 30;
 
 /** Whole-hour durations offered for a walk-in — merchant bookings aren't picked off the 30-minute grid the way online ones are. */
 export const MERCHANT_OFFERED_DURATIONS_HOURS = [1, 2, 3, 4] as const;
+
+/** Every length offered for a walk-in, in minutes: the whole hours, then 1 to 3 days (a daily rental, with 3 batteries and a charger). */
+export const MERCHANT_OFFERED_DURATIONS_MINUTES: readonly number[] = [
+  ...MERCHANT_OFFERED_DURATIONS_HOURS.map((h) => h * 60),
+  ...Array.from({ length: MAX_RENTAL_DAYS }, (_, i) => (i + 1) * DAY_MINUTES),
+];
 
 export type MerchantInstantOptions =
   | { allowed: false; reason: "UPCOMING_BOOKING_TOO_SOON"; nextBookingStart: Date }
@@ -41,7 +49,7 @@ export function computeMerchantInstantOptions(
     )
     .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())[0];
 
-  const allOffered = MERCHANT_OFFERED_DURATIONS_HOURS.map((h) => h * 60);
+  const allOffered = [...MERCHANT_OFFERED_DURATIONS_MINUTES];
 
   if (!upcoming) {
     return { allowed: true, maxDurationMinutes: allOffered[allOffered.length - 1], offeredDurationsMinutes: allOffered };
@@ -95,18 +103,24 @@ export function eligibleWalkInDrones(
     .sort((a, b) => a.humanId.localeCompare(b.humanId));
 }
 
+/** How long after the paid time a walk-in's return can land: the handover comes a little after the order and the return time is rounded up to the half hour. */
+const WALKIN_RETURN_MARGIN_MINUTES = 30;
+
 /**
  * Every walk-in length (in minutes) at least one drone at the shop could take right now: what a customer scanning the shop's QR can choose from.
- * With a controller pool, a controller of that kind also has to be free for the whole length.
+ * With a controller pool, a controller of that kind also has to be free for the whole length. A length of days is offered only if the shop is
+ * open when the drone would come back (see isWithinOperatingHours), since a drone can't be returned to a closed shop.
  */
 export function walkInDurationsForShop(
   drones: readonly DroneCandidate[],
   bookings: readonly BookingWindow[],
   now: Date,
-  controllers: ControllerPool | null = null
+  controllers: ControllerPool | null = null,
+  hours: ShopHours = DEFAULT_SHOP_HOURS
 ): number[] {
-  return MERCHANT_OFFERED_DURATIONS_HOURS.map((h) => h * 60).filter(
+  return MERCHANT_OFFERED_DURATIONS_MINUTES.filter(
     (minutes) =>
+      (!isDailyMinutes(minutes) || isWithinOperatingHours(now, minutes + WALKIN_RETURN_MARGIN_MINUTES, hours)) &&
       eligibleWalkInDrones(drones, bookings, minutes, now).length > 0 &&
       (!controllers || findEligibleDrone(controllers.candidates, controllers.bookings, now, new Date(now.getTime() + minutes * 60_000)) !== null)
   );

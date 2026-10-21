@@ -4,7 +4,8 @@ import { getAuthContext } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { canAccessShop } from "@/lib/droneRental/access";
 import { eligibleDronesForRequest, getWalkInRequestById, requestController, viewOf } from "@/lib/droneRental/walkInRequests";
-import { controllerLabel, depositMyrFor, formatMyr, modelProfile, rentalFeeMyr } from "@/lib/droneRental/pricingRules";
+import { controllerLabel, depositMyrFor, formatMyr, isDailyMinutes, modelProfile, rentalFeeMyr } from "@/lib/droneRental/pricingRules";
+import { droneText } from "@/lib/i18n/drone";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
 import { WalkInButtons } from "./WalkInButtons";
 import { CashButton } from "./CashButton";
@@ -36,10 +37,10 @@ export default async function WalkInPage({ params }: { params: Promise<{ request
   const booking = bookingResult.data;
 
   const view = viewOf(request);
-  const hours = request.duration_minutes / 60;
+  const daily = isDailyMinutes(request.duration_minutes);
   const batteries = request.batteries_count === 1 ? 1 : 2;
   const controller = requestController(request);
-  const summary = `${modelProfile(request.drone_model).shortName} · ${hours} hour${hours === 1 ? "" : "s"} · ${batteries} ${batteries === 1 ? "battery" : "batteries"}${" · " + controllerLabel(request.drone_model, controller)} · ${formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model, controller))}${booking?.paid_by === "CASH" ? " in cash" : booking?.paid_by === "QR" ? " by QR" : ""} + ${formatMyr(depositMyrFor(request.drone_model, controller))} deposit hold`;
+  const summary = `${modelProfile(request.drone_model).shortName} · ${droneText("en").common.rentalLength(request.duration_minutes)} · ${daily ? droneText("en").common.batteriesAndCharger(request.batteries_count) : `${batteries} ${batteries === 1 ? "battery" : "batteries"}`}${" · " + controllerLabel(request.drone_model, controller)} · ${formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model, controller))}${booking?.paid_by === "CASH" ? " in cash" : booking?.paid_by === "QR" ? " by QR" : ""} + ${formatMyr(depositMyrFor(request.drone_model, controller))} deposit hold`;
 
   const bookingStatus = booking?.status ?? null;
   const droneOptions = view === "SUBMITTED" ? await eligibleDronesForRequest(request) : [];

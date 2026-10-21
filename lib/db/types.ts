@@ -832,10 +832,10 @@ export type WaMessageRow = {
 };
 
 /** A customer tapping a location on the shop list (SELECT), opening its page (OPEN) or asking for directions (DIRECTIONS); bookable says whether the location was open for booking then. */
-export type DrLocationEventRow = { id: string; session_id: string; shop_id: string; kind: "SELECT" | "OPEN" | "DIRECTIONS"; bookable: boolean; created_at: string };
+export type DrLocationEventRow = { id: string; session_id: string; shop_id: string; kind: "SELECT" | "OPEN" | "DIRECTIONS"; bookable: boolean; /** Two-letter country code of the visit; null when not known. */ country: string | null; created_at: string };
 
 /** One step of the drone booking flow reached by one visit (Admin > Drone Funnel). */
-export type DrFunnelEventRow = { id: string; session_id: string; step: string; shop_id: string | null; created_at: string };
+export type DrFunnelEventRow = { id: string; session_id: string; step: string; shop_id: string | null; /** Two-letter country code of the visit; null when not known. */ country: string | null; created_at: string };
 
 type TableDef<Row> = { Row: Row; Insert: Partial<Row>; Update: Partial<Row>; Relationships: [] };
 

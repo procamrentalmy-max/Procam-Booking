@@ -41,7 +41,6 @@ export default async function WalkInCustomerPage({ params }: { params: Promise<{
   }
 
   const { data: shop } = await supabase.from("dr_shops").select("name").eq("id", request.shop_id).single();
-  const hours = request.duration_minutes / 60;
   const batteries = request.batteries_count === 1 ? 1 : 2;
   const controller = requestController(request);
 
@@ -65,11 +64,11 @@ export default async function WalkInCustomerPage({ params }: { params: Promise<{
         </div>
         <div className="flex justify-between gap-4">
           <span className="text-zinc-500">{t.common.length}</span>
-          <span className="font-medium">{t.common.hours(hours)}</span>
+          <span className="font-medium">{t.common.rentalLength(request.duration_minutes)}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span className="text-zinc-500">{t.common.batteriesLabel}</span>
-          <span className="font-medium">{batteries}</span>
+          <span className="font-medium">{request.batteries_count === 3 ? t.common.batteriesAndCharger(3) : batteries}</span>
         </div>
         <div className="flex justify-between gap-4 border-t border-zinc-100 pt-1 dark:border-zinc-800">
           <span className="text-zinc-500">{t.common.rentalFee}</span>

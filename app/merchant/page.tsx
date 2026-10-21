@@ -206,7 +206,7 @@ export default async function MerchantHomePage() {
                       {ready ? `${w.customer_name} sent an order` : `Waiting for ${w.customer_name} to pay`}
                     </p>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                      {w.drone_model === "GT50" ? "GT50 · " : ""}{w.duration_minutes / 60}h · {w.batteries_count} {w.batteries_count === 1 ? "battery" : "batteries"}
+                      {w.drone_model === "GT50" ? "GT50 · " : ""}{w.duration_minutes >= 1440 ? `${w.duration_minutes / 1440} day${w.duration_minutes === 1440 ? "" : "s"}` : `${w.duration_minutes / 60}h`} · {w.batteries_count === 3 ? "3 batteries and a charger" : `${w.batteries_count} ${w.batteries_count === 1 ? "battery" : "batteries"}`}
                     </p>
                   </div>
                   <Link

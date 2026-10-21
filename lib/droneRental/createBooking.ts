@@ -154,6 +154,7 @@ export async function createMerchantInstantBooking(params: {
   const endTime = new Date(startTime.getTime() + params.durationMinutes * 60_000);
   const model = params.model ?? DEFAULT_DRONE_MODEL;
   const controller = effectiveController(model, params.controller ?? DEFAULT_CONTROLLER);
+  if (isDailyMinutes(params.durationMinutes) && !offersDaily(model, controller)) throw new InvalidDroneBookingRequestError("this drone and way of flying are not rented by the day");
 
   // The drone is the merchant's to pick; the controller is whichever one of that kind the shop has free for the whole rental.
   let controllerId: string | null = null;

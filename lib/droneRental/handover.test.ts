@@ -19,6 +19,14 @@ describe("computeHandoverWindow", () => {
     expect(w.shortenedByMinutes).toBe(0);
   });
 
+  it("starts a daily walk-in at handover and brings it back the same time of day, 24 hours per day, rounded up to the half hour", () => {
+    const twoDays = { source: "MERCHANT_INSTANT" as const, start: created, end: new Date(created.getTime() + 2 * 24 * 3600_000) };
+    const w = computeHandoverWindow({ ...twoDays, handoverAt: at("04:12"), nextStart: null });
+    expect(w.start).toEqual(at("04:12"));
+    expect(w.end).toEqual(new Date("2026-10-05T04:30:00Z")); // 04:12 + 48h = 04:12 two days on -> 04:30
+    expect(w.shortenedByMinutes).toBe(0);
+  });
+
   it("leaves a return time that already lands on a 30-minute mark alone", () => {
     const w = computeHandoverWindow({ ...walkIn, handoverAt: at("04:30"), nextStart: null });
     expect(w.end).toEqual(at("05:30"));
