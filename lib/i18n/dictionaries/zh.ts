@@ -61,9 +61,9 @@ export const zh: Dictionary = {
         { label: "最高速度", neo: "8 米/秒", neo2: "12 米/秒" },
         { label: "抗风能力", neo: "8 米/秒（4 级）", neo2: "10.7 米/秒（5 级）" },
         { label: "内置存储", neo: "22 GB", neo2: "49 GB" },
-        { label: "手机控制距离（Wi-Fi）", neo: "50 米", neo2: "500 米" },
+        { label: "手机控制距离（Wi-Fi）", neo: "30 米", neo2: "200 米" },
       ],
-      source: "规格来自 DJI 官网的 Neo 和 Neo 2 页面。",
+      source: "规格来自 DJI 官网的 Neo 和 Neo 2 页面。手机控制距离为实际使用中的预期值；DJI 自己公布的数字是在无干扰的开阔地带测得。",
     },
     fly: {
       title: "手机、遥控器或飞行眼镜",
@@ -78,8 +78,8 @@ export const zh: Dictionary = {
       extraDeposit: "押金加价",
       needsPhone: "需要您的手机",
       rows: [
-        { label: "控制距离，Neo", phone: "50 米", rc: "1 公里", goggles: "1 公里" },
-        { label: "控制距离，Neo 2", phone: "500 米", rc: "1 公里", goggles: "1 公里" },
+        { label: "控制距离，Neo", phone: "30 米", rc: "800 米", goggles: "800 米" },
+        { label: "控制距离，Neo 2", phone: "200 米", rc: "1 公里", goggles: "1 公里" },
       ],
     },
     stepsTitle: "租用流程",

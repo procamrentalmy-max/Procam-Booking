@@ -59,9 +59,9 @@ export const en = {
         { label: "Top speed", neo: "8 m/s", neo2: "12 m/s" },
         { label: "Wind resistance", neo: "8 m/s (Level 4)", neo2: "10.7 m/s (Level 5)" },
         { label: "Built-in storage", neo: "22 GB", neo2: "49 GB" },
-        { label: "Phone range (Wi-Fi)", neo: "50 m", neo2: "500 m" },
+        { label: "Phone range (Wi-Fi)", neo: "30 m", neo2: "200 m" },
       ],
-      source: "Specs from DJI's official Neo and Neo 2 pages.",
+      source: "Specs from DJI's official Neo and Neo 2 pages. Phone range is what to expect in real use; DJI's own figure is for open ground with no interference.",
     },
     fly: {
       title: "Phone, controller or goggles",
@@ -76,8 +76,8 @@ export const en = {
       extraDeposit: "Extra deposit",
       needsPhone: "Needs your phone",
       rows: [
-        { label: "Control range, Neo", phone: "50 m", rc: "1 km", goggles: "1 km" },
-        { label: "Control range, Neo 2", phone: "500 m", rc: "1 km", goggles: "1 km" },
+        { label: "Control range, Neo", phone: "30 m", rc: "800 m", goggles: "800 m" },
+        { label: "Control range, Neo 2", phone: "200 m", rc: "1 km", goggles: "1 km" },
       ],
     },
     stepsTitle: "How it works",

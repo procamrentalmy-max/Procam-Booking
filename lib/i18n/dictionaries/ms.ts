@@ -61,9 +61,9 @@ export const ms: Dictionary = {
         { label: "Kelajuan maksimum", neo: "8 m/s", neo2: "12 m/s" },
         { label: "Rintangan angin", neo: "8 m/s (Tahap 4)", neo2: "10.7 m/s (Tahap 5)" },
         { label: "Storan terbina dalam", neo: "22 GB", neo2: "49 GB" },
-        { label: "Jarak telefon (Wi-Fi)", neo: "50 m", neo2: "500 m" },
+        { label: "Jarak telefon (Wi-Fi)", neo: "30 m", neo2: "200 m" },
       ],
-      source: "Spesifikasi daripada laman rasmi DJI Neo dan Neo 2.",
+      source: "Spesifikasi daripada laman rasmi DJI Neo dan Neo 2. Jarak telefon ialah yang dijangka dalam penggunaan sebenar; angka DJI sendiri adalah untuk kawasan terbuka tanpa gangguan.",
     },
     fly: {
       title: "Telefon, alat kawalan atau gogal",
@@ -78,8 +78,8 @@ export const ms: Dictionary = {
       extraDeposit: "Tambahan deposit",
       needsPhone: "Perlukan telefon anda",
       rows: [
-        { label: "Jarak kawalan, Neo", phone: "50 m", rc: "1 km", goggles: "1 km" },
-        { label: "Jarak kawalan, Neo 2", phone: "500 m", rc: "1 km", goggles: "1 km" },
+        { label: "Jarak kawalan, Neo", phone: "30 m", rc: "800 m", goggles: "800 m" },
+        { label: "Jarak kawalan, Neo 2", phone: "200 m", rc: "1 km", goggles: "1 km" },
       ],
     },
     stepsTitle: "Cara ia berfungsi",
