@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { inputClass } from "@/components/formStyles";
 import { ENABLED_DRONE_MODELS, CONTROLLER_PROFILES, DRONE_MODEL_PROFILES, modelProfile } from "@/lib/droneRental/pricingRules";
 import { ActionForm } from "@/components/admin/ActionForm";
+import { FleetBulkMove } from "@/components/admin/FleetBulkMove";
 import {
   createDroneAction,
   createControllerAction,
@@ -71,14 +72,19 @@ export default async function FleetPage() {
         </p>
       </div>
 
+      {withFleet.length > 0 && <FleetBulkMove shopOptions={shopOptions} />}
+
       {withFleet.map((s) => {
         const sd = dronesByShop.get(s.id) ?? [];
         const sb = batteriesByShop.get(s.id) ?? [];
         const sc = controllersByShop.get(s.id) ?? [];
         return (
-          <details key={s.id} open className="rounded-2xl border border-zinc-200 dark:border-zinc-800">
+          <details key={s.id} open data-fleet-group={s.id} className="rounded-2xl border border-zinc-200 dark:border-zinc-800">
             <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2 p-4">
-              <span className="font-semibold text-black dark:text-zinc-50">{s.name}</span>
+              <span className="flex items-center gap-2 font-semibold text-black dark:text-zinc-50">
+                <input type="checkbox" data-select-all={s.id} aria-label={`Select everything at ${s.name}`} className="h-4 w-4" />
+                {s.name}
+              </span>
               <span className="flex flex-wrap items-center gap-2 text-sm text-zinc-500">
                 {plural(sd.length, "drone", "drones")} · {plural(sb.length, "battery", "batteries")} · {plural(sc.length, "controller", "controllers")}
                 <span
@@ -96,8 +102,11 @@ export default async function FleetPage() {
                   <div key={d.id} className="rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <p className="font-medium">
-                          {d.human_id} · {modelProfile(d.model_key).shortName}
+                        <p className="flex items-center gap-2 font-medium">
+                          <input type="checkbox" name="item" value={`drone:${d.id}`} form="fleet-bulk-move" aria-label={`Select ${d.human_id}`} className="h-4 w-4" />
+                          <span>
+                            {d.human_id} · {modelProfile(d.model_key).shortName}
+                          </span>
                         </p>
                         <p className="text-sm text-zinc-500">RM{d.cost_price_myr} cost</p>
                         <p className="text-sm text-zinc-500">
@@ -139,6 +148,7 @@ export default async function FleetPage() {
                 {sb.map((b) => (
                   <ActionForm key={b.id} action={assignBatteryAction} submitLabel="Save" compact className="flex flex-wrap items-center gap-2">
                     <input type="hidden" name="id" value={b.id} />
+                    <input type="checkbox" name="item" value={`battery:${b.id}`} form="fleet-bulk-move" aria-label={`Select battery ${b.name ?? b.human_id}`} className="h-4 w-4" />
                     <input name="name" defaultValue={b.name ?? b.human_id} maxLength={30} aria-label={`Name for battery ${b.human_id}`} className={`w-28 ${inputClass}`} />
                     <select name="shopId" defaultValue={b.shop_id} aria-label={`Location for battery ${b.name ?? b.human_id}`} className={inputClass}>
                       {shopOptions}
@@ -156,8 +166,11 @@ export default async function FleetPage() {
                 <h3 className="text-xs font-medium uppercase tracking-wide text-zinc-500">Controllers</h3>
                 {sc.map((c) => (
                   <div key={c.id} className="flex flex-col gap-3 rounded-xl border border-zinc-200 p-3 dark:border-zinc-800 sm:flex-row sm:items-start sm:justify-between">
-                    <p className="font-medium">
-                      {c.human_id} · {CONTROLLER_PROFILES[c.kind].name}
+                    <p className="flex items-center gap-2 font-medium">
+                      <input type="checkbox" name="item" value={`controller:${c.id}`} form="fleet-bulk-move" aria-label={`Select ${c.human_id}`} className="h-4 w-4" />
+                      <span>
+                        {c.human_id} · {CONTROLLER_PROFILES[c.kind].name}
+                      </span>
                     </p>
                     <div className="flex flex-col gap-2">
                       <ActionForm action={renameControllerAction} submitLabel="Save name" savedText="Saved." compact className="flex flex-wrap items-center gap-2">

@@ -89,25 +89,24 @@ export async function updateDroneDetailsAction(formData: FormData): Promise<Inve
 
 const moveDroneSchema = z.object({ id: uuidSchema, shopId: uuidSchema });
 
-/** Moves a drone to another shop. Refused while the drone is out or has a booking waiting, so no customer is sent to a shop that no longer has it. */
+/** Moves one drone; null when done, otherwise the reason it stayed. A drone that is out or has a booking waiting stays, so no customer is sent to a shop that no longer has it. */
+async function moveDrone(id: string, shopId: string): Promise<string | null> {
+  const supabase = await createServerSupabaseClient();
+  const { data: drone } = await supabase.from("dr_drones").select("shop_id,status").eq("id", id).maybeSingle();
+  if (!drone) return "That drone was not found.";
+  if (drone.shop_id === shopId) return null;
+  if (drone.status === "RENTED") return "This drone is out on a rental right now. Move it after it comes back.";
+  const { count } = await supabase.from("dr_bookings").select("id", { count: "exact", head: true }).eq("drone_id", id).in("status", ["PENDING_PAYMENT", "CONFIRMED", "ACTIVE"]);
+  if ((count ?? 0) > 0) return "This drone has a booking waiting. Move it after that booking is finished or cancelled.";
+  const { error } = await supabase.from("dr_drones").update({ shop_id: shopId }).eq("id", id);
+  return error ? error.message : null;
+}
+
 export async function moveDroneAction(formData: FormData): Promise<InventoryResult> {
   const parsed = moveDroneSchema.safeParse({ id: formData.get("id"), shopId: formData.get("shopId") });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
-
-  const supabase = await createServerSupabaseClient();
-  const { data: drone } = await supabase.from("dr_drones").select("shop_id,status").eq("id", parsed.data.id).maybeSingle();
-  if (!drone) return { ok: false, error: "That drone was not found." };
-  if (drone.shop_id === parsed.data.shopId) return { ok: true };
-  if (drone.status === "RENTED") return { ok: false, error: "This drone is out on a rental right now. Move it after it comes back." };
-  const { count } = await supabase
-    .from("dr_bookings")
-    .select("id", { count: "exact", head: true })
-    .eq("drone_id", parsed.data.id)
-    .in("status", ["PENDING_PAYMENT", "CONFIRMED", "ACTIVE"]);
-  if ((count ?? 0) > 0) return { ok: false, error: "This drone has a booking waiting. Move it after that booking is finished or cancelled." };
-
-  const { error } = await supabase.from("dr_drones").update({ shop_id: parsed.data.shopId }).eq("id", parsed.data.id);
-  if (error) return { ok: false, error: error.message };
+  const problem = await moveDrone(parsed.data.id, parsed.data.shopId);
+  if (problem) return { ok: false, error: problem };
   refresh();
   return { ok: true };
 }
@@ -201,25 +200,67 @@ export async function renameControllerAction(formData: FormData): Promise<Invent
 
 const moveControllerSchema = z.object({ id: uuidSchema, shopId: uuidSchema });
 
-/** Moves a controller to another shop, like a drone: refused while it is on a booking that is waiting or out, so no customer is promised one the shop no longer has. */
+/** Moves one controller, like a drone; null when done, otherwise the reason it stayed (on a booking that is waiting or out, so no customer is promised one the shop no longer has). */
+async function moveController(id: string, shopId: string): Promise<string | null> {
+  const supabase = await createServerSupabaseClient();
+  const { data: controller } = await supabase.from("dr_controllers").select("shop_id").eq("id", id).maybeSingle();
+  if (!controller) return "That controller was not found.";
+  if (controller.shop_id === shopId) return null;
+  const { count } = await supabase.from("dr_bookings").select("id", { count: "exact", head: true }).eq("controller_id", id).in("status", ["PENDING_PAYMENT", "CONFIRMED", "ACTIVE"]);
+  if ((count ?? 0) > 0) return "This controller has a booking waiting or is out on a rental. Move it after that booking is finished or cancelled.";
+  const { error } = await supabase.from("dr_controllers").update({ shop_id: shopId }).eq("id", id);
+  return error ? error.message : null;
+}
+
 export async function moveControllerAction(formData: FormData): Promise<InventoryResult> {
   const parsed = moveControllerSchema.safeParse({ id: formData.get("id"), shopId: formData.get("shopId") });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+  const problem = await moveController(parsed.data.id, parsed.data.shopId);
+  if (problem) return { ok: false, error: problem };
+  refresh();
+  return { ok: true };
+}
+
+const moveManySchema = z.object({
+  shopId: uuidSchema,
+  items: z.array(z.string().regex(/^(drone|battery|controller):[0-9a-f-]{36}$/)).min(1, "Tick at least one drone, battery or controller first"),
+});
+
+/**
+ * Moves everything ticked on the fleet page to one location. Each item follows the same rule as moving it alone; the ones that cannot move (out on a rental,
+ * a booking waiting) stay where they are and are listed by name, while the rest are moved.
+ */
+export async function moveFleetItemsAction(formData: FormData): Promise<InventoryResult> {
+  const parsed = moveManySchema.safeParse({ shopId: formData.get("shopId"), items: formData.getAll("item").map(String) });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
   const supabase = await createServerSupabaseClient();
-  const { data: controller } = await supabase.from("dr_controllers").select("shop_id").eq("id", parsed.data.id).maybeSingle();
-  if (!controller) return { ok: false, error: "That controller was not found." };
-  if (controller.shop_id === parsed.data.shopId) return { ok: true };
-  const { count } = await supabase
-    .from("dr_bookings")
-    .select("id", { count: "exact", head: true })
-    .eq("controller_id", parsed.data.id)
-    .in("status", ["PENDING_PAYMENT", "CONFIRMED", "ACTIVE"]);
-  if ((count ?? 0) > 0) return { ok: false, error: "This controller has a booking waiting or is out on a rental. Move it after that booking is finished or cancelled." };
-
-  const { error } = await supabase.from("dr_controllers").update({ shop_id: parsed.data.shopId }).eq("id", parsed.data.id);
-  if (error) return { ok: false, error: error.message };
+  const { shopId } = parsed.data;
+  let moved = 0;
+  const stayed: string[] = [];
+  for (const item of parsed.data.items) {
+    const [kind, id] = item.split(":");
+    let problem: string | null;
+    let label: string;
+    if (kind === "drone") {
+      problem = await moveDrone(id, shopId);
+      label = (await supabase.from("dr_drones").select("human_id").eq("id", id).maybeSingle()).data?.human_id ?? "a drone";
+    } else if (kind === "controller") {
+      problem = await moveController(id, shopId);
+      label = (await supabase.from("dr_controllers").select("human_id").eq("id", id).maybeSingle()).data?.human_id ?? "a controller";
+    } else {
+      const { data: battery } = await supabase.from("dr_batteries").select("name,human_id,shop_id,at_shop_id,status").eq("id", id).maybeSingle();
+      label = battery ? (battery.name ?? battery.human_id) : "a battery";
+      if (!battery) problem = "not found";
+      else if (battery.shop_id === shopId) problem = null;
+      else if (battery.status !== "AT_SHOP" || battery.at_shop_id !== battery.shop_id) problem = "not on its shelf right now";
+      else problem = (await supabase.from("dr_batteries").update({ shop_id: shopId, at_shop_id: shopId }).eq("id", id)).error?.message ?? null;
+    }
+    if (problem) stayed.push(`${label} (${problem.replace(/\.$/, "").replace(/^This (drone|controller) /, "").replace(/\. Move it after.*$/, "")})`);
+    else moved++;
+  }
   refresh();
+  if (stayed.length > 0) return { ok: false, error: `${moved > 0 ? `Moved ${moved}. ` : ""}Not moved: ${stayed.join(", ")}.` };
   return { ok: true };
 }
 

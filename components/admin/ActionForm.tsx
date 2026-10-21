@@ -11,6 +11,7 @@ type Result = { ok: true } | { ok: false; error: string };
  * instead of the page failing to load.
  */
 export function ActionForm({
+  id,
   action,
   children,
   submitLabel,
@@ -19,6 +20,8 @@ export function ActionForm({
   className = "",
   compact = false,
 }: {
+  /** Lets inputs elsewhere on the page belong to this form (their form attribute): the fleet page ticks many cards and sends them from one bar. */
+  id?: string;
   action: (formData: FormData) => Promise<Result>;
   children: ReactNode;
   submitLabel: string;
@@ -52,7 +55,7 @@ export function ActionForm({
   }
 
   return (
-    <form ref={form} onSubmit={handleSubmit} className={className}>
+    <form id={id} ref={form} onSubmit={handleSubmit} className={className}>
       {children}
       <button type="submit" disabled={isPending} className={`${primaryButtonClass} flex items-center justify-center gap-2 disabled:opacity-50`}>
         {isPending && <Spinner />}
