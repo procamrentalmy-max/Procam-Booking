@@ -1,5 +1,6 @@
+import { DAILY_RENTAL_ENABLED } from "@/lib/features";
 import { getComboPictureUrls, getLandingImageUrls, getLogoUrl, getPayQrUrl, type LandingImageSlot } from "@/lib/branding";
-import { BATTERY_OPTIONS, DRONE_MODEL_PROFILES, ENABLED_DRONE_MODELS, comboKey, controllerLabel } from "@/lib/droneRental/pricingRules";
+import { BATTERY_OPTIONS, DAILY_BATTERIES, DRONE_MODEL_PROFILES, ENABLED_DRONE_MODELS, comboKey, controllerLabel, hasDailyRate } from "@/lib/droneRental/pricingRules";
 import { inputClass, primaryButtonClass, dangerButtonClass } from "@/components/formStyles";
 import { uploadLogoAction, removeLogoAction, uploadLandingImageAction, removeLandingImageAction, uploadComboPictureAction, removeComboPictureAction, uploadPayQrAction, removePayQrAction } from "./actions";
 
@@ -21,6 +22,53 @@ export default async function BrandingPage() {
       }))
     )
   );
+
+  // The daily rental has its own kit (3 batteries and a charger), so its pictures are separate: drone x how it is flown, where a daily rate exists.
+  const dailyCombos = ENABLED_DRONE_MODELS.flatMap((model) =>
+    DRONE_MODEL_PROFILES[model].controllerOptions
+      .filter((controller) => hasDailyRate(model, controller))
+      .map((controller) => ({
+        model,
+        controller,
+        batteries: DAILY_BATTERIES as number,
+        title: `${DRONE_MODEL_PROFILES[model].shortName} · ${controllerLabel(model, controller)} · 3 batteries and a charger`,
+      }))
+  );
+
+  const comboCards = (list: { model: string; controller: string; batteries: number; title: string }[]) =>
+    list.map(({ model, controller, batteries, title }) => {
+      const url = comboUrls[comboKey(model, controller, batteries)];
+      return (
+        <div key={title} className="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+          <p className="text-sm font-medium">{title}</p>
+          {url ? (
+            // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local optimizable asset
+            <img src={url} alt={title} className="max-h-40 w-auto rounded-lg border border-zinc-200 dark:border-zinc-800" />
+          ) : (
+            <p className="text-sm text-zinc-500">No picture uploaded yet.</p>
+          )}
+          <form action={uploadComboPictureAction} className="space-y-3">
+            <input type="hidden" name="model" value={model} />
+            <input type="hidden" name="controller" value={controller} />
+            <input type="hidden" name="batteries" value={batteries} />
+            <input type="file" name="picture" accept="image/png,image/jpeg,image/webp" required className={`w-full ${inputClass}`} />
+            <button type="submit" className={primaryButtonClass}>
+              {url ? "Replace picture" : "Upload picture"}
+            </button>
+          </form>
+          {url && (
+            <form action={removeComboPictureAction}>
+              <input type="hidden" name="model" value={model} />
+              <input type="hidden" name="controller" value={controller} />
+              <input type="hidden" name="batteries" value={batteries} />
+              <button type="submit" className={dangerButtonClass}>
+                Remove picture
+              </button>
+            </form>
+          )}
+        </div>
+      );
+    });
 
   return (
     <div className="max-w-lg space-y-6 pt-4 pb-10">
@@ -135,39 +183,18 @@ export default async function BrandingPage() {
         </p>
       </div>
 
-      {combos.map(({ model, controller, batteries, title }) => {
-        const url = comboUrls[comboKey(model, controller, batteries)];
-        return (
-          <div key={title} className="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-            <p className="text-sm font-medium">{title}</p>
-            {url ? (
-              // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local optimizable asset
-              <img src={url} alt={title} className="max-h-40 w-auto rounded-lg border border-zinc-200 dark:border-zinc-800" />
-            ) : (
-              <p className="text-sm text-zinc-500">No picture uploaded yet.</p>
-            )}
-            <form action={uploadComboPictureAction} className="space-y-3">
-              <input type="hidden" name="model" value={model} />
-              <input type="hidden" name="controller" value={controller} />
-              <input type="hidden" name="batteries" value={batteries} />
-              <input type="file" name="picture" accept="image/png,image/jpeg,image/webp" required className={`w-full ${inputClass}`} />
-              <button type="submit" className={primaryButtonClass}>
-                {url ? "Replace picture" : "Upload picture"}
-              </button>
-            </form>
-            {url && (
-              <form action={removeComboPictureAction}>
-                <input type="hidden" name="model" value={model} />
-                <input type="hidden" name="controller" value={controller} />
-                <input type="hidden" name="batteries" value={batteries} />
-                <button type="submit" className={dangerButtonClass}>
-                  Remove picture
-                </button>
-              </form>
-            )}
-          </div>
-        );
-      })}
+      {comboCards(combos)}
+
+      <div className="border-t border-zinc-200 pt-6 dark:border-zinc-800">
+        <h2 className="text-lg font-semibold">Daily rental pictures</h2>
+        {!DAILY_RENTAL_ENABLED && <p className="mt-1 rounded-lg border border-amber-300 bg-amber-50 p-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">Renting by the day is switched off for now, so customers do not see these pictures yet. You can still upload them.</p>}
+        <p className="text-sm text-zinc-500">
+          The daily rental comes with 3 batteries and a charger, so it has its own pictures: one for each drone and way of flying (the Goggles set is hourly only). It shows on the booking page, the shop QR order page and the price picker on the home page when
+          a customer chooses By the day, with the deposit under it. Show the drone with its 3 batteries and the charger. A combination with no picture shows just the deposit.
+        </p>
+      </div>
+
+      {comboCards(dailyCombos)}
     </div>
   );
 }

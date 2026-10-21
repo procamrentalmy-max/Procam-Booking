@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// These tests are about how renting by the day works, so they run with it switched on (lib/features.ts has it off for now; dailyOff.test.ts covers the off state).
+vi.mock("@/lib/features", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/features")>()), DAILY_RENTAL_ENABLED: true }));
 import { packageQuery, parsePackagePreset } from "./packagePreset";
 
 describe("package carried from the landing page", () => {

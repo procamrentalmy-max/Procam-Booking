@@ -1,9 +1,11 @@
 import { faqEn, faqMs, faqZh } from "./faq";
 import { DEFAULT_LOCALE, type Locale } from "./locale";
-import { DRONE_ID_CHECK_ENABLED } from "@/lib/features";
+import { DAILY_RENTAL_ENABLED, DRONE_ID_CHECK_ENABLED } from "@/lib/features";
 
 /** The text with the online ID check (on) or without it (off): see DRONE_ID_CHECK_ENABLED in lib/features.ts. */
 const idc = (on: string, off: string) => (DRONE_ID_CHECK_ENABLED ? on : off);
+/** A part of a sentence that is only there while renting by the day is switched on (DAILY_RENTAL_ENABLED in lib/features.ts). */
+const daily = (text: string) => (DAILY_RENTAL_ENABLED ? text : "");
 
 /**
  * The Terms, Refund & Cancellation, Privacy and Contact pages, in English, Bahasa Melayu and Chinese. English is the master and
@@ -48,7 +50,7 @@ export const legalEn = {
         blocks: [
           {
             ul: [
-              "All prices are in Malaysian Ringgit (MYR). The price you see on the booking page before you pay is the price you pay: the hourly rate for the drone you choose, plus the controller if you add one, plus the battery option (or, if you rent by the day, the daily price with the batteries and charger included).",
+              "All prices are in Malaysian Ringgit (MYR). The price you see on the booking page before you pay is the price you pay: the hourly rate for the drone you choose, plus the controller if you add one, plus the battery option" + daily(" (or, if you rent by the day, the daily price with the batteries and charger included)") + ".",
               "An online booking is only confirmed once your card payment has gone through. Until then no drone is held for you.",
               "If two people pay for the same last drone, the first payment wins. The other person is refunded in full automatically and is asked to choose another time.",
               "Walk-in rentals at a shop can be paid by card, or the rental fee can be paid in cash at the shop. A card is always needed for the deposit.",
@@ -357,7 +359,7 @@ export const legalMs: LegalText = {
         blocks: [
           {
             ul: [
-              "Semua harga adalah dalam Ringgit Malaysia (MYR). Harga yang anda lihat pada halaman tempahan sebelum membayar ialah harga yang anda bayar: kadar sejam untuk dron yang anda pilih, ditambah alat kawalan jika anda menambahnya, ditambah pilihan bateri (atau, jika anda menyewa ikut hari, harga harian termasuk bateri dan pengecas).",
+              "Semua harga adalah dalam Ringgit Malaysia (MYR). Harga yang anda lihat pada halaman tempahan sebelum membayar ialah harga yang anda bayar: kadar sejam untuk dron yang anda pilih, ditambah alat kawalan jika anda menambahnya, ditambah pilihan bateri" + daily(" (atau, jika anda menyewa ikut hari, harga harian termasuk bateri dan pengecas)") + ".",
               "Tempahan dalam talian hanya disahkan selepas bayaran kad anda berjaya. Sebelum itu tiada dron disimpan untuk anda.",
               "Jika dua orang membayar untuk dron terakhir yang sama, bayaran pertama menang. Orang lain dikembalikan wangnya sepenuhnya secara automatik dan diminta memilih masa lain.",
               "Sewaan walk-in di kedai boleh dibayar dengan kad, atau yuran sewa boleh dibayar secara tunai di kedai. Kad sentiasa diperlukan untuk deposit.",
@@ -664,7 +666,7 @@ export const legalZh: LegalText = {
         blocks: [
           {
             ul: [
-              "所有价格均以马来西亚令吉（MYR）计算。您付款前在预订页面看到的价格就是您要付的价格：所选无人机的每小时租金，加上您添加的遥控器，再加上电池选项（若按天租，则为含电池和充电器的每日价格）。",
+              "所有价格均以马来西亚令吉（MYR）计算。您付款前在预订页面看到的价格就是您要付的价格：所选无人机的每小时租金，加上您添加的遥控器，再加上电池选项" + daily("（若按天租，则为含电池和充电器的每日价格）") + "。",
               "网上预订只有在您的刷卡付款成功后才算确认，在此之前我们不会为您保留无人机。",
               "如果两个人为同一台最后的无人机付款，先付款者得到。另一位会自动全额退款，并请他们选择其他时间。",
               "在门店现场租用可以刷卡付款，也可以在门店以现金支付租金。押金始终需要用银行卡。",

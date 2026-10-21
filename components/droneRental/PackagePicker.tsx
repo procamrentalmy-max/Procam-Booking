@@ -67,7 +67,7 @@ export function PackagePicker({ locale, pictures, text, tables }: { locale: Loca
             <ComboCard
               onDark
               locale={locale}
-              pictureUrl={pictures[comboKey(model, controller, byDay ? DEFAULT_BATTERIES : (batteries ?? DEFAULT_BATTERIES))]}
+              pictureUrl={pictures[comboKey(model, controller, byDay ? DAILY_BATTERIES : (batteries ?? DEFAULT_BATTERIES))]}
               depositMyr={depositMyrFor(model, controller)}
               alt={`${DRONE_MODEL_PROFILES[model].shortName}, ${controllerName(model, controller)}`}
             />

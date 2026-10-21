@@ -303,7 +303,7 @@ export function DroneBookingWizard({
 
         <ComboCard
           locale={locale}
-          pictureUrl={pictures[comboKey(model, controller, batteries)]}
+          pictureUrl={pictures[comboKey(model, controller, byDay ? DAILY_BATTERIES : batteries)]}
           depositMyr={deposit}
           alt={`${profile.shortName}, ${controllerName(controller)}${byDay ? "" : `, ${t.common.batteries(batteries)}`}`}
         />

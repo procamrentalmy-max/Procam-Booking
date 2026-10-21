@@ -1,3 +1,5 @@
+import { DAILY_RENTAL_ENABLED } from "@/lib/features";
+
 /**
  * Single source of truth for the drone rental vertical's pricing/scheduling
  * constants. Flat constants rather than an admin-editable table (unlike
@@ -279,9 +281,14 @@ export function dailyRateFor(model: string | null | undefined, controller: Contr
   return kind === "NONE" || kind === "RC_N3" ? rates[kind] : null;
 }
 
-/** Whether this drone with this way of flying can be rented by the day at all. */
-export function offersDaily(model: string | null | undefined, controller: ControllerKind = DEFAULT_CONTROLLER): boolean {
+/** Whether this drone with this way of flying has a daily rate at all (whether or not renting by the day is switched on). */
+export function hasDailyRate(model: string | null | undefined, controller: ControllerKind = DEFAULT_CONTROLLER): boolean {
   return dailyRateFor(model, controller) !== null;
+}
+
+/** Whether a customer can rent this drone by the day with this way of flying right now: it has a daily rate and renting by the day is switched on (DAILY_RENTAL_ENABLED in lib/features.ts). */
+export function offersDaily(model: string | null | undefined, controller: ControllerKind = DEFAULT_CONTROLLER): boolean {
+  return DAILY_RENTAL_ENABLED && hasDailyRate(model, controller);
 }
 
 const round2Fee = (n: number) => Math.round(n * 100) / 100;

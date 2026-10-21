@@ -41,3 +41,11 @@ export function lockerGate(pathname: string): "pass" | "paused" | "admin-home" |
  * keys and the ID-check texts are all still there).
  */
 export const DRONE_ID_CHECK_ENABLED = false;
+
+/**
+ * Renting by the day (1 to 3 days, 3 batteries and a charger included). Switched off: customers can only choose hours, on the home page, the booking page and
+ * the shop QR order page; a daily booking is refused if one is sent anyway; the FAQ and the price line in the Terms say nothing about it. Bookings already
+ * made by the day still work to the end (pickup, return, prices), and the daily prices, pictures and texts are all still there. Setting this back to true
+ * brings it back exactly as it was.
+ */
+export const DAILY_RENTAL_ENABLED = false;

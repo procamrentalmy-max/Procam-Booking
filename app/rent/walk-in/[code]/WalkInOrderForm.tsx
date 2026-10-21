@@ -14,6 +14,7 @@ import {
   DEFAULT_BATTERIES,
   DRONE_MODEL_PROFILES,
   ENABLED_DRONE_MODELS,
+  DAILY_BATTERIES,
   DAY_MINUTES,
   MULTI_DAY_DISCOUNT_PERCENT,
   comboKey,
@@ -178,7 +179,7 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false,
 
       <ComboCard
         locale={locale}
-        pictureUrl={pictures[comboKey(model, controller, batteries)]}
+        pictureUrl={pictures[comboKey(model, controller, byDay ? DAILY_BATTERIES : batteries)]}
         depositMyr={depositMyrFor(model, controller)}
         alt={`${profile.shortName}, ${controller === "NONE" ? t.common.phoneOnly : controllerLabel(model, controller)}${byDay ? "" : `, ${t.common.batteries(batteries)}`}`}
       />

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getAuthContext, isAdmin } from "@/lib/auth/session";
 import { BRANDING_BUCKET, LANDING_IMAGE_COLUMN, LANDING_IMAGE_SLOTS, type LandingImageSlot } from "@/lib/branding";
-import { ENABLED_DRONE_MODELS, comboKey, isControllerKind } from "@/lib/droneRental/pricingRules";
+import { DAILY_BATTERIES, ENABLED_DRONE_MODELS, comboKey, hasDailyRate, isControllerKind } from "@/lib/droneRental/pricingRules";
 
 const ALLOWED_TYPES: Record<string, string> = {
   "image/png": "png",
@@ -159,7 +159,9 @@ function comboOf(formData: FormData) {
   const batteries = Number(formData.get("batteries"));
   if (!(ENABLED_DRONE_MODELS as readonly string[]).includes(model)) throw new Error("Unknown drone.");
   if (!isControllerKind(controller)) throw new Error("Unknown controller.");
-  if (batteries !== 1 && batteries !== 2) throw new Error("Unknown battery choice.");
+  // 1 and 2 are the hourly battery choices; 3 is the daily rental (3 batteries and a charger), only with a way of flying that has a daily rate.
+  if (batteries !== 1 && batteries !== 2 && batteries !== DAILY_BATTERIES) throw new Error("Unknown battery choice.");
+  if (batteries === DAILY_BATTERIES && !hasDailyRate(model, controller)) throw new Error("That drone and way of flying are not rented by the day.");
   return { model, controller, batteries };
 }
 
