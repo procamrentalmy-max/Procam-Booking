@@ -43,28 +43,46 @@ export async function createDroneAction(formData: FormData): Promise<InventoryRe
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
   const supabase = await createServerSupabaseClient();
-  const { error } = await supabase.from("dr_drones").insert({
-    shop_id: parsed.data.shopId,
-    model_key: parsed.data.model,
-    model: DRONE_MODEL_PROFILES[parsed.data.model].name,
-    serial_number: parsed.data.serialNumber || null,
-    dji_account: parsed.data.djiAccount || null,
-    cost_price_myr: parsed.data.costPriceMyr,
-  });
+  // The next automatic name (DRN-008...) may have been given to another drone by hand: the counter moves on with each try, so a clash is skipped.
+  let error: { code?: string; message: string } | null = null;
+  for (let attempt = 0; attempt < 30; attempt++) {
+    ({ error } = await supabase.from("dr_drones").insert({
+      shop_id: parsed.data.shopId,
+      model_key: parsed.data.model,
+      model: DRONE_MODEL_PROFILES[parsed.data.model].name,
+      serial_number: parsed.data.serialNumber || null,
+      dji_account: parsed.data.djiAccount || null,
+      cost_price_myr: parsed.data.costPriceMyr,
+    }));
+    if (error?.code !== "23505") break;
+  }
   if (error) return { ok: false, error: error.message };
   refresh();
   return { ok: true };
 }
 
-const droneDetailsSchema = z.object({ id: uuidSchema, serialNumber: z.string().trim().max(60), djiAccount: z.string().trim().max(60) });
+const nameSchema = z.string().trim().min(1, "Enter a name").max(30, "Keep the name to 30 characters or fewer");
 
-/** A drone's serial number and the DJI account it is bound to: for the admin's own records, so they are on the drone's card and not only in a spreadsheet. */
-export async function updateDroneDetailsAction(formData: FormData): Promise<InventoryResult> {
-  const parsed = droneDetailsSchema.safeParse({ id: formData.get("id"), serialNumber: formData.get("serialNumber") ?? "", djiAccount: formData.get("djiAccount") ?? "" });
-  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+/** A drone or controller name is its label everywhere (DRN-001, CTR-001...) and must be different from every other one of its kind, whatever the capital letters. */
+async function nameTaken(table: "dr_drones" | "dr_controllers", id: string, name: string): Promise<boolean> {
   const supabase = await createServerSupabaseClient();
-  const { error } = await supabase.from("dr_drones").update({ serial_number: parsed.data.serialNumber || null, dji_account: parsed.data.djiAccount || null }).eq("id", parsed.data.id);
-  if (error) return { ok: false, error: error.message };
+  const { data } = await supabase.from(table).select("id,human_id").neq("id", id);
+  return (data ?? []).some((r) => r.human_id.toLowerCase() === name.toLowerCase());
+}
+
+const droneDetailsSchema = z.object({ id: uuidSchema, name: nameSchema, serialNumber: z.string().trim().max(60), djiAccount: z.string().trim().max(60) });
+
+/** A drone's name, serial number and the DJI account it is bound to: for the admin's own records, so they are on the drone's card and not only in a spreadsheet. */
+export async function updateDroneDetailsAction(formData: FormData): Promise<InventoryResult> {
+  const parsed = droneDetailsSchema.safeParse({ id: formData.get("id"), name: formData.get("name"), serialNumber: formData.get("serialNumber") ?? "", djiAccount: formData.get("djiAccount") ?? "" });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+  if (await nameTaken("dr_drones", parsed.data.id, parsed.data.name)) return { ok: false, error: `Another drone is already called ${parsed.data.name}: every drone needs its own name.` };
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase
+    .from("dr_drones")
+    .update({ human_id: parsed.data.name, serial_number: parsed.data.serialNumber || null, dji_account: parsed.data.djiAccount || null })
+    .eq("id", parsed.data.id);
+  if (error) return { ok: false, error: error.code === "23505" ? `Another drone is already called ${parsed.data.name}: every drone needs its own name.` : error.message };
   refresh();
   return { ok: true };
 }
@@ -156,7 +174,50 @@ export async function createControllerAction(formData: FormData): Promise<Invent
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
   const supabase = await createServerSupabaseClient();
-  const { error } = await supabase.from("dr_controllers").insert({ shop_id: parsed.data.shopId, kind: parsed.data.kind });
+  // Same as a drone: an automatic name that was given to another controller by hand is skipped.
+  let error: { code?: string; message: string } | null = null;
+  for (let attempt = 0; attempt < 30; attempt++) {
+    ({ error } = await supabase.from("dr_controllers").insert({ shop_id: parsed.data.shopId, kind: parsed.data.kind }));
+    if (error?.code !== "23505") break;
+  }
+  if (error) return { ok: false, error: error.message };
+  refresh();
+  return { ok: true };
+}
+
+const renameControllerSchema = z.object({ id: uuidSchema, name: nameSchema });
+
+/** A controller's name (CTR-001 until the admin changes it). */
+export async function renameControllerAction(formData: FormData): Promise<InventoryResult> {
+  const parsed = renameControllerSchema.safeParse({ id: formData.get("id"), name: formData.get("name") });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+  if (await nameTaken("dr_controllers", parsed.data.id, parsed.data.name)) return { ok: false, error: `Another controller is already called ${parsed.data.name}: every controller needs its own name.` };
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.from("dr_controllers").update({ human_id: parsed.data.name }).eq("id", parsed.data.id);
+  if (error) return { ok: false, error: error.code === "23505" ? `Another controller is already called ${parsed.data.name}: every controller needs its own name.` : error.message };
+  refresh();
+  return { ok: true };
+}
+
+const moveControllerSchema = z.object({ id: uuidSchema, shopId: uuidSchema });
+
+/** Moves a controller to another shop, like a drone: refused while it is on a booking that is waiting or out, so no customer is promised one the shop no longer has. */
+export async function moveControllerAction(formData: FormData): Promise<InventoryResult> {
+  const parsed = moveControllerSchema.safeParse({ id: formData.get("id"), shopId: formData.get("shopId") });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const supabase = await createServerSupabaseClient();
+  const { data: controller } = await supabase.from("dr_controllers").select("shop_id").eq("id", parsed.data.id).maybeSingle();
+  if (!controller) return { ok: false, error: "That controller was not found." };
+  if (controller.shop_id === parsed.data.shopId) return { ok: true };
+  const { count } = await supabase
+    .from("dr_bookings")
+    .select("id", { count: "exact", head: true })
+    .eq("controller_id", parsed.data.id)
+    .in("status", ["PENDING_PAYMENT", "CONFIRMED", "ACTIVE"]);
+  if ((count ?? 0) > 0) return { ok: false, error: "This controller has a booking waiting or is out on a rental. Move it after that booking is finished or cancelled." };
+
+  const { error } = await supabase.from("dr_controllers").update({ shop_id: parsed.data.shopId }).eq("id", parsed.data.id);
   if (error) return { ok: false, error: error.message };
   refresh();
   return { ok: true };

@@ -7,6 +7,8 @@ import {
   createDroneAction,
   createControllerAction,
   deleteControllerAction,
+  moveControllerAction,
+  renameControllerAction,
   setDroneStatusAction,
   moveDroneAction,
   updateDroneDetailsAction,
@@ -105,6 +107,7 @@ export default async function FleetPage() {
                       <div className="flex flex-col gap-2">
                         <ActionForm action={updateDroneDetailsAction} submitLabel="Save details" savedText="Saved." compact className="flex flex-wrap items-center gap-2">
                           <input type="hidden" name="id" value={d.id} />
+                          <input name="name" defaultValue={d.human_id} required maxLength={30} placeholder="Name" aria-label={`Name of ${d.human_id}`} className={`w-28 ${inputClass}`} />
                           <input name="serialNumber" defaultValue={d.serial_number ?? ""} maxLength={60} placeholder="Serial number" aria-label={`Serial number of ${d.human_id}`} className={`w-36 ${inputClass}`} />
                           <input name="djiAccount" defaultValue={d.dji_account ?? ""} maxLength={60} placeholder="DJI account, e.g. procam1" aria-label={`DJI account of ${d.human_id}`} className={`w-44 ${inputClass}`} />
                         </ActionForm>
@@ -152,13 +155,25 @@ export default async function FleetPage() {
               <div className="space-y-2">
                 <h3 className="text-xs font-medium uppercase tracking-wide text-zinc-500">Controllers</h3>
                 {sc.map((c) => (
-                  <div key={c.id} className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">
-                    <p className="text-sm">
-                      <span className="font-medium">{c.human_id}</span> · {CONTROLLER_PROFILES[c.kind].name}
+                  <div key={c.id} className="flex flex-col gap-3 rounded-xl border border-zinc-200 p-3 dark:border-zinc-800 sm:flex-row sm:items-start sm:justify-between">
+                    <p className="font-medium">
+                      {c.human_id} · {CONTROLLER_PROFILES[c.kind].name}
                     </p>
-                    <ActionForm action={deleteControllerAction} submitLabel="Remove" savedText="Removed." compact className="flex items-center gap-2">
-                      <input type="hidden" name="id" value={c.id} />
-                    </ActionForm>
+                    <div className="flex flex-col gap-2">
+                      <ActionForm action={renameControllerAction} submitLabel="Save name" savedText="Saved." compact className="flex flex-wrap items-center gap-2">
+                        <input type="hidden" name="id" value={c.id} />
+                        <input name="name" defaultValue={c.human_id} required maxLength={30} aria-label={`Name of ${c.human_id}`} className={`w-28 ${inputClass}`} />
+                      </ActionForm>
+                      <ActionForm action={moveControllerAction} submitLabel="Move" savedText="Moved." compact className="flex flex-wrap items-center gap-2">
+                        <input type="hidden" name="id" value={c.id} />
+                        <select name="shopId" defaultValue={c.shop_id} aria-label={`Location for ${c.human_id}`} className={inputClass}>
+                          {shopOptions}
+                        </select>
+                      </ActionForm>
+                      <ActionForm action={deleteControllerAction} submitLabel="Remove" savedText="Removed." compact className="flex items-center gap-2">
+                        <input type="hidden" name="id" value={c.id} />
+                      </ActionForm>
+                    </div>
                   </div>
                 ))}
                 {sc.length === 0 && <p className="text-sm text-zinc-400">No controllers here: customers can only fly from their own phone.</p>}
