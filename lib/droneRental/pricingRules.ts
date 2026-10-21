@@ -92,6 +92,8 @@ export type DroneModelProfile = {
   batteryPrefix: string;
   /** Per hour booked without a controller, and also the late fee per hour without one. */
   hourlyRateMyr: number;
+  /** What one day costs (see DAILY_RENTAL below): phone only, and with the RC-N3. Null when this drone is only rented by the hour. */
+  dailyRateMyr: { NONE: number; RC_N3: number } | null;
   /** What each battery choice costs, and also the price of swapping that many mid-rental. */
   batteryFeeMyr: Record<BatteryCount, number>;
   depositDroneMyr: number;
@@ -111,6 +113,7 @@ export const DRONE_MODEL_PROFILES: Record<DroneModel, DroneModelProfile> = {
     controllerOptions: ["NONE", "RC_N3", "GOGGLES_N3"],
     batteryPrefix: "B",
     hourlyRateMyr: HOURLY_RATE_MYR,
+    dailyRateMyr: { NONE: 98, RC_N3: 128 },
     batteryFeeMyr: BATTERY_PACKAGE_FEE_MYR,
     depositDroneMyr: 700,
     photosRequired: true,
@@ -124,6 +127,7 @@ export const DRONE_MODEL_PROFILES: Record<DroneModel, DroneModelProfile> = {
     controllerOptions: ["NONE", "RC_N3", "GOGGLES_N3"],
     batteryPrefix: "N",
     hourlyRateMyr: HOURLY_RATE_MYR - 1,
+    dailyRateMyr: { NONE: 98, RC_N3: 128 },
     batteryFeeMyr: { 1: BATTERY_PACKAGE_FEE_MYR[1] - 1, 2: BATTERY_PACKAGE_FEE_MYR[2] - 1 },
     depositDroneMyr: 600,
     photosRequired: true,
@@ -138,6 +142,7 @@ export const DRONE_MODEL_PROFILES: Record<DroneModel, DroneModelProfile> = {
     controllerOverrides: { RC_N3: { name: "Controller", shortName: "Controller", hourlyMyr: 0, depositMyr: 50 } },
     batteryPrefix: "A",
     hourlyRateMyr: 7,
+    dailyRateMyr: null,
     batteryFeeMyr: { 1: 5, 2: 8 },
     depositDroneMyr: 100,
     photosRequired: true,
@@ -223,25 +228,109 @@ export const BATTERY_FLIGHT_MINUTES_MAX = 15;
 /** The same figures for what a customer actually starts with, ready to show: 1 battery ~12–15 min, 2 batteries ~25–30 min. */
 export const BATTERY_FLIGHT_LABEL: Record<BatteryCount, string> = { 1: "12–15", 2: "25–30" };
 
-/** "RM1,300" — thousands separator so a four-digit deposit stays readable. */
+/** "RM1,300" — thousands separator so a four-digit deposit stays readable; "RM176.40" when there are cents. */
 export function formatMyr(amount: number): string {
-  return `RM${amount.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+  // Whole amounts have no cents (RM98), and an amount with cents always shows two (RM176.40, not RM176.4).
+  return `RM${amount.toLocaleString("en-US", { minimumFractionDigits: Number.isInteger(amount) ? 0 : 2, maximumFractionDigits: 2 })}`;
 }
 
-/** The lengths an online customer can book: whole hours, 1 to 6. Checked on the server too, since a form can be posted with anything. */
+/** The lengths an online customer can book by the hour: whole hours, 1 to 6. Checked on the server too, since a form can be posted with anything. */
 export const MIN_RENTAL_HOURS = 1;
 export const MAX_RENTAL_HOURS = 6;
+
+/**
+ * Renting by the day instead of the hour. A day is 24 hours from the pickup time (picked up at 10:00, back by 10:00 the next day, 10:00
+ * two days on...), 1 to 3 days. It comes with 3 batteries and a charger, so there is no battery choice and nothing to add for them.
+ * Each day is the drone's daily rate (see dailyRateMyr in DRONE_MODEL_PROFILES: RM98 phone only, RM128 with the RC-N3; the goggles set is
+ * hourly only), and the whole booking gets 10% off for every extra day: 2 days is 10% off, 3 days 20% off. The deposit is the same as
+ * for an hourly rental and a late return is still billed by the hour.
+ *
+ * Whether a booking is hourly or daily is not stored on it: a length of a whole number of days is daily, and an hourly rental is never longer than 6 hours.
+ */
+export const DAY_MINUTES = 24 * 60;
+export const MAX_RENTAL_DAYS = 3;
+export const DAILY_BATTERIES = 3;
+export const MULTI_DAY_DISCOUNT_PERCENT = 10;
+
+/** Whether this length is a daily rental: a whole number of days, 1 to MAX_RENTAL_DAYS. */
+export function isDailyMinutes(minutes: number): boolean {
+  return Number.isInteger(minutes) && minutes >= DAY_MINUTES && minutes <= MAX_RENTAL_DAYS * DAY_MINUTES && minutes % DAY_MINUTES === 0;
+}
+
+export function rentalDays(minutes: number): number {
+  return Math.round(minutes / DAY_MINUTES);
+}
+
+/** Whether a stored booking is a daily rental: only a daily rental goes out with 3 batteries (an hourly one never has more than 2). */
+export function isDailyBooking(booking: { batteries_count: number }): boolean {
+  return booking.batteries_count === DAILY_BATTERIES;
+}
+
+/** How many batteries go out with a rental of this length: the chosen ones by the hour, always 3 by the day. */
+export function batteriesFor(minutes: number, chosen: BatteryCount): number {
+  return isDailyMinutes(minutes) ? DAILY_BATTERIES : chosen;
+}
+
+/** Whether a drone can be rented by the day with this way of flying: phone only or the RC-N3, never the goggles set. Null when the drone has no daily rate. */
+export function dailyRateFor(model: string | null | undefined, controller: ControllerKind = DEFAULT_CONTROLLER): number | null {
+  const rates = modelProfile(model).dailyRateMyr;
+  if (!rates) return null;
+  const kind = effectiveController(model, controller);
+  return kind === "NONE" || kind === "RC_N3" ? rates[kind] : null;
+}
+
+/** Whether this drone with this way of flying can be rented by the day at all. */
+export function offersDaily(model: string | null | undefined, controller: ControllerKind = DEFAULT_CONTROLLER): boolean {
+  return dailyRateFor(model, controller) !== null;
+}
+
+const round2Fee = (n: number) => Math.round(n * 100) / 100;
+
+/** The whole price of a daily rental: every day at the daily rate, less 10% for every extra day (2 days -10%, 3 days -20%). Null when this drone and way of flying has no daily rate. */
+export function dailyFeeMyr(days: number, model: string | null | undefined, controller: ControllerKind = DEFAULT_CONTROLLER): number | null {
+  const perDay = dailyRateFor(model, controller);
+  if (perDay === null || !Number.isInteger(days) || days < 1) return null;
+  return round2Fee(days * perDay * (1 - ((days - 1) * MULTI_DAY_DISCOUNT_PERCENT) / 100));
+}
+
+/** What the extra days save, in ringgit, against paying the full daily rate for each. */
+export function dailySavingMyr(days: number, model: string | null | undefined, controller: ControllerKind = DEFAULT_CONTROLLER): number {
+  const perDay = dailyRateFor(model, controller);
+  const fee = dailyFeeMyr(days, model, controller);
+  return perDay === null || fee === null ? 0 : round2Fee(days * perDay - fee);
+}
+
+export type DailyBreakdown = { days: number; perDayMyr: number; /** Every day at the full daily rate. */ fullMyr: number; percent: number; savingMyr: number; totalMyr: number };
+
+/** How a multi-day price is made up, to show under the total: the days at the daily rate, the discount, the total. Null for an hourly rental, one day, or a drone with no daily rate (nothing to show). */
+export function dailyBreakdown(minutes: number, model: string | null | undefined, controller: ControllerKind = DEFAULT_CONTROLLER): DailyBreakdown | null {
+  if (!isDailyMinutes(minutes) || minutes < 2 * DAY_MINUTES) return null;
+  const days = rentalDays(minutes);
+  const perDay = dailyRateFor(model, controller);
+  const total = dailyFeeMyr(days, model, controller);
+  if (perDay === null || total === null) return null;
+  return { days, perDayMyr: perDay, fullMyr: round2Fee(days * perDay), percent: (days - 1) * MULTI_DAY_DISCOUNT_PERCENT, savingMyr: dailySavingMyr(days, model, controller), totalMyr: total };
+}
+
 export function isValidRentalMinutes(minutes: number): boolean {
+  if (isDailyMinutes(minutes)) return true;
   return Number.isInteger(minutes) && minutes % 60 === 0 && minutes >= MIN_RENTAL_HOURS * 60 && minutes <= MAX_RENTAL_HOURS * 60;
 }
 
-/** Rental fee: the model's hourly rate for every hour (a partial hour counts as a full one) plus the price of the chosen batteries. */
+/**
+ * Rental fee. By the hour: the model's hourly rate for every hour (a partial hour counts as a full one) plus the price of the chosen batteries.
+ * By the day (a whole number of days): the daily price, with the batteries included.
+ */
 export function rentalFeeMyr(
   durationMinutes: number,
   batteries: BatteryCount = DEFAULT_BATTERIES,
   model: string | null | undefined = DEFAULT_DRONE_MODEL,
   controller: ControllerKind = DEFAULT_CONTROLLER,
 ): number {
+  if (isDailyMinutes(durationMinutes)) {
+    const daily = dailyFeeMyr(rentalDays(durationMinutes), model, controller);
+    if (daily !== null) return daily;
+  }
   const hours = Math.ceil(durationMinutes / 60);
   if (hours <= 0) return 0;
   const profile = modelProfile(model);

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { controllerProfileFor, includesController, modelProfile, storedController } from "@/lib/droneRental/pricingRules";
+import { controllerProfileFor, includesController, isDailyBooking, modelProfile, storedController } from "@/lib/droneRental/pricingRules";
 import { checklistForRental } from "@/lib/droneRental/checklist";
 import { batteryLabel } from "@/lib/droneRental/format";
 import { ReturnForm } from "./ReturnForm";
@@ -15,6 +15,7 @@ export default async function MerchantReturnPage({ params }: { params: Promise<{
   const controller = storedController(booking.drone_model, booking.controller_kind);
   const withController = includesController(booking.drone_model, controller);
   const controllerProfile = controllerProfileFor(booking.drone_model, controller);
+  const daily = isDailyBooking(booking);
 
   const [{ data: customer }, { data: drone }, { data: items }, { data: hold }, { data: heldBatteries }, { data: controllerUnit }] = await Promise.all([
     supabase.from("customers").select("name,phone").eq("id", booking.customer_id).single(),
@@ -40,13 +41,13 @@ export default async function MerchantReturnPage({ params }: { params: Promise<{
         )}
         {booking.status === "ACTIVE" && (heldBatteries ?? []).length > 0 && (
           <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-            Take back: <span className="font-semibold text-black dark:text-zinc-50">{(heldBatteries ?? []).map(batteryLabel).join(" and ")}</span>
+            Take back: <span className="font-semibold text-black dark:text-zinc-50">{[...(heldBatteries ?? []).map(batteryLabel), ...(daily ? ["the charger"] : [])].join(", ").replace(/, ([^,]*)$/, " and $1")}</span>
           </p>
         )}
       </div>
       <ReturnForm
         bookingId={booking.id}
-        checklistItems={checklistForRental(items ?? [], controller)}
+        checklistItems={checklistForRental(items ?? [], controller, daily)}
         disabled={booking.status !== "ACTIVE"}
         holdOnFile={hold?.status === "AUTHORIZED"}
         model={profile.key}

@@ -3,13 +3,27 @@ import { packageQuery, parsePackagePreset } from "./packagePreset";
 
 describe("package carried from the landing page", () => {
   it("reads a real package", () => {
-    expect(parsePackagePreset({ drone: "NEO2", fly: "RC_N3", batteries: "2", hours: "3" })).toEqual({ model: "NEO2", controller: "RC_N3", batteries: 2, hours: 3 });
-    expect(parsePackagePreset({ drone: "NEO", fly: "NONE", batteries: "1", hours: "1" })).toEqual({ model: "NEO", controller: "NONE", batteries: 1, hours: 1 });
+    expect(parsePackagePreset({ drone: "NEO2", fly: "RC_N3", batteries: "2", hours: "3" })).toEqual({ model: "NEO2", controller: "RC_N3", batteries: 2, minutes: 180 });
+    expect(parsePackagePreset({ drone: "NEO", fly: "NONE", batteries: "1", hours: "1" })).toEqual({ model: "NEO", controller: "NONE", batteries: 1, minutes: 60 });
   });
 
   it("round-trips through the address", () => {
-    const p = { model: "NEO2", controller: "GOGGLES_N3", batteries: 1, hours: 6 } as const;
+    const p = { model: "NEO2", controller: "GOGGLES_N3", batteries: 1, minutes: 360 } as const;
     expect(parsePackagePreset(Object.fromEntries(new URLSearchParams(packageQuery(p))))).toEqual(p);
+  });
+
+  it("reads a daily package, which needs no battery choice", () => {
+    expect(parsePackagePreset({ drone: "NEO2", fly: "RC_N3", days: "2" })).toEqual({ model: "NEO2", controller: "RC_N3", batteries: 2, minutes: 2 * 1440 });
+    const p = { model: "NEO2", controller: "NONE", batteries: 2, minutes: 3 * 1440 } as const;
+    expect(packageQuery(p)).toContain("days=3");
+    expect(parsePackagePreset(Object.fromEntries(new URLSearchParams(packageQuery(p))))).toEqual(p);
+  });
+
+  it("ignores a daily package that is not offered: 4 days, 0 days, or the goggles set", () => {
+    expect(parsePackagePreset({ drone: "NEO2", fly: "NONE", days: "4" })).toBeNull();
+    expect(parsePackagePreset({ drone: "NEO2", fly: "NONE", days: "0" })).toBeNull();
+    expect(parsePackagePreset({ drone: "NEO2", fly: "NONE", days: "1.5" })).toBeNull();
+    expect(parsePackagePreset({ drone: "NEO2", fly: "GOGGLES_N3", days: "1" })).toBeNull();
   });
 
   it("ignores anything that is not a real combination", () => {

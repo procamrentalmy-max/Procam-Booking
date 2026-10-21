@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { CONTROLLER_PROFILES, DRONE_MODEL_PROFILES } from "@/lib/droneRental/pricingRules";
+import { CONTROLLER_PROFILES, DRONE_MODEL_PROFILES, MAX_RENTAL_DAYS, MULTI_DAY_DISCOUNT_PERCENT } from "@/lib/droneRental/pricingRules";
 import { BUSINESS, FREE_CANCELLATION_HOURS, HOLD_DAYS, LATE_GRACE_MINUTES, legalUpdatedLabel, ONLINE_MAX_HOURS, registeredNameDiffers } from "@/lib/legal";
 import { PENDING_PAYMENT_TIMEOUT_MINUTES } from "@/lib/state-machine/booking";
 import { legalText, type LegalPage } from "@/lib/i18n/legal";
@@ -17,6 +17,11 @@ function legalValues(): Record<string, string> {
     rcRate: `RM${CONTROLLER_PROFILES.RC_N3.hourlyMyr}`,
     goggRate: `RM${CONTROLLER_PROFILES.GOGGLES_N3.hourlyMyr}`,
     maxHours: String(ONLINE_MAX_HOURS),
+    maxDays: String(MAX_RENTAL_DAYS),
+    dayRate: `RM${DRONE_MODEL_PROFILES.NEO2.dailyRateMyr?.NONE}`,
+    dayRateRc: `RM${DRONE_MODEL_PROFILES.NEO2.dailyRateMyr?.RC_N3}`,
+    dayOff: String(MULTI_DAY_DISCOUNT_PERCENT),
+    dayOff3: String(MULTI_DAY_DISCOUNT_PERCENT * 2),
     payMinutes: String(PENDING_PAYMENT_TIMEOUT_MINUTES),
     neo2Dep: `RM${DRONE_MODEL_PROFILES.NEO2.depositDroneMyr}`,
     neoDep: `RM${DRONE_MODEL_PROFILES.NEO.depositDroneMyr}`,

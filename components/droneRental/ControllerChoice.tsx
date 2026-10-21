@@ -1,6 +1,6 @@
 "use client";
 
-import { CONTROLLER_PROFILES, controllerProfileFor, formatMyr, type ControllerKind } from "@/lib/droneRental/pricingRules";
+import { CONTROLLER_PROFILES, controllerProfileFor, dailyRateFor, formatMyr, offersDaily, type ControllerKind } from "@/lib/droneRental/pricingRules";
 import { droneText } from "@/lib/i18n/drone";
 import type { Locale } from "@/lib/i18n/locale";
 import { useState } from "react";
@@ -29,6 +29,7 @@ export function ControllerChoice({
   label,
   compare,
   unavailableLabel,
+  daily = false,
 }: {
   locale?: Locale;
   /** The landing page is always dark. */
@@ -45,6 +46,8 @@ export function ControllerChoice({
   value: ControllerKind | null;
   onChange: (next: ControllerKind) => void;
   unavailable?: readonly ControllerKind[];
+  /** The rental is by the day: each way of flying shows what it adds per day, and the one with no daily rate (the goggles set) is greyed out as hourly only. */
+  daily?: boolean;
 }) {
   const [comparing, setComparing] = useState(false);
   if (options.length < 2) return null;
@@ -63,7 +66,9 @@ export function ControllerChoice({
       {compare && <CompareDialog open={comparing} onClose={() => setComparing(false)} data={compare} value={value} unavailable={unavailable} onChoose={onChange} locale={locale} unavailableText={unavailableLabel} />}
       <div className={`grid gap-2 ${options.length > 2 ? "grid-cols-3" : "grid-cols-2"}`}>
         {options.map((o) => {
-          const off = unavailable.includes(o);
+          const hourlyOnly = daily && !offersDaily(model, o);
+          const off = unavailable.includes(o) || hourlyOnly;
+          const dailyExtra = (dailyRateFor(model, o) ?? 0) - (dailyRateFor(model, "NONE") ?? 0);
           return (
             <button
               key={o}
@@ -74,7 +79,7 @@ export function ControllerChoice({
               className={`flex min-h-[4.5rem] flex-col items-center justify-center gap-0.5 rounded-xl border px-2 py-3 text-center ${off ? st.unavailable : value === o ? st.selected : st.idle}`}
             >
               <span className="text-sm font-semibold leading-tight">{o === "NONE" ? t.common.phoneOnly : (controllerProfileFor(model, o)?.shortName ?? CONTROLLER_PROFILES[o].shortName)}</span>
-              <span className={`text-xs tabular-nums ${off ? "" : value === o ? "opacity-80" : st.sub}`}>{t.common.perHour(formatMyr(extraPerHour(model, o)))}</span>
+              <span className={`text-xs tabular-nums ${off ? "" : value === o ? "opacity-80" : st.sub}`}>{hourlyOnly ? t.wizard.dailyHourlyOnly : daily ? t.wizard.perDay(formatMyr(dailyExtra)) : t.common.perHour(formatMyr(extraPerHour(model, o)))}</span>
             </button>
           );
         })}

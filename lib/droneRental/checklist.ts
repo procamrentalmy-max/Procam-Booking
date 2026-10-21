@@ -7,16 +7,20 @@ const GOGGLES_ITEMS = new Set(["goggles_present"]);
 /** The "drone powers on and connects to the controller" items, which say what it connects to depending on the rental. */
 const POWERS_ON_ITEMS = new Set(["powers_on", "gt50_powers_on"]);
 
+/** The charger that comes with a daily rental: ticked off at handover and again at return. It has no row in the checklist table, so it is added here. */
+export const CHARGER_ITEM_KEY = "charger_present";
+export const CHARGER_ITEM_LABEL = "Charger is present and working";
+
 export const POWERS_ON_WITHOUT_CONTROLLER_LABEL = "Drone powers on and connects to the customer's phone";
 export const POWERS_ON_WITH_GOGGLES_LABEL = "Drone powers on and connects to the goggles";
 
 /**
  * The handover / return checklist for one rental: the model's list, with only the item for the controller that actually
  * goes out (none, the RC-N3, or the goggles set) and the power-on item saying what the drone connects to. Used to draw the
- * checklist and to check it was ticked, so the two always agree.
+ * checklist and to check it was ticked, so the two always agree. A daily rental also has the charger that comes with it.
  */
-export function checklistForRental<T extends { item_key: string; label?: string }>(items: T[], controller: ControllerKind = DEFAULT_CONTROLLER): T[] {
-  return items
+export function checklistForRental<T extends { item_key: string; label?: string }>(items: T[], controller: ControllerKind = DEFAULT_CONTROLLER, daily = false): T[] {
+  const list = items
     .filter((item) => {
       if (RC_CONTROLLER_ITEMS.has(item.item_key)) return controller === "RC_N3";
       if (GOGGLES_ITEMS.has(item.item_key)) return controller === "GOGGLES_N3";
@@ -28,4 +32,5 @@ export function checklistForRental<T extends { item_key: string; label?: string 
       if (controller === "GOGGLES_N3") return { ...item, label: POWERS_ON_WITH_GOGGLES_LABEL };
       return item;
     });
+  return daily ? [...list, { item_key: CHARGER_ITEM_KEY, label: CHARGER_ITEM_LABEL } as T] : list;
 }

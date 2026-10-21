@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { MAX_RENTAL_HOURS, MIN_RENTAL_HOURS, controllerLabel, hourlyRateFor, modelProfile, storedController } from "@/lib/droneRental/pricingRules";
+import { MAX_RENTAL_HOURS, MIN_RENTAL_HOURS, controllerLabel, hourlyRateFor, isDailyBooking, modelProfile, storedController } from "@/lib/droneRental/pricingRules";
 import { BarChart, DonutChart, Heatmap } from "../../sales/charts";
 
 // Drone rental only: reads the dr_* tables and nothing else, so the old locker/camera sales page (/admin/sales) and its
@@ -138,7 +138,9 @@ export default async function DroneSalesPage({ searchParams }: { searchParams: P
     const controller = storedController(b.drone_model, b.controller_kind);
     const paidHours = (p.rental - batteryFee) / hourlyRateFor(b.drone_model, controller);
     const validLength = Number.isInteger(paidHours) && paidHours >= MIN_RENTAL_HOURS && paidHours <= MAX_RENTAL_HOURS;
-    bump(byLength, validLength ? `${paidHours} hour${paidHours === 1 ? "" : "s"}` : "Other", p.total);
+    // A daily rental is its own length: its fee is not hours at the hourly rate.
+    const rentalDayCount = Math.round(hours / 24);
+    bump(byLength, isDailyBooking(b) ? `${rentalDayCount} day${rentalDayCount === 1 ? "" : "s"}` : validLength ? `${paidHours} hour${paidHours === 1 ? "" : "s"}` : "Other", p.total);
 
     bump(byModel, profile.shortName, p.total);
     bump(byController, controllerLabel(b.drone_model, controller), p.total);

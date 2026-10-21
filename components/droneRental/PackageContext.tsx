@@ -7,11 +7,12 @@ type PackageState = {
   model: DroneModel | null;
   controller: ControllerKind | null;
   batteries: BatteryCount | null;
-  hours: number | null;
+  /** How long: a whole number of hours, or of days (1440 minutes each). */
+  minutes: number | null;
   setModel: (m: DroneModel) => void;
   setController: (c: ControllerKind) => void;
   setBatteries: (n: BatteryCount) => void;
-  setHours: (h: number) => void;
+  setMinutes: (m: number) => void;
   /** Drones and ways of flying that ProCam has nowhere (no unit in any shop): shown, but they can't be picked. */
   unavailableModels: DroneModel[];
   unavailableControllers: ControllerKind[];
@@ -27,8 +28,8 @@ export function PackageProvider({ children, unavailableModels = [], unavailableC
   const [model, setModel] = useState<DroneModel | null>(null);
   const [controller, setController] = useState<ControllerKind | null>(null);
   const [batteries, setBatteries] = useState<BatteryCount | null>(null);
-  const [hours, setHours] = useState<number | null>(null);
-  return <PackageContext.Provider value={{ model, controller, batteries, hours, setModel, setController, setBatteries, setHours, unavailableModels, unavailableControllers }}>{children}</PackageContext.Provider>;
+  const [minutes, setMinutes] = useState<number | null>(null);
+  return <PackageContext.Provider value={{ model, controller, batteries, minutes, setModel, setController, setBatteries, setMinutes, unavailableModels, unavailableControllers }}>{children}</PackageContext.Provider>;
 }
 
 export function usePackage(): PackageState {

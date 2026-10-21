@@ -7,7 +7,7 @@ const idc = (on: string, off: string) => (DRONE_ID_CHECK_ENABLED ? on : off);
 /**
  * The FAQ page, in English, Bahasa Melayu and Chinese. English is the master and the other two are typed against it. Answers are
  * the same blocks the legal pages use (`{ p }` paragraph, `{ ul }` bullet list), with the same {placeholders} and {link:name}
- * links, plus these numbers taken from the live pricing rules: {neo2Rate} {neoRate} {rcRate} {goggRate} {maxHours} {payMinutes}.
+ * links, plus these numbers taken from the live pricing rules: {neo2Rate} {neoRate} {rcRate} {goggRate} {maxHours} {maxDays} {dayRate} {dayRateRc} {dayOff} {dayOff3} {payMinutes}.
  *
  * The Malay and Chinese were written by Claude, not a native-speaking translator: have both checked before relying on them.
  */
@@ -53,7 +53,7 @@ export const faqEn: FaqPage = {
         },
         {
           q: "How long can I rent for?",
-          blocks: [{ p: "From 1 to {maxHours} hours. Start times are every 30 minutes, and your rental has to end before the shop closes. The booking page only shows times that are free." }],
+          blocks: [{ p: "By the hour, from 1 to {maxHours} hours. Start times are every 30 minutes, and your rental has to end before the shop closes. The booking page only shows times that are free." }, { p: "Or by the day, from 1 to {maxDays} days: {dayRate} a day phone only or {dayRateRc} a day with the RC-N3 controller, with 3 batteries and a charger included. A day is 24 hours from pickup, so you bring it back at the same time on the last day (the shop must be open then). Every extra day takes {dayOff}% off the whole booking: 2 days is {dayOff}% off and 3 days is {dayOff3}% off. The Goggles N3 set is rented by the hour only. The deposit is the same as for an hourly rental." }],
         },
         {
           q: "Do I need an account?",
@@ -266,7 +266,7 @@ export const faqMs: FaqPage = {
         },
         {
           q: "Berapa lama saya boleh menyewa?",
-          blocks: [{ p: "Dari 1 hingga {maxHours} jam. Masa mula ialah setiap 30 minit, dan sewaan anda mesti tamat sebelum kedai tutup. Halaman tempahan hanya menunjukkan masa yang kosong." }],
+          blocks: [{ p: "Ikut jam, dari 1 hingga {maxHours} jam. Masa mula ialah setiap 30 minit, dan sewaan anda mesti tamat sebelum kedai tutup. Halaman tempahan hanya menunjukkan masa yang kosong." }, { p: "Atau ikut hari, dari 1 hingga {maxDays} hari: {dayRate} sehari tanpa alat kawalan atau {dayRateRc} sehari dengan alat kawalan RC-N3, termasuk 3 bateri dan satu pengecas. Satu hari ialah 24 jam dari masa pengambilan, jadi anda memulangkannya pada waktu yang sama pada hari terakhir (kedai mesti dibuka pada waktu itu). Setiap hari tambahan memberi diskaun {dayOff}% untuk keseluruhan tempahan: 2 hari diskaun {dayOff}% dan 3 hari diskaun {dayOff3}%. Set Goggles N3 hanya disewa ikut jam. Deposit sama seperti sewaan ikut jam." }],
         },
         {
           q: "Adakah saya perlukan akaun?",
@@ -479,7 +479,7 @@ export const faqZh: FaqPage = {
         },
         {
           q: "最长可以租多久？",
-          blocks: [{ p: "1 至 {maxHours} 小时。开始时间每 30 分钟一档，租期必须在门店关门前结束。预订页面只显示空闲的时间。" }],
+          blocks: [{ p: "按小时租：1 至 {maxHours} 小时。开始时间每 30 分钟一档，租期必须在门店关门前结束。预订页面只显示空闲的时间。" }, { p: "也可以按天租：1 至 {maxDays} 天，仅手机每天 {dayRate}，使用 RC-N3 遥控器每天 {dayRateRc}，含 3 块电池和一个充电器。一天为取机起 24 小时，请在最后一天的同一时间归还（届时门店必须营业）。每多租一天，整张订单再减 {dayOff}%：租 2 天减 {dayOff}%，租 3 天减 {dayOff3}%。Goggles N3 套装只能按小时租。押金与按小时租相同。" }],
         },
         {
           q: "需要注册账户吗？",

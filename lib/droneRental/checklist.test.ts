@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checklistForRental, POWERS_ON_WITH_GOGGLES_LABEL, POWERS_ON_WITHOUT_CONTROLLER_LABEL } from "./checklist";
+import { CHARGER_ITEM_KEY, CHARGER_ITEM_LABEL, checklistForRental, POWERS_ON_WITH_GOGGLES_LABEL, POWERS_ON_WITHOUT_CONTROLLER_LABEL } from "./checklist";
 
 const neo = [
   { item_key: "powers_on", label: "Drone powers on and connects to the RC-N3 controller" },
@@ -37,5 +37,24 @@ describe("checklistForRental", () => {
     expect(keys("RC_N3")).not.toContain("goggles_present");
     expect(keys("GOGGLES_N3")).toContain("goggles_present");
     expect(keys("GOGGLES_N3")).not.toContain("controller_present");
+  });
+});
+
+describe("checklistForRental for a daily rental", () => {
+  it("adds the charger to the end of the list, for every way of flying", () => {
+    for (const kind of ["NONE", "RC_N3", "GOGGLES_N3"] as const) {
+      const list = checklistForRental(withGoggles, kind, true);
+      expect(list[list.length - 1]).toEqual({ item_key: CHARGER_ITEM_KEY, label: CHARGER_ITEM_LABEL });
+      expect(list.length).toBe(checklistForRental(withGoggles, kind).length + 1);
+    }
+  });
+
+  it("leaves it out of an hourly rental", () => {
+    expect(checklistForRental(withGoggles, "RC_N3").map((i) => i.item_key)).not.toContain(CHARGER_ITEM_KEY);
+    expect(checklistForRental(withGoggles, "RC_N3", false).map((i) => i.item_key)).not.toContain(CHARGER_ITEM_KEY);
+  });
+
+  it("works on just the keys too (what the server checks at handover)", () => {
+    expect(checklistForRental([{ item_key: "powers_on" }], "NONE", true).map((i) => i.item_key)).toEqual(["powers_on", CHARGER_ITEM_KEY]);
   });
 });

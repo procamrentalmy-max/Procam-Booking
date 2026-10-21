@@ -23,6 +23,13 @@ import {
   effectiveController,
   storedController,
   ENABLED_DRONE_MODELS,
+  batteriesFor,
+  dailyFeeMyr,
+  dailySavingMyr,
+  isDailyMinutes,
+  offersDaily,
+  rentalDays,
+  dailyBreakdown,
 } from "./pricingRules";
 
 // A drone can go out with no controller (the customer's own phone), with the RC-N3 (RM5 an hour more) or with the Goggles N3 +
@@ -63,8 +70,8 @@ describe("isValidRentalMinutes", () => {
     for (const h of [1, 2, 3, 4, 5, 6]) expect(isValidRentalMinutes(h * 60)).toBe(true);
   });
 
-  it("rejects anything else", () => {
-    for (const m of [0, 1, 30, 61, 90, 420, 1440, -60, 60.5, Number.NaN]) expect(isValidRentalMinutes(m)).toBe(false);
+  it("rejects anything else (a whole number of days, 1 to 3, is accepted; see renting by the day)", () => {
+    for (const m of [0, 1, 30, 61, 90, 420, 1500, 5760, -60, 60.5, Number.NaN]) expect(isValidRentalMinutes(m)).toBe(false);
   });
 });
 
@@ -95,7 +102,8 @@ describe("deposit amounts", () => {
   it("formats with a thousands separator", () => {
     expect(formatMyr(1200)).toBe("RM1,200");
     expect(formatMyr(800)).toBe("RM800");
-    expect(formatMyr(49.5)).toBe("RM49.5");
+    expect(formatMyr(49.5)).toBe("RM49.50");
+    expect(formatMyr(176.4)).toBe("RM176.40");
   });
 });
 
@@ -336,5 +344,75 @@ describe("the GT50", () => {
     expect(modelProfile("SOMETHING_ELSE").key).toBe("NEO2");
     expect(rentalFeeMyr(60, 2, undefined, "NONE")).toBe(29);
     expect(depositMyrFor(undefined)).toBe(DEPOSIT_MYR);
+  });
+});
+
+describe("renting by the day", () => {
+  it("is RM98 a day phone only and RM128 with the RC-N3, the batteries and charger included", () => {
+    expect(rentalFeeMyr(1440, 1, "NEO2", "NONE")).toBe(98);
+    expect(rentalFeeMyr(1440, 2, "NEO2", "NONE")).toBe(98); // the hourly battery choice has no say
+    expect(rentalFeeMyr(1440, 2, "NEO2", "RC_N3")).toBe(128);
+  });
+
+  it("takes 10% off the whole booking for every extra day: 2 days -10%, 3 days -20%", () => {
+    expect(rentalFeeMyr(2 * 1440, 2, "NEO2", "NONE")).toBe(176.4);
+    expect(rentalFeeMyr(3 * 1440, 2, "NEO2", "NONE")).toBe(235.2);
+    expect(rentalFeeMyr(2 * 1440, 2, "NEO2", "RC_N3")).toBe(230.4);
+    expect(rentalFeeMyr(3 * 1440, 2, "NEO2", "RC_N3")).toBe(307.2);
+    expect(dailyFeeMyr(3, "NEO", "RC_N3")).toBe(307.2);
+  });
+
+  it("works out what the extra days save", () => {
+    expect(dailySavingMyr(1, "NEO2", "NONE")).toBe(0);
+    expect(dailySavingMyr(2, "NEO2", "NONE")).toBe(19.6);
+    expect(dailySavingMyr(3, "NEO2", "RC_N3")).toBe(76.8);
+  });
+
+  it("knows a daily length from an hourly one: whole days only, 1 to 3", () => {
+    expect(isDailyMinutes(1440)).toBe(true);
+    expect(isDailyMinutes(3 * 1440)).toBe(true);
+    expect(isDailyMinutes(4 * 1440)).toBe(false);
+    expect(isDailyMinutes(1440 + 60)).toBe(false);
+    expect(isDailyMinutes(6 * 60)).toBe(false);
+    expect(rentalDays(2880)).toBe(2);
+  });
+
+  it("accepts 1 to 3 days and still 1 to 6 hours, nothing in between or beyond", () => {
+    for (const minutes of [60, 360, 1440, 2880, 4320]) expect(isValidRentalMinutes(minutes)).toBe(true);
+    for (const minutes of [0, 30, 420, 1500, 5760, 7200, 1439]) expect(isValidRentalMinutes(minutes)).toBe(false);
+  });
+
+  it("always sends 3 batteries out by the day, and the chosen ones by the hour", () => {
+    expect(batteriesFor(1440, 1)).toBe(3);
+    expect(batteriesFor(2 * 1440, 2)).toBe(3);
+    expect(batteriesFor(120, 1)).toBe(1);
+    expect(batteriesFor(120, 2)).toBe(2);
+  });
+
+  it("is offered for phone only and the RC-N3, never the goggles set or the parked GT50", () => {
+    expect(offersDaily("NEO2", "NONE")).toBe(true);
+    expect(offersDaily("NEO2", "RC_N3")).toBe(true);
+    expect(offersDaily("NEO2", "GOGGLES_N3")).toBe(false);
+    expect(dailyFeeMyr(1, "NEO2", "GOGGLES_N3")).toBeNull();
+    expect(offersDaily("GT50", "RC_N3")).toBe(false);
+  });
+
+  it("keeps the same deposit as an hourly rental and bills a late return by the hour", () => {
+    expect(depositMyrFor("NEO2", "NONE")).toBe(700);
+    expect(depositMyrFor("NEO2", "RC_N3")).toBe(1100);
+    expect(lateFeeMyr(61, "NEO2", "NONE")).toBe(30);
+  });
+});
+
+describe("dailyBreakdown (the lines above a multi-day total)", () => {
+  it("shows the days at the daily rate, the discount and the total for 2 and 3 days", () => {
+    expect(dailyBreakdown(2 * 1440, "NEO2", "NONE")).toEqual({ days: 2, perDayMyr: 98, fullMyr: 196, percent: 10, savingMyr: 19.6, totalMyr: 176.4 });
+    expect(dailyBreakdown(3 * 1440, "NEO2", "RC_N3")).toEqual({ days: 3, perDayMyr: 128, fullMyr: 384, percent: 20, savingMyr: 76.8, totalMyr: 307.2 });
+  });
+
+  it("has nothing to show for one day, an hourly rental, or a way of flying with no daily rate", () => {
+    expect(dailyBreakdown(1440, "NEO2", "NONE")).toBeNull();
+    expect(dailyBreakdown(180, "NEO2", "NONE")).toBeNull();
+    expect(dailyBreakdown(2 * 1440, "NEO2", "GOGGLES_N3")).toBeNull();
   });
 });

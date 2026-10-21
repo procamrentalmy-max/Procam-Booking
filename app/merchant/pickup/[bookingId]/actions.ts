@@ -8,7 +8,7 @@ import { uploadChecklistPhoto, checklistPhotoPath } from "@/lib/droneRental/stor
 import { computeHandoverWindow } from "@/lib/droneRental/handover";
 import { findChargedBatteries, validateHandoutBatteries, type ChargedBattery } from "@/lib/droneRental/batteries";
 import { dronePhotoSteps } from "@/lib/droneRental/photoSteps";
-import { modelProfile, storedController } from "@/lib/droneRental/pricingRules";
+import { isDailyBooking, modelProfile, storedController } from "@/lib/droneRental/pricingRules";
 import { checklistForRental } from "@/lib/droneRental/checklist";
 import { needsDepositConfirmation } from "@/lib/droneRental/payment";
 import { notifyBooking } from "@/lib/whatsapp/notify";
@@ -52,7 +52,7 @@ export async function submitPickupAction(formData: FormData): Promise<PickupResu
   }
 
   const { data: items } = await supabase.from("dr_checklist_items").select("item_key").eq("active", true).contains("applies_to", [profile.key]);
-  for (const item of checklistForRental(items ?? [], controller)) {
+  for (const item of checklistForRental(items ?? [], controller, isDailyBooking(booking))) {
     if (!acknowledgements[item.item_key]) throw new Error(`Please confirm: ${item.item_key}`);
   }
 

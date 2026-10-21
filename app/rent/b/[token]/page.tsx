@@ -4,7 +4,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
 import { FaqLink } from "@/components/droneRental/FaqLink";
 import { PaidBeacon } from "@/components/FunnelBeacon";
-import { controllerProfileFor, formatMyr, includesController, modelProfile, storedController } from "@/lib/droneRental/pricingRules";
+import { controllerProfileFor, formatMyr, includesController, isDailyBooking, modelProfile, storedController } from "@/lib/droneRental/pricingRules";
 import { generateQrDataUrl } from "@/lib/qr";
 import { requestOrigin } from "@/lib/requestOrigin";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
@@ -155,7 +155,7 @@ export default async function DroneBookingDashboardPage({ params, searchParams }
         <Row label={t.booking.shop} value={shop?.name ?? "—"} />
         <Row label={t.booking.address} value={shop?.address ?? "—"} />
         <Row label={t.common.drone} value={`${modelProfile(booking.drone_model).shortName} · ${drone?.human_id ?? "—"}`} />
-        <Row label={t.booking.includes} value={`${includesController(booking.drone_model, controller) ? t.booking.includesWith(controllerProfileFor(booking.drone_model, controller)?.name ?? "") : t.booking.includesDroneOnly}, ${t.common.batteries(booking.batteries_count)}`} />
+        <Row label={t.booking.includes} value={`${includesController(booking.drone_model, controller) ? t.booking.includesWith(controllerProfileFor(booking.drone_model, controller)?.name ?? "") : t.booking.includesDroneOnly}, ${isDailyBooking(booking) ? t.common.batteriesAndCharger(booking.batteries_count) : t.common.batteries(booking.batteries_count)}`} />
         {walkInNotStarted && <Row label={t.common.length} value={lengthLabel} />}
         {booking.status !== "CONFIRMED" && booking.status !== "ACTIVE" && !walkInNotStarted && (
           <>

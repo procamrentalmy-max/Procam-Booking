@@ -12,13 +12,14 @@ import { trackStep } from "@/components/FunnelBeacon";
 import { WhatsAppNumberField } from "@/components/droneRental/WhatsAppNumberField";
 import { Spinner } from "@/components/Spinner";
 import { ControllerChoice } from "@/components/droneRental/ControllerChoice";
-import { ComboCard, TotalSummary } from "@/components/droneRental/ComboCard";
+import { ComboCard, DiscountLines, TotalSummary } from "@/components/droneRental/ComboCard";
 import type { PackagePreset } from "@/lib/droneRental/packagePreset";
 import type { CompareTables } from "@/lib/droneRental/compareTables";
 import { DroneChoice } from "@/components/droneRental/DroneChoice";
-import { BatteryChoice, DurationChoice } from "@/components/droneRental/PackageChoices";
+import { BatteryChoice, LengthChoice } from "@/components/droneRental/PackageChoices";
 import { SlotTakenDialog } from "@/components/droneRental/SlotTakenDialog";
 import {
+  DAILY_BATTERIES,
   DEFAULT_BATTERIES,
   DRONE_MODEL_PROFILES,
   type BatteryCount,
@@ -26,11 +27,13 @@ import {
   type DroneModel,
   comboKey,
   controllerLabel,
+  dailyBreakdown,
   depositMyrFor,
   effectiveController,
   formatMyr,
-  hourlyRateFor,
   includesController,
+  isDailyMinutes,
+  offersDaily,
   rentalFeeMyr,
 } from "@/lib/droneRental/pricingRules";
 import { DEFAULT_SHOP_HOURS, formatSlotTime, generateDaySlots, type ShopHours } from "@/lib/droneRental/hours";
@@ -122,7 +125,8 @@ export function DroneBookingWizard({
   const [presetNote, setPresetNote] = useState(!!preset && !presetFits);
   const [step, setStep] = useState<Step>(presetFits ? "slot" : "duration");
   const [model, setModel] = useState<DroneModel>(presetModel ?? (availableModels.includes("NEO2") ? "NEO2" : (availableModels[0] ?? models[0])));
-  const [durationHours, setDurationHours] = useState(preset?.hours ?? 1);
+  // How long, in minutes: a whole number of hours, or of days (1440 minutes each, with 3 batteries and a charger included).
+  const [durationMinutes, setDurationMinutes] = useState(preset?.minutes ?? 60);
   const [batteries, setBatteries] = useState<BatteryCount>(preset?.batteries ?? DEFAULT_BATTERIES);
   // How they will fly it: their own phone, or a controller the shop has. Only choices this shop can actually offer are shown.
   const [pickedController, setPickedController] = useState<ControllerKind>(presetController ?? "NONE");
@@ -146,17 +150,18 @@ export function DroneBookingWizard({
     trackStep(step === "duration" ? "PACKAGE" : step === "slot" ? "TIME" : "DETAILS", shopId);
   }, [step, shopId]);
 
-  const durationMinutes = durationHours * 60;
+  const byDay = isDailyMinutes(durationMinutes);
+  const returnTime = selectedStart ? new Date(selectedStart.getTime() + durationMinutes * 60_000) : null;
   const profile = DRONE_MODEL_PROFILES[model];
-  // Every way of flying is listed; those the shop has none of are greyed out and never chosen.
+  // Every way of flying is listed; those the shop has none of are greyed out and never chosen. By the day the goggles set is not offered.
   const controllerOptions = profile.controllerOptions;
-  const selectableControllers = controllerOptions.filter((o) => o === "NONE" || controllers.includes(o));
+  const selectableControllers = controllerOptions.filter((o) => (o === "NONE" || controllers.includes(o)) && (!byDay || offersDaily(model, o)));
   const asked = effectiveController(model, pickedController);
   const controller = selectableControllers.includes(asked) ? asked : selectableControllers[0];
   const withController = includesController(model, controller);
-  const hourly = hourlyRateFor(model, controller);
   const deposit = depositMyrFor(model, controller);
   const rentalFee = rentalFeeMyr(durationMinutes, batteries, model, controller);
+  const breakdown = dailyBreakdown(durationMinutes, model, controller);
   /** "Phone only" in the visitor's language, or the controller's own name (a product name, never translated). */
   const controllerName = (kind: ControllerKind) => (kind === "NONE" ? t.common.phoneOnly : controllerLabel(model, kind));
 
@@ -201,11 +206,12 @@ export function DroneBookingWizard({
       const raw = sessionStorage.getItem(DRAFT_KEY);
       sessionStorage.removeItem(DRAFT_KEY);
       if (!retry || !raw) return;
-      const d = JSON.parse(raw) as Partial<{ shopId: string; model: DroneModel; controller: ControllerKind; durationHours: number; batteries: BatteryCount; dayOffset: number; name: string; phone: string; email: string }>;
+      const d = JSON.parse(raw) as Partial<{ shopId: string; model: DroneModel; controller: ControllerKind; durationMinutes: number; durationHours: number; batteries: BatteryCount; dayOffset: number; name: string; phone: string; email: string }>;
       if (d.shopId !== shopId) return;
       if (d.model && models.includes(d.model)) setModel(d.model);
       if (d.controller) setPickedController(d.controller);
-      if (typeof d.durationHours === "number") setDurationHours(d.durationHours);
+      if (typeof d.durationMinutes === "number") setDurationMinutes(d.durationMinutes);
+      else if (typeof d.durationHours === "number") setDurationMinutes(d.durationHours * 60);
       if (d.batteries === 1 || d.batteries === 2) setBatteries(d.batteries);
       if (typeof d.dayOffset === "number") setDayOffset(d.dayOffset);
       setName(d.name ?? "");
@@ -220,7 +226,7 @@ export function DroneBookingWizard({
 
   function rememberDraft() {
     try {
-      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ shopId, model, controller, durationHours, batteries, dayOffset, name, phone, email }));
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ shopId, model, controller, durationMinutes, batteries, dayOffset, name, phone, email }));
     } catch {
       // Nothing to remember it in: they would start again, nothing worse.
     }
@@ -290,20 +296,21 @@ export function DroneBookingWizard({
           onChange={setPickedController}
           unavailable={controllerOptions.filter((o) => !selectableControllers.includes(o))}
           compare={tables?.fly}
+          daily={byDay}
         />
 
-        <DurationChoice locale={locale} value={durationHours} hourly={hourly} onChange={setDurationHours} />
+        <LengthChoice locale={locale} minutes={durationMinutes} model={model} controller={controller} onChange={setDurationMinutes} />
 
         <ComboCard
           locale={locale}
           pictureUrl={pictures[comboKey(model, controller, batteries)]}
           depositMyr={deposit}
-          alt={`${profile.shortName}, ${controllerName(controller)}, ${t.common.batteries(batteries)}`}
+          alt={`${profile.shortName}, ${controllerName(controller)}${byDay ? "" : `, ${t.common.batteries(batteries)}`}`}
         />
 
-        <BatteryChoice locale={locale} model={model} value={batteries} onChange={setBatteries} />
+        {!byDay && <BatteryChoice locale={locale} model={model} value={batteries} onChange={setBatteries} />}
 
-        <TotalSummary locale={locale} totalMyr={rentalFee} depositMyr={deposit} />
+        <TotalSummary locale={locale} totalMyr={rentalFee} depositMyr={deposit} breakdown={breakdown} />
 
         {canBook && (
           <button
@@ -327,7 +334,7 @@ export function DroneBookingWizard({
       <div className="space-y-4">
         <StepHeader locale={locale} step={step} onBack={() => setStep("duration")} />
         <p className="text-sm text-zinc-500">
-          {t.wizard.pickStart(t.common.hours(durationHours), formatMyr(rentalFee))}
+          {t.wizard.pickStart(t.common.rentalLength(durationMinutes), formatMyr(rentalFee))}
         </p>
 
         <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1" role="group" aria-label={t.wizard.day}>
@@ -346,7 +353,7 @@ export function DroneBookingWizard({
 
         {slots.length === 0 ? (
           <p className="rounded-xl border border-dashed border-zinc-300 p-5 text-center text-sm text-zinc-500 dark:border-zinc-700">
-            {t.wizard.noMoreTimes(t.common.hours(durationHours))}
+            {t.wizard.noMoreTimes(t.common.rentalLength(durationMinutes))}
           </p>
         ) : (
           <div className="grid grid-cols-3 gap-2">
@@ -354,7 +361,7 @@ export function DroneBookingWizard({
               const isUnavailable = unavailable?.has(i) ?? false;
               const isSelected = selectedStart?.getTime() === s.getTime();
               // Every half hour the rental covers, from the chosen start until it ends, is lit up with it.
-              const inRental = !!selectedStart && s.getTime() > selectedStart.getTime() && s.getTime() < selectedStart.getTime() + durationHours * 3_600_000;
+              const inRental = !byDay && !!selectedStart && s.getTime() > selectedStart.getTime() && s.getTime() < selectedStart.getTime() + durationMinutes * 60_000;
               return (
                 <button
                   key={s.toISOString()}
@@ -378,9 +385,9 @@ export function DroneBookingWizard({
             })}
           </div>
         )}
-        {selectedStart && (
+        {selectedStart && returnTime && (
           <p className="text-center text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
-            {formatSlotTime(selectedStart)} – {formatSlotTime(new Date(selectedStart.getTime() + durationHours * 3_600_000))}
+            {byDay ? `${t.common.returnBy} ${formatMalaysiaTime(returnTime, locale)}` : `${formatSlotTime(selectedStart)} – ${formatSlotTime(returnTime)}`}
           </p>
         )}
         {unavailable === null && slots.length > 0 && <p className="text-center text-xs text-zinc-400">{t.wizard.checking}</p>}
@@ -439,12 +446,19 @@ export function DroneBookingWizard({
           </div>
           <div className="flex justify-between gap-4">
             <span className="text-zinc-500">{t.common.length}</span>
-            <span className="font-medium">{t.common.hours(durationHours)}</span>
+            <span className="font-medium">{t.common.rentalLength(durationMinutes)}</span>
           </div>
+          {byDay && returnTime && (
+            <div className="flex justify-between gap-4">
+              <span className="text-zinc-500">{t.common.returnBy}</span>
+              <span className="font-medium">{formatMalaysiaTime(returnTime, locale)}</span>
+            </div>
+          )}
           <div className="flex justify-between gap-4">
             <span className="text-zinc-500">{t.common.batteriesLabel}</span>
-            <span className="font-medium">{batteries}</span>
+            <span className="font-medium">{byDay ? t.common.batteriesAndCharger(DAILY_BATTERIES) : batteries}</span>
           </div>
+          <DiscountLines breakdown={breakdown} locale={locale} />
           <div className="flex justify-between gap-4">
             <span className="text-zinc-500">{t.wizard.payNow}</span>
             <span className="font-medium">{formatMyr(rentalFee)}</span>

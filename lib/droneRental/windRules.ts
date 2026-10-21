@@ -5,7 +5,7 @@
  * wind resistance from DJI (see maxWindMps in pricingRules.ts): 10.7 m/s for the Neo 2 and 8 m/s for the Neo.
  */
 
-import { modelProfile } from "./pricingRules";
+import { isDailyMinutes, modelProfile } from "./pricingRules";
 
 /** One hour of forecast: the wind speed (m/s, steady wind at 10 m) for the hour starting at `start`. */
 export type HourlyWind = { start: Date; windMps: number };
@@ -17,6 +17,18 @@ export type WindForecast = {
 };
 
 const HOUR_MS = 3_600_000;
+
+/**
+ * How much of a daily rental the wind is checked over. A rental of up to 3 days is not flown the whole time, and the forecast is only good for a
+ * few days anyway, so the check covers the first hours after pickup (when it is most likely to be flown) instead of all of it.
+ */
+export const DAILY_WIND_CHECK_MINUTES = 8 * 60;
+
+/** The end of the period the wind is checked for: the rental's own end, or for a daily rental only its first hours. */
+export function windCheckEnd(start: Date, end: Date): Date {
+  const minutes = (end.getTime() - start.getTime()) / 60_000;
+  return isDailyMinutes(minutes) ? new Date(start.getTime() + DAILY_WIND_CHECK_MINUTES * 60_000) : end;
+}
 
 /** The strongest wind this drone may be rented in, m/s; null when no limit is known for it. */
 export function windLimitFor(model: string | null | undefined): number | null {

@@ -1,12 +1,13 @@
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { controllerDepositFor, controllerProfileFor, formatMyr, includesController, modelProfile, storedController } from "@/lib/droneRental/pricingRules";
+import { controllerDepositFor, controllerProfileFor, formatMyr, includesController, isDailyBooking, modelProfile, storedController } from "@/lib/droneRental/pricingRules";
 import { listChargedBatteries } from "@/lib/droneRental/batteries";
 import { batteryLabel } from "@/lib/droneRental/format";
 import { checklistForRental } from "@/lib/droneRental/checklist";
 import { checkWind } from "@/lib/droneRental/wind";
 import { needsDepositConfirmation } from "@/lib/droneRental/payment";
 import { formatWind } from "@/lib/droneRental/windRules";
+import { formatMalaysiaTime } from "@/lib/i18n/locale";
 import { PickupForm } from "./PickupForm";
 
 export default async function MerchantPickupPage({ params }: { params: Promise<{ bookingId: string }> }) {
@@ -24,6 +25,7 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
   const controller = storedController(booking.drone_model, booking.controller_kind);
   const withController = includesController(booking.drone_model, controller);
   const controllerProfile = controllerProfileFor(booking.drone_model, controller);
+  const daily = isDailyBooking(booking);
 
   const [{ data: customer }, { data: drone }, { data: items }, { data: hold }, { data: controllerUnit }] = await Promise.all([
     supabase.from("customers").select("name,phone").eq("id", booking.customer_id).single(),
@@ -69,8 +71,13 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
           <li>
             {booking.batteries_count} {booking.batteries_count === 1 ? "battery" : "batteries"} <span className="font-normal text-zinc-500">(you pick them below)</span>
           </li>
+          {daily && (
+            <li>
+              A charger <span className="font-normal text-zinc-500">(a daily rental: the customer is out for the whole day or more, back by {formatMalaysiaTime(new Date(booking.end_time), "en")})</span>
+            </li>
+          )}
         </ul>
-        <p className="mt-2 text-xs text-zinc-500">Nothing else goes out — no case, no charging cable.</p>
+        <p className="mt-2 text-xs text-zinc-500">{daily ? "Nothing else goes out — no case." : "Nothing else goes out — no case, no charging cable."}</p>
       </div>
 
       {wind?.tooWindy && wind.windMps !== null && wind.limitMps !== null && (
@@ -98,7 +105,7 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
     <div className="space-y-4 pt-4">
       <PickupForm
         bookingId={booking.id}
-        checklistItems={checklistForRental(items ?? [], controller)}
+        checklistItems={checklistForRental(items ?? [], controller, daily)}
         disabled={booking.status !== "CONFIRMED" || holdMissing}
         batteriesCount={booking.batteries_count}
         photosRequired={profile.photosRequired}

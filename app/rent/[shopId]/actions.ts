@@ -6,8 +6,8 @@ import { buildShopFleetSnapshot } from "@/lib/droneRental/snapshot";
 import { computeUnavailableStarts } from "@/lib/droneRental/slots";
 import { isWithinOperatingHours } from "@/lib/droneRental/hours";
 import { getShopHours } from "@/lib/droneRental/shopHours";
-import { isValidRentalMinutes, CONTROLLER_KINDS, ENABLED_DRONE_MODELS, effectiveController, type ControllerKind, type DroneModel } from "@/lib/droneRental/pricingRules";
-import { findOrCreateCustomer, createPendingDroneBooking, NoControllerAvailableError, NoDroneAvailableError, TooWindyError } from "@/lib/droneRental/createBooking";
+import { isValidRentalMinutes, isDailyMinutes, offersDaily, CONTROLLER_KINDS, ENABLED_DRONE_MODELS, effectiveController, type ControllerKind, type DroneModel } from "@/lib/droneRental/pricingRules";
+import { findOrCreateCustomer, createPendingDroneBooking, InvalidDroneBookingRequestError, NoControllerAvailableError, NoDroneAvailableError, TooWindyError } from "@/lib/droneRental/createBooking";
 import { claimVerification, releaseVerification } from "@/lib/droneRental/kyc";
 import { DRONE_ID_CHECK_ENABLED } from "@/lib/features";
 import { getShopWindForecast } from "@/lib/droneRental/wind";
@@ -16,9 +16,9 @@ import { getLocale } from "@/lib/i18n/getLocale";
 import { toWhatsAppNumber } from "@/lib/whatsapp/phone";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { formatWind } from "@/lib/droneRental/windRules";
-import { isTooWindy, maxWindForWindow, windLimitFor } from "@/lib/droneRental/windRules";
+import { isTooWindy, maxWindForWindow, windCheckEnd, windLimitFor } from "@/lib/droneRental/windRules";
 
-const rentalMinutesSchema = z.number().refine(isValidRentalMinutes, "Choose a rental length of 1 to 6 hours.");
+const rentalMinutesSchema = z.number().refine(isValidRentalMinutes, "Choose a rental length of 1 to 6 hours or 1 to 3 days.");
 
 const modelSchema = z.enum(ENABLED_DRONE_MODELS).default("NEO2");
 const controllerSchema = z.enum(CONTROLLER_KINDS).default("NONE");
@@ -40,7 +40,10 @@ export async function getUnavailableDroneStartsAction(input: {
   starts: string[];
 }): Promise<{ unavailable: boolean[]; windy: boolean[]; windLimitMps: number | null; worstWindMps: number | null }> {
   const parsed = unavailableStartsSchema.parse(input);
-  const snapshot = await buildShopFleetSnapshot(parsed.shopId, parsed.model, effectiveController(parsed.model, parsed.controller));
+  const controller = effectiveController(parsed.model, parsed.controller);
+  // A length of days with no daily rate for this way of flying has nothing to offer.
+  if (isDailyMinutes(parsed.durationMinutes) && !offersDaily(parsed.model, controller)) return { unavailable: parsed.starts.map(() => true), windy: parsed.starts.map(() => false), windLimitMps: null, worstWindMps: null };
+  const snapshot = await buildShopFleetSnapshot(parsed.shopId, parsed.model, controller);
   const dates = parsed.starts.map((s) => new Date(s));
   const noDrone = computeUnavailableStarts(snapshot.drones, snapshot.bookings, parsed.durationMinutes, dates, snapshot.controllers);
   // A start the shop is closed for (before opening, or running past closing) is unavailable too.
@@ -50,7 +53,7 @@ export async function getUnavailableDroneStartsAction(input: {
   // Too windy for this drone then: the strongest hour of the forecast the rental would overlap is over the drone's limit.
   const windLimitMps = windLimitFor(parsed.model);
   const forecast = windLimitMps === null ? null : await getShopWindForecast(parsed.shopId);
-  const winds = dates.map((d) => (forecast ? maxWindForWindow(forecast, d, new Date(d.getTime() + parsed.durationMinutes * 60_000)) : null));
+  const winds = dates.map((d) => (forecast ? maxWindForWindow(forecast, d, windCheckEnd(d, new Date(d.getTime() + parsed.durationMinutes * 60_000))) : null));
   const windy = winds.map((w) => isTooWindy(parsed.model, w));
   const worstWindMps = winds.reduce<number | null>((worst, w, i) => (windy[i] && w !== null && (worst === null || w > worst) ? w : worst), null);
   return { unavailable: unavailable.map((u, i) => u || windy[i]), windy, windLimitMps, worstWindMps };
@@ -61,6 +64,7 @@ const createBookingSchema = z.object({
   model: modelSchema,
   durationMinutes: rentalMinutesSchema,
   startTime: z.string().min(1),
+  // The chosen batteries for an hourly rental; a daily one always goes out with 3 whatever is sent.
   batteries: z.union([z.literal(1), z.literal(2)]),
   controller: controllerSchema,
   name: z.string().trim().min(1, "Enter your name"),
@@ -124,6 +128,7 @@ export async function createDroneBookingAction(input: {
     if (err instanceof TooWindyError) return { error: t.tooWindy(formatWind(err.windMps), formatWind(err.limitMps)) };
     // Someone paid for the last drone (or the controller) first: the page shows its popup and keeps everything typed.
     if (err instanceof NoDroneAvailableError || err instanceof NoControllerAvailableError) return { slotTaken: true };
+    if (err instanceof InvalidDroneBookingRequestError) return { error: t.lengthUnavailable };
     throw err;
   }
 }

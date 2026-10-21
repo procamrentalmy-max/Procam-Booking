@@ -3,10 +3,13 @@ import { randomBytes } from "node:crypto";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { buildShopFleetSnapshot } from "./snapshot";
 import { checkWind } from "./wind";
-import { formatWind } from "./windRules";
+import { formatWind, windCheckEnd } from "./windRules";
 import { alignToNextInterval, findEligibleDrone, findEligibleResources, InvalidDroneBookingRequestError } from "./slots";
 import {
   rentalFeeMyr,
+  batteriesFor,
+  isDailyMinutes,
+  offersDaily,
   depositMyrFor,
   effectiveController,
   controllerLabel,
@@ -94,8 +97,10 @@ export async function createPendingDroneBooking(params: {
   const startTime = alignToNextInterval(params.startTime);
   if (startTime.getTime() < Date.now() - 60_000) throw new NoDroneAvailableError();
   const endTime = new Date(startTime.getTime() + params.durationMinutes * 60_000);
+  // By the day only with a way of flying that has a daily rate (phone only or the RC-N3), whatever is sent.
+  if (isDailyMinutes(params.durationMinutes) && !offersDaily(model, controller)) throw new InvalidDroneBookingRequestError("this drone and way of flying are not rented by the day");
 
-  const wind = await checkWind(params.shopId, model, startTime, endTime);
+  const wind = await checkWind(params.shopId, model, startTime, windCheckEnd(startTime, endTime));
   if (wind.tooWindy && wind.windMps !== null && wind.limitMps !== null) throw new TooWindyError(wind.windMps, wind.limitMps);
 
   const snapshot = await buildShopFleetSnapshot(params.shopId, model, controller);
@@ -190,6 +195,8 @@ async function insertBooking(
   }
 ): Promise<DrBookingRow> {
   const durationMinutes = (params.endTime.getTime() - params.startTime.getTime()) / 60_000;
+  // A daily rental always goes out with 3 batteries (and a charger), whatever the choice for an hourly one was.
+  const batteries = batteriesFor(durationMinutes, params.batteries);
 
   const { data: booking, error } = await supabase.rpc("create_drone_booking_atomic", {
     p_customer_id: params.customerId,
@@ -202,7 +209,7 @@ async function insertBooking(
     p_secure_token: generateSecureToken(),
     p_source: params.source,
     p_created_by_staff_id: params.createdByStaffId ?? null,
-    p_batteries_count: params.batteries,
+    p_batteries_count: batteries,
     p_drone_model: params.model,
     p_controller_kind: params.controller,
     p_controller_id: params.controllerId,

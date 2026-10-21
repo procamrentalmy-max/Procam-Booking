@@ -8,7 +8,7 @@ import { SlotTakenDialog } from "@/components/droneRental/SlotTakenDialog";
 import { cancelLostBooking, isSlotStillFree } from "@/lib/droneRental/claimSlot";
 import { CashCardForm } from "@/components/droneRental/CashCardForm";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
-import { formatMyr, includesController, storedController } from "@/lib/droneRental/pricingRules";
+import { formatMyr, includesController, isDailyBooking, storedController } from "@/lib/droneRental/pricingRules";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
 import { durationLabel, droneText } from "@/lib/i18n/drone";
 import { getLocale } from "@/lib/i18n/getLocale";
@@ -134,7 +134,7 @@ export default async function DroneBookingPayPage({
         </div>
         <div className="flex justify-between gap-4">
           <span className="text-zinc-500">{t.common.batteriesLabel}</span>
-          <span className="font-medium">{booking.batteries_count}</span>
+          <span className="font-medium">{isDailyBooking(booking) ? t.common.batteriesAndCharger(booking.batteries_count) : booking.batteries_count}</span>
         </div>
         {booking.source === "MERCHANT_INSTANT" ? (
           <div className="flex justify-between gap-4">

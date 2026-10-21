@@ -79,13 +79,23 @@ export function shopClosesAt(date: Date, hours: ShopHours = DEFAULT_SHOP_HOURS):
   return day ? mytTimeOnDayOf(date, day.close) : null;
 }
 
-/** Whether a rental of `durationMinutes` starting at `start` begins after opening and ends by closing, on one Malaysia day. */
+/** A rental this long or longer is by the day: it is picked up on one day and brought back on another, at the same time of day. */
+const MULTI_DAY_MINUTES = 24 * 60;
+
+/**
+ * Whether a rental of `durationMinutes` starting at `start` can happen. By the hour it begins after opening and ends by closing, on one Malaysia day.
+ * By the day it is picked up while the shop is open (before closing) and brought back at the same time of day on the last day, which has to be
+ * a day the shop is open at that time too: a drone can't be returned to a closed shop.
+ */
 export function isWithinOperatingHours(start: Date, durationMinutes: number, hours: ShopHours = DEFAULT_SHOP_HOURS): boolean {
   const open = shopOpensAt(start, hours);
   const close = shopClosesAt(start, hours);
   if (!open || !close) return false;
   const end = new Date(start.getTime() + durationMinutes * 60_000);
-  return start >= open && end <= close;
+  if (durationMinutes < MULTI_DAY_MINUTES) return start >= open && end <= close;
+  const openEnd = shopOpensAt(end, hours);
+  const closeEnd = shopClosesAt(end, hours);
+  return start >= open && start < close && !!openEnd && !!closeEnd && end >= openEnd && end <= closeEnd;
 }
 
 /** Whether the shop is open at this moment. */
@@ -118,11 +128,14 @@ export function generateDaySlots(now: Date, dayOffset: number, durationMinutes: 
   const close = shopClosesAt(day, hours);
   if (!open || !close) return [];
   const first = dayOffset === 0 && now > open ? ceilToSlot(now) : open;
-  const lastStart = new Date(close.getTime() - durationMinutes * 60_000);
+  // By the day the pickup can be any time the shop is open (the last half hour before closing included), as long as the shop is open
+  // at the same time on the day it comes back.
+  const byTheDay = durationMinutes >= MULTI_DAY_MINUTES;
+  const lastStart = byTheDay ? new Date(close.getTime() - SLOT_MINUTES * 60_000) : new Date(close.getTime() - durationMinutes * 60_000);
 
   const slots: Date[] = [];
   for (let t = first; t <= lastStart; t = new Date(t.getTime() + SLOT_MINUTES * 60_000)) {
-    slots.push(t);
+    if (!byTheDay || isWithinOperatingHours(t, durationMinutes, hours)) slots.push(t);
   }
   return slots;
 }

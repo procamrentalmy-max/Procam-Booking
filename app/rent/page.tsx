@@ -7,7 +7,7 @@ import { droneText } from "@/lib/i18n/drone";
 import Link from "next/link";
 import { FunnelBeacon } from "@/components/FunnelBeacon";
 import { packageQuery, parsePackagePreset } from "@/lib/droneRental/packagePreset";
-import { DRONE_MODEL_PROFILES, controllerLabel, depositMyrFor, formatMyr, rentalFeeMyr } from "@/lib/droneRental/pricingRules";
+import { DAILY_BATTERIES, DRONE_MODEL_PROFILES, controllerLabel, depositMyrFor, formatMyr, isDailyMinutes, rentalFeeMyr } from "@/lib/droneRental/pricingRules";
 
 // Shop list + "first available now/at HH:MM" both depend on live DB state
 // (which shops are active, which drones are free right now) — this must
@@ -29,9 +29,9 @@ export default async function RentLandingPage({ searchParams }: { searchParams: 
     ? [
         DRONE_MODEL_PROFILES[preset.model].shortName,
         preset.controller === "NONE" ? text.common.phoneOnly : controllerLabel(preset.model, preset.controller),
-        text.common.batteries(preset.batteries),
-        text.common.hours(preset.hours),
-        formatMyr(rentalFeeMyr(preset.hours * 60, preset.batteries, preset.model, preset.controller)),
+        isDailyMinutes(preset.minutes) ? text.common.batteriesAndCharger(DAILY_BATTERIES) : text.common.batteries(preset.batteries),
+        text.common.rentalLength(preset.minutes),
+        formatMyr(rentalFeeMyr(preset.minutes, preset.batteries, preset.model, preset.controller)),
       ].join(" · ")
     : null;
 

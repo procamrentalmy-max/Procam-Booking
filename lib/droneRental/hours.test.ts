@@ -114,3 +114,43 @@ describe("each shop's own opening hours", () => {
     expect(parseShopHours(serializeShopHours(hours))).toEqual(hours);
   });
 });
+
+describe("renting by the day", () => {
+  const day = 24 * 60;
+  // 2026-10-05 is a Monday; 2026-10-03 (Saturday) 10:00 MYT = 02:00 UTC
+  const saturday10 = new Date("2026-10-03T02:00:00Z");
+
+  it("is picked up while the shop is open and brought back at the same time of day", () => {
+    expect(isWithinOperatingHours(saturday10, day)).toBe(true);
+    expect(isWithinOperatingHours(saturday10, 3 * day)).toBe(true);
+    // 21:30 pickup (shop closes 22:00): back 21:30 on the last day
+    expect(isWithinOperatingHours(new Date("2026-10-03T13:30:00Z"), day)).toBe(true);
+  });
+
+  it("is not picked up before opening or at closing time", () => {
+    expect(isWithinOperatingHours(new Date("2026-10-02T23:30:00Z"), day)).toBe(false);
+    expect(isWithinOperatingHours(new Date("2026-10-03T14:00:00Z"), day)).toBe(false);
+  });
+
+  it("needs the shop open at that time on the day it comes back", () => {
+    const closedOnSunday = DEFAULT_SHOP_HOURS.map((d, i) => (i === 0 ? null : d));
+    // Saturday 10:00 for 1 day = Sunday 10:00: closed
+    expect(isWithinOperatingHours(saturday10, day, closedOnSunday)).toBe(false);
+    expect(isWithinOperatingHours(saturday10, 2 * day, closedOnSunday)).toBe(true);
+    // Shorter opening hours on the return day: back by 09:00 needs the shop to be open then
+    const lateOpening = DEFAULT_SHOP_HOURS.map((d, i) => (i === 0 ? { open: "11:00", close: "18:00" } : d));
+    expect(isWithinOperatingHours(saturday10, day, lateOpening)).toBe(false);
+  });
+
+  it("offers every half hour the shop is open as a pickup, the last half hour before closing included", () => {
+    const slots = generateDaySlots(justAfterMidnight, 0, day);
+    expect(formatSlotTime(slots[0])).toBe("08:00");
+    expect(formatSlotTime(slots[slots.length - 1])).toBe("21:30");
+  });
+
+  it("offers no pickup when the shop is closed on the day it would come back", () => {
+    const closedOnSunday = DEFAULT_SHOP_HOURS.map((d, i) => (i === 0 ? null : d));
+    expect(generateDaySlots(justAfterMidnight, 0, day, closedOnSunday)).toEqual([]);
+    expect(generateDaySlots(justAfterMidnight, 0, 2 * day, closedOnSunday).length).toBeGreaterThan(0);
+  });
+});
