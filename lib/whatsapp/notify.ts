@@ -19,13 +19,37 @@ function clockOf(date: Date, locale: Locale): string {
  * (a message must never break a booking), sends each kind at most once per booking (the unique row in wa_messages is claimed first), and
  * records what happened so the admin can see it in Admin > WhatsApp.
  */
-export async function notifyBooking(bookingId: string, kind: WaKind, options: { refundMyr?: number } = {}): Promise<void> {
+export type NotifyOptions = {
+  refundMyr?: number;
+  /** A message of the same kind that can repeat on a booking (each battery swap) gives each its own ref; the rest are sent once. */
+  ref?: string;
+  /** SWAP_DONE: how many batteries, where, what was paid and how. */
+  swapCount?: number;
+  swapShopId?: string;
+  amountMyr?: number;
+  paidBy?: "CARD" | "CASH" | "QR";
+  /** DEPOSIT_DECIDED: how much of the deposit was kept. */
+  keptMyr?: number;
+};
+
+const BATTERIES: Record<Locale, (n: number) => string> = {
+  en: (n) => `${n} ${n === 1 ? "battery" : "batteries"}`,
+  ms: (n) => `${n} bateri`,
+  zh: (n) => `${n} 块电池`,
+};
+const PAID_BY: Record<Locale, Record<"CARD" | "CASH" | "QR", string>> = {
+  en: { CARD: "card", CASH: "cash", QR: "QR" },
+  ms: { CARD: "kad", CASH: "tunai", QR: "QR" },
+  zh: { CARD: "银行卡", CASH: "现金", QR: "二维码" },
+};
+
+export async function notifyBooking(bookingId: string, kind: WaKind, options: NotifyOptions = {}): Promise<void> {
   try {
     if (whatsappMode() === "off" && smsMode() === "off") return;
     const supabase = createServiceRoleClient();
     const { data: booking } = await supabase
       .from("dr_bookings")
-      .select("id,human_id,secure_token,customer_id,shop_id,start_time,end_time,whatsapp_opt_in,whatsapp_number,locale,rental_fee_myr")
+      .select("id,human_id,secure_token,customer_id,shop_id,start_time,end_time,whatsapp_opt_in,whatsapp_number,locale,rental_fee_myr,deposit_myr")
       .eq("id", bookingId)
       .maybeSingle();
     if (!booking) return;
@@ -41,13 +65,21 @@ export async function notifyBooking(bookingId: string, kind: WaKind, options: { 
 
     const locale: Locale = isLocale(booking.locale) ? booking.locale : "en";
     // Claim this message first: a second run (the cron, a repeated webhook) finds the row and stops.
-    const { data: claimed, error: claimError } = await supabase.from("wa_messages").insert({ booking_id: bookingId, kind, to_phone: to, locale, channel: route.channel, status: "PENDING" }).select("id").maybeSingle();
+    const { data: claimed, error: claimError } = await supabase.from("wa_messages").insert({ booking_id: bookingId, kind, ref: options.ref ?? null, to_phone: to, locale, channel: route.channel, status: "PENDING" }).select("id").maybeSingle();
     if (claimError || !claimed) return;
 
     const start = new Date(booking.start_time);
     const end = new Date(booking.end_time);
     const first = customer.name.trim().split(/\s+/)[0] || customer.name;
     const shopName = shop?.name ?? "";
+    // A swap can be done at another shop than the one the rental is from: the message says where it happened.
+    let swapShopName = shopName;
+    if (kind === "SWAP_DONE" && options.swapShopId && options.swapShopId !== booking.shop_id) {
+      const { data: other } = await supabase.from("dr_shops").select("name").eq("id", options.swapShopId).maybeSingle();
+      swapShopName = other?.name ?? shopName;
+    }
+    const deposit = Number(booking.deposit_myr);
+    const kept = Math.min(options.keptMyr ?? 0, deposit);
     const variables: Record<WaKind, string[]> = {
       BOOKING_CONFIRMED: [first, booking.human_id, shopName, formatMalaysiaTime(start, locale)],
       PICKUP_REMINDER: [first, shopName, clockOf(start, locale)],
@@ -56,6 +88,11 @@ export async function notifyBooking(bookingId: string, kind: WaKind, options: { 
       LATE_NOTICE: [first, clockOf(end, locale), shopName],
       DEPOSIT_CONFIRM: [first, booking.human_id],
       BOOKING_CANCELLED: [first, booking.human_id, formatMyr(options.refundMyr ?? Number(booking.rental_fee_myr))],
+      WALKIN_PAID: [first, formatMyr(Number(booking.rental_fee_myr)), booking.human_id, shopName],
+      SWAP_DONE: [first, BATTERIES[locale](options.swapCount ?? 1), swapShopName, formatMyr(options.amountMyr ?? 0), PAID_BY[locale][options.paidBy ?? "CARD"]],
+      RETURN_DONE: [first, formatMyr(deposit), shopName],
+      RETURN_REVIEW: [first, shopName],
+      DEPOSIT_DECIDED: [first, formatMyr(kept), formatMyr(deposit - kept)],
     };
     const template = WA_TEMPLATES[kind];
     // An SMS has no templates and no button: the same words, with the link to the booking on its own line.

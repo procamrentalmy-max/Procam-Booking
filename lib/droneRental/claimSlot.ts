@@ -72,7 +72,11 @@ export async function isSlotStillFree(bookingId: string): Promise<boolean> {
 export async function claimBookingSlot(bookingId: string): Promise<ClaimResult> {
   const result = await claimBookingSlotNow(bookingId);
   // The WhatsApp confirmation (only if the customer asked for it; sent at most once, so a repeat run does nothing).
-  if (result.claimed) await notifyBooking(bookingId, "BOOKING_CONFIRMED");
+  if (result.claimed) {
+    // An online customer is told where and when to collect; a walk-in is already at the shop, so they are told the payment is in.
+    const { source } = await loadSlot(bookingId);
+    await notifyBooking(bookingId, source === "MERCHANT_INSTANT" ? "WALKIN_PAID" : "BOOKING_CONFIRMED");
+  }
   return result;
 }
 

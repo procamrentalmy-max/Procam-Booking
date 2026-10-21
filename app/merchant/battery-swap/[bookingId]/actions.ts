@@ -7,6 +7,7 @@ import { canAccessShop } from "@/lib/droneRental/access";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { chargeBatterySwapFee } from "@/lib/droneRental/payment";
 import { useQrSwapPayment } from "@/lib/droneRental/qrPayments";
+import { notifyBooking } from "@/lib/whatsapp/notify";
 import { findChargedBatteries, validateHandoutBatteries, type ChargedBattery } from "@/lib/droneRental/batteries";
 import { isBatteryCount, MAX_BATTERIES_HELD, modelProfile } from "@/lib/droneRental/pricingRules";
 
@@ -91,4 +92,13 @@ export async function submitBatterySwapAction(formData: FormData) {
       performed_by_staff_id: ctx.staffId,
     });
   }
+
+  // Tell the customer the swap is done (each swap has its own message).
+  await notifyBooking(bookingId, "SWAP_DONE", {
+    ref: String(Date.now()),
+    swapCount: count,
+    swapShopId,
+    amountMyr: modelProfile(booking.drone_model).batteryFeeMyr[count],
+    paidBy: parsed.data.paidBy,
+  });
 }

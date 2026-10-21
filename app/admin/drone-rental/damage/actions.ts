@@ -5,6 +5,7 @@ import { z } from "zod";
 import { uuidSchema } from "@/lib/zod-helpers";
 import { getAuthContext, isAdmin } from "@/lib/auth/session";
 import { reviewDroneDamage } from "@/lib/droneRental/damageReview";
+import { notifyBooking } from "@/lib/whatsapp/notify";
 
 const amount = z.preprocess((v) => (v === "" || v === null || v === undefined ? undefined : v), z.coerce.number().min(0, "An amount can't be negative.").optional());
 
@@ -33,6 +34,8 @@ export async function reviewDamageAction(formData: FormData): Promise<ReviewResu
     });
     revalidatePath("/admin/drone-rental/damage");
     revalidatePath("/admin/drone-rental");
+    // The customer is told what was kept from the deposit and what was released.
+    if (holdFound) await notifyBooking(parsed.data.bookingId, "DEPOSIT_DECIDED", { keptMyr: capturedMyr });
     return { ok: true, capturedMyr, holdFound };
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : "Something went wrong." };

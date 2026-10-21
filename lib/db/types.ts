@@ -818,6 +818,8 @@ export type WaMessageRow = {
   id: string;
   booking_id: string;
   kind: string;
+  /** Tells apart messages of one kind that can repeat on a booking (each battery swap); null for the ones sent once. */
+  ref: string | null;
   to_phone: string;
   locale: string;
   /** How it was sent: on WhatsApp (they gave a WhatsApp number) or as an SMS to their phone number. */

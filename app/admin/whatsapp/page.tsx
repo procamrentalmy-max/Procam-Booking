@@ -44,7 +44,7 @@ export default async function AdminWhatsAppPage() {
       <div>
         <h1 className="text-lg font-semibold">WhatsApp</h1>
         <p className="text-sm text-zinc-500">
-          Booking messages: confirmation, a reminder before pickup, how to swap a battery after handover, a return reminder, a late notice, a deposit nudge, and a refund notice, in the language the customer was using. A customer who gave a
+          Booking messages: confirmation, a walk-in payment received, a reminder before pickup, how to swap a battery after handover, each battery swap done, a return reminder, a late notice, the return and what happens to the deposit, a deposit nudge, and a refund notice, in the language the customer was using. A customer who gave a
           WhatsApp number gets them on WhatsApp; one who left it empty gets the same words as an SMS to their phone number.
         </p>
       </div>

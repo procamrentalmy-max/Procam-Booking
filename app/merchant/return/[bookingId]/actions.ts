@@ -6,6 +6,7 @@ import { getAuthContext, hasMerchantAccess } from "@/lib/auth/session";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { uploadChecklistPhoto, checklistPhotoPath } from "@/lib/droneRental/storage";
 import { resolveDroneDeposit, chargeLateFee } from "@/lib/droneRental/payment";
+import { notifyBooking } from "@/lib/whatsapp/notify";
 import { computeDepositCapture, includesController, lateFeeMyr, modelProfile, storedController, DepositCaptureError, type DepositCapture } from "@/lib/droneRental/pricingRules";
 import { isReturnLate } from "@/lib/droneRental/slots";
 import { dronePhotoSteps } from "@/lib/droneRental/photoSteps";
@@ -157,6 +158,11 @@ export async function submitReturnAction(formData: FormData): Promise<ReturnResu
       console.error("[drone return] late fee charge failed", err);
     }
   }
+
+  // The customer is told how the deposit stands: released, to be checked tonight, or what was kept (a lost item).
+  if (capture === null) await notifyBooking(parsed.bookingId, "RETURN_REVIEW");
+  else if (holdFound && capture.totalMyr > 0) await notifyBooking(parsed.bookingId, "DEPOSIT_DECIDED", { keptMyr: capture.totalMyr });
+  else if (holdFound) await notifyBooking(parsed.bookingId, "RETURN_DONE");
 
   return { lateFeeMyr: lateFee, lateFeeCharged, capturedMyr: capture?.totalMyr ?? 0, holdFound, damageReview: capture === null };
 }
