@@ -48,4 +48,4 @@ export const DRONE_ID_CHECK_ENABLED = false;
  * made by the day still work to the end (pickup, return, prices), and the daily prices, pictures and texts are all still there. Setting this back to true
  * brings it back exactly as it was.
  */
-export const DAILY_RENTAL_ENABLED = false;
+export const DAILY_RENTAL_ENABLED = true;

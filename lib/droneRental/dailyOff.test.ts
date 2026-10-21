@@ -1,12 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// The switch is pinned off here so the off state stays covered whichever way lib/features.ts is set.
+vi.mock("@/lib/features", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/features")>()), DAILY_RENTAL_ENABLED: false }));
 import { DAILY_RENTAL_ENABLED } from "@/lib/features";
 import { faqEn, faqMs, faqZh } from "@/lib/i18n/faq";
 import { hasDailyRate, offersDaily, rentalFeeMyr } from "./pricingRules";
 import { packageQuery, parsePackagePreset } from "./packagePreset";
 
-// While renting by the day is switched off (lib/features.ts) customers can only choose hours, and nothing says otherwise. What exists is kept for when it comes back.
+// While renting by the day is switched off (DAILY_RENTAL_ENABLED in lib/features.ts) customers can only choose hours, and nothing says otherwise. What exists is kept for when it comes back.
 describe("renting by the day switched off", () => {
-  it("is off", () => {
+  it("is off in this test", () => {
     expect(DAILY_RENTAL_ENABLED).toBe(false);
   });
 
