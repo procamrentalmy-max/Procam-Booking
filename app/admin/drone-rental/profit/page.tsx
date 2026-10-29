@@ -58,18 +58,21 @@ function rangeStartMs(range: RangeKey, now: number): number | null {
   return Date.UTC(shifted.getUTCFullYear(), monthStart, 1) - MYT_OFFSET_MS;
 }
 
+import { loadFlyerBookings } from "@/lib/referralStats";
+
 export default async function DroneProfitPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   const { range: rangeParam } = await searchParams;
   const range: RangeKey = RANGES.some((r) => r.key === rangeParam) ? (rangeParam as RangeKey) : "year";
 
   const supabase = await createServerSupabaseClient();
-  const [{ data: bookings }, { data: drones }, { data: swaps }, { data: lateFees }, { data: messages }, { data: batteries }] = await Promise.all([
+  const [{ data: bookings }, { data: drones }, { data: swaps }, { data: lateFees }, { data: messages }, { data: batteries }, flyerBookings] = await Promise.all([
     supabase.from("dr_bookings").select("id,status,drone_id,start_time,batteries_count,rental_fee_myr,drone_charge_myr,controller_charge_myr"),
     supabase.from("dr_drones").select("id,human_id,status,cost_price_myr"),
     supabase.from("dr_battery_swaps").select("booking_id,fee_myr"),
     supabase.from("dr_payments").select("booking_id,amount_myr").eq("kind", "LATE_FEE").eq("status", "SUCCEEDED"),
     supabase.from("wa_messages").select("booking_id,status"),
     supabase.from("dr_batteries").select("id"),
+    loadFlyerBookings(),
   ]);
 
   const now = Date.now();
@@ -102,11 +105,13 @@ export default async function DroneProfitPage({ searchParams }: { searchParams: 
     const uses = (HANDED_OUT_STATUSES.includes(b.status) ? Number(b.batteries_count) : 0) + e.swaps.length;
     const wear = uses * BATTERY_WEAR_MYR_PER_USE;
     const whatsapp = e.messages * WHATSAPP_MYR_PER_MESSAGE;
-    return { sales, cardFees, wear, whatsapp, profit: sales - cardFees - wear - whatsapp, rentals: 1 };
+    // The flyer place's 10% on a booking that came from its flyer is a cost of that booking.
+    const flyer = flyerBookings.get(b.id)?.commission ?? 0;
+    return { sales, cardFees, wear, whatsapp, flyer, profit: sales - cardFees - wear - whatsapp - flyer, rentals: 1 };
   };
 
   const inRange = everything.filter((b) => fromMs === null || new Date(b.start_time).getTime() >= fromMs);
-  const totals = { sales: 0, cardFees: 0, wear: 0, whatsapp: 0, profit: 0 };
+  const totals = { sales: 0, cardFees: 0, wear: 0, whatsapp: 0, flyer: 0, profit: 0 };
   const byWeekday = Array<number>(7).fill(0);
   const byMonth = { sales: Array<number>(12).fill(0), profit: Array<number>(12).fill(0) };
   const actualByType: Record<DayType, number> = { WEEKDAY: 0, HOLIDAY_WEEKDAY: 0, WEEKEND: 0, HOLIDAY_WEEKEND: 0 };
@@ -116,6 +121,7 @@ export default async function DroneProfitPage({ searchParams }: { searchParams: 
     totals.cardFees += m.cardFees;
     totals.wear += m.wear;
     totals.whatsapp += m.whatsapp;
+    totals.flyer += m.flyer;
     totals.profit += m.profit;
     const when = new Date(new Date(b.start_time).getTime() + MYT_OFFSET_MS);
     byWeekday[when.getUTCDay()] += m.profit;
@@ -156,6 +162,7 @@ export default async function DroneProfitPage({ searchParams }: { searchParams: 
     { label: "Card fees", value: totals.cardFees },
     { label: "Battery wear", value: totals.wear },
     { label: "WhatsApp messages", value: totals.whatsapp },
+    { label: "Flyer commission (10%)", value: totals.flyer },
   ].filter((d) => d.value > 0);
 
   return (
@@ -163,7 +170,7 @@ export default async function DroneProfitPage({ searchParams }: { searchParams: 
       <div className="space-y-3">
         <p className="text-sm text-zinc-500">
           Drone rental only, no monthly or fixed costs. Profit is what customers paid ({inRange.length} paid bookings, {rangeLabel}) minus what each rental costs to take: card fees, battery wear and
-          WhatsApp messages. The 65% line is the goal, not a measurement.
+          WhatsApp messages, and the flyer places' 10% on the bookings that came from a flyer. The 65% line is the goal, not a measurement.
         </p>
         <div className="flex flex-wrap gap-2">
           {RANGES.map((r) => (

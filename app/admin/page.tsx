@@ -27,6 +27,7 @@ const GROUPS: { title: string; sections: Section[] }[] = [
       { href: "/admin/drone-rental/profit", label: "Profit", note: "Sales minus what each rental costs, against the 65% goal, with charts, payback and a forecast by day" },
       { href: "/admin/drone-rental/locations", label: "Location traffic", note: "Which locations customers tap, open and ask directions for, location by location and overall" },
       { href: "/admin/drone-rental/funnel", label: "Funnel", note: "Where customers drop off between the home page and paying" },
+      { href: "/admin/flyers", label: "Flyers", note: "Businesses that display a flyer QR: their QR, scans, bookings, the 10% commission owed and payouts" },
     ],
   },
   {

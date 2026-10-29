@@ -2,6 +2,8 @@ import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
 import { formatMyr } from "@/lib/droneRental/pricingRules";
+import { REFERRER_SHARE } from "@/lib/referral";
+import { loadFlyerBookings } from "@/lib/referralStats";
 
 export const dynamic = "force-dynamic";
 
@@ -35,17 +37,20 @@ function Stat({ label, value }: { label: string; value: string }) {
 export default async function DroneBookingsPage() {
   const supabase = await createServerSupabaseClient();
   const monthStart = startOfMalaysiaMonthIso(new Date());
-  const [{ count: damagePending }, { data: shops }, { data: drones }, { data: recent }, { data: monthBookings }] = await Promise.all([
+  const [{ count: damagePending }, { data: shops }, { data: drones }, { data: recent }, { data: monthBookings }, flyerBookings, { data: flyers }] = await Promise.all([
     supabase.from("dr_bookings").select("id", { count: "exact", head: true }).eq("damage_review", "PENDING"),
     supabase.from("dr_shops").select("id,name,active"),
     supabase.from("dr_drones").select("id,human_id,status"),
     supabase
       .from("dr_bookings")
-      .select("id,human_id,status,source,start_time,end_time,rental_fee_myr,drone_charge_myr,controller_charge_myr,customer_id,shop_id,drone_id")
+      .select("id,human_id,status,source,start_time,end_time,rental_fee_myr,drone_charge_myr,controller_charge_myr,customer_id,shop_id,drone_id,referrer_id")
       .order("created_at", { ascending: false })
       .limit(25),
-    supabase.from("dr_bookings").select("status,rental_fee_myr").gte("created_at", monthStart),
+    supabase.from("dr_bookings").select("id,status,rental_fee_myr,referrer_id").gte("created_at", monthStart),
+    loadFlyerBookings(),
+    supabase.from("dr_referrers").select("id,name"),
   ]);
+  const flyerName = new Map((flyers ?? []).map((f) => [f.id, f.name]));
 
   const customerIds = [...new Set((recent ?? []).map((b) => b.customer_id))];
   const { data: customers } = customerIds.length
@@ -57,6 +62,9 @@ export default async function DroneBookingsPage() {
 
   const paidThisMonth = (monthBookings ?? []).filter((b) => PAID_STATUSES.includes(b.status));
   const feesThisMonth = paidThisMonth.reduce((sum, b) => sum + Number(b.rental_fee_myr), 0);
+  // Paid bookings this month that came from a flyer, and the flyer places' 10% on them.
+  const flyerThisMonth = paidThisMonth.filter((b) => b.referrer_id);
+  const flyerCommissionThisMonth = flyerThisMonth.reduce((sum, b) => sum + (flyerBookings.get(b.id)?.commission ?? 0), 0);
   const outNow = (drones ?? []).filter((d) => d.status === "RENTED").length;
   const activeDrones = (drones ?? []).filter((d) => d.status !== "RETIRED" && d.status !== "LOST").length;
 
@@ -67,6 +75,8 @@ export default async function DroneBookingsPage() {
         <Stat label="Rental fees this month" value={formatMyr(feesThisMonth)} />
         <Stat label="Drones out now" value={`${outNow} of ${activeDrones}`} />
         <Stat label="Locations open to customers" value={String((shops ?? []).filter((s) => s.active).length)} />
+        <Stat label="From flyers this month" value={`${flyerThisMonth.length} paid`} />
+        <Stat label={`Flyer commission (${Math.round(REFERRER_SHARE * 100)}%) this month`} value={formatMyr(Math.round(flyerCommissionThisMonth * 100) / 100)} />
       </section>
 
       <Link
@@ -97,6 +107,12 @@ export default async function DroneBookingsPage() {
                     {formatMalaysiaTime(new Date(b.end_time), "en")}
                     {b.source === "MERCHANT_INSTANT" ? " · walk-in" : ""}
                   </p>
+                  {b.referrer_id && (
+                    <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                      Flyer: {flyerName.get(b.referrer_id) ?? "—"}
+                      {flyerBookings.get(b.id) ? ` · ${formatMyr(flyerBookings.get(b.id)!.commission)} commission (${Math.round(REFERRER_SHARE * 100)}% of the profit)` : ` · ${Math.round(REFERRER_SHARE * 100)}% of the profit once paid`}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
                   {kept > 0 && <span className="text-xs text-red-600">Kept {formatMyr(kept)}</span>}

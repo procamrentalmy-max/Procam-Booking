@@ -9,6 +9,7 @@ import { droneText, fieldError } from "@/lib/i18n/drone";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { toWhatsAppNumber } from "@/lib/whatsapp/phone";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { referrerIdFromCookie } from "@/lib/referralServer";
 import { uuidSchema } from "@/lib/zod-helpers";
 import { CONTROLLER_KINDS, ENABLED_DRONE_MODELS, type ControllerKind, type DroneModel } from "@/lib/droneRental/pricingRules";
 
@@ -67,7 +68,7 @@ export async function submitWalkInOrderAction(input: {
   });
   if (result.ok) {
     // Kept on the order until the staff confirm it and the booking is made (see acceptWalkInRequest).
-    await createServiceRoleClient().from("dr_walkin_requests").update({ whatsapp_number: d.whatsappNumber || null, locale: await getLocale() }).eq("public_token", result.publicToken);
+    await createServiceRoleClient().from("dr_walkin_requests").update({ whatsapp_number: d.whatsappNumber || null, locale: await getLocale(), referrer_id: await referrerIdFromCookie() }).eq("public_token", result.publicToken);
     return { ok: true, token: result.publicToken };
   }
   if (DRONE_ID_CHECK_ENABLED) await releaseVerification(d.verificationId ?? "");

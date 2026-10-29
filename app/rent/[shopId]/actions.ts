@@ -15,6 +15,7 @@ import { droneText, fieldError } from "@/lib/i18n/drone";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { toWhatsAppNumber } from "@/lib/whatsapp/phone";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { referrerIdFromCookie } from "@/lib/referralServer";
 import { formatWind } from "@/lib/droneRental/windRules";
 import { isTooWindy, maxWindForWindow, windCheckEnd, windLimitFor } from "@/lib/droneRental/windRules";
 
@@ -121,7 +122,7 @@ export async function createDroneBookingAction(input: {
       controller: data.controller,
     });
     // Where the messages go (their WhatsApp number, or an SMS to the phone number) and the language they are using (lib/whatsapp).
-    await createServiceRoleClient().from("dr_bookings").update({ whatsapp_number: data.whatsappNumber || null, locale: await getLocale() }).eq("id", booking.id);
+    await createServiceRoleClient().from("dr_bookings").update({ whatsapp_number: data.whatsappNumber || null, locale: await getLocale(), referrer_id: await referrerIdFromCookie() }).eq("id", booking.id);
     return { secureToken: booking.secure_token, startTime: booking.start_time, endTime: booking.end_time };
   } catch (err) {
     if (DRONE_ID_CHECK_ENABLED) await releaseVerification(data.verificationId ?? "");

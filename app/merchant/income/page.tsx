@@ -3,13 +3,15 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { modelProfile } from "@/lib/droneRental/pricingRules";
 import { PAID_STATUSES, monthStartMs, summariseIncome, type IncomeBooking } from "@/lib/droneRental/income";
-import { CARD_FEE_FIXED_MYR, CARD_FEE_RATE, KYC_PER_BOOKING_MYR, PARTNER_SHARE, PLATFORM_RATE } from "@/lib/droneRental/earnings";
+import { REFERRER_SHARE } from "@/lib/referral";
+import { CARD_FEE_FIXED_MYR, CARD_FEE_RATE, KYC_PER_BOOKING_MYR, PARTNER_SHARE, PARTNER_SHARE_REFERRED, PLATFORM_RATE } from "@/lib/droneRental/earnings";
 import { EarningsRow } from "@/components/droneRental/EarningsRow";
 import { BarChart, DonutChart } from "@/app/admin/sales/charts";
 
 // The generated types don't know these two relationships, but the foreign keys exist, so PostgREST embeds them.
-type BookingRow = Omit<IncomeBooking, "swaps" | "lateFees" | "swapOnly"> & {
+type BookingRow = Omit<IncomeBooking, "swaps" | "lateFees" | "swapOnly" | "referred"> & {
   shop_id: string;
+  referrer_id: string | null;
   dr_battery_swaps: { fee_myr: number | string; paid_by: string; swap_shop_id: string | null }[] | null;
   dr_payments: { amount_myr: number | string; kind: string; status: string; provider: string }[] | null;
 };
@@ -47,7 +49,7 @@ export default async function ShopIncomePage() {
   const bookingsQuery = db
     .from("dr_bookings")
     .select(
-      "id,shop_id,status,source,paid_by,start_time,batteries_count,drone_model,rental_fee_myr,drone_charge_myr,controller_charge_myr,dr_battery_swaps(fee_myr,paid_by,swap_shop_id),dr_payments(amount_myr,kind,status,provider)",
+      "id,shop_id,referrer_id,status,source,paid_by,start_time,batteries_count,drone_model,rental_fee_myr,drone_charge_myr,controller_charge_myr,dr_battery_swaps(fee_myr,paid_by,swap_shop_id),dr_payments(amount_myr,kind,status,provider)",
     )
     .in("status", PAID_STATUSES)
     .gte("start_time", new Date(monthStartMs(now, MONTHS_SHOWN - 1)).toISOString());
@@ -68,6 +70,7 @@ export default async function ShopIncomePage() {
     rental_fee_myr: b.rental_fee_myr,
     drone_charge_myr: b.drone_charge_myr,
     controller_charge_myr: b.controller_charge_myr,
+    referred: !!b.referrer_id,
     // A swap of two batteries is two rows, with the fee on the first only; the zero-fee row is not a payment.
     // A swap done at another shop earns that shop the fee, so only this shop's own swaps (and old ones, with no shop recorded) count here.
     swaps: (b.dr_battery_swaps ?? []).filter((s) => Number(s.fee_myr) > 0 && (!s.swap_shop_id || s.swap_shop_id === b.shop_id)).map((s) => ({ feeMyr: Number(s.fee_myr), paidBy: s.paid_by === "CASH" ? ("CASH" as const) : s.paid_by === "QR" ? ("QR" as const) : ("CARD" as const) })),
@@ -124,7 +127,8 @@ export default async function ShopIncomePage() {
         <p className="text-xs font-medium uppercase tracking-wide text-emerald-800 dark:text-emerald-300">Your earnings in {s.monthLabel}</p>
         <p className="mt-1 text-4xl font-bold text-black dark:text-zinc-50">{myr2(e.partner)}</p>
         <p className="mt-2 text-sm text-emerald-900 dark:text-emerald-200">
-          Your {percent(PARTNER_SHARE)} of what&apos;s left after costs, from {s.bookings} paid {s.bookings === 1 ? "booking" : "bookings"}.
+          Your share of what&apos;s left after costs ({percent(PARTNER_SHARE)}, or {percent(PARTNER_SHARE_REFERRED)} on a booking that came from a flyer), from {s.bookings} paid {s.bookings === 1 ? "booking" : "bookings"}
+          {s.flyerBookings > 0 && <> ({s.flyerBookings} came from a flyer)</>}.
         </p>
         <p className="mt-1 text-sm text-emerald-900 dark:text-emerald-200">
           Last month: {myr(s.previousEarnings)}
@@ -136,7 +140,7 @@ export default async function ShopIncomePage() {
         </p>
       </div>
 
-      <Section title="How your earnings are worked out" note="Costs come off what customers paid, and what is left is split 50/50. Tap an i to see what a cost is.">
+      <Section title="How your earnings are worked out" note={`Costs come off what customers paid, and what is left is split 50/50. On a booking that came from a flyer it is split ${percent(PARTNER_SHARE_REFERRED)} you, ${percent(PARTNER_SHARE_REFERRED)} ProCam and ${percent(REFERRER_SHARE)} the flyer place. Tap an i to see what a cost is.`}>
         <div className="overflow-hidden rounded-xl border border-zinc-200 text-sm dark:border-zinc-800">
           <EarningsRow label="Customers paid" value={myr2(e.income)} strong />
           <EarningsRow
@@ -157,8 +161,15 @@ export default async function ShopIncomePage() {
             />
           )}
           <EarningsRow label="Left after costs" value={myr2(e.net)} strong />
-          <EarningsRow label={`ProCam ${percent(1 - PARTNER_SHARE)}`} value={myr2(e.procam)} />
-          <EarningsRow label={`You ${percent(PARTNER_SHARE)}`} value={myr2(e.partner)} strong highlight />
+          <EarningsRow label="ProCam" value={myr2(e.procam)} />
+          {e.referrer > 0 && (
+            <EarningsRow
+              label={`Flyer place ${percent(REFERRER_SHARE)}`}
+              value={myr2(e.referrer)}
+              info={`On a booking made by someone who scanned a flyer's QR code, the flyer place gets ${percent(REFERRER_SHARE)} of what is left after costs, and the rest is split evenly: ${percent(PARTNER_SHARE_REFERRED)} you and ${percent(PARTNER_SHARE_REFERRED)} ProCam.`}
+            />
+          )}
+          <EarningsRow label="You" value={myr2(e.partner)} strong highlight />
         </div>
         {e.cashIncome > 0 && (
           <p className="text-xs text-zinc-500">{myr2(e.cashIncome)} of that was paid in cash. Cash has no card fee, so it leaves you more.</p>

@@ -1,6 +1,6 @@
 // A partner's (merchant's) earnings, following the Partner Program pitch: what customers pay is the booking income; the
 // platform, payment and identity-check costs come off it; what is left is split 50 / 50 between the partner
-// and ProCam.
+// and ProCam (45 / 45 / 10 with the flyer place on a booking that came from a flyer).
 //
 // The pitch gave every cost as a flat percentage (platform 18%, payment 4%, KYC 2%). The platform fee stays a percentage.
 // The other two are worked out from what they really cost:
@@ -10,6 +10,7 @@
 
 import type { DrPaidBy } from "@/lib/db/types";
 import { DRONE_ID_CHECK_ENABLED } from "@/lib/features";
+import { REFERRER_SHARE } from "@/lib/referral";
 
 export const PLATFORM_RATE = 0.18;
 
@@ -29,6 +30,12 @@ export const KYC_PER_BOOKING_MYR = DRONE_ID_CHECK_ENABLED ? KYC_RATE_MYR : 0;
 /** The partner's share of what is left after costs. */
 export const PARTNER_SHARE = 0.5;
 
+/**
+ * On a booking that came from a flyer (see lib/referral.ts) the flyer place gets REFERRER_SHARE (10%) and the rest is still split evenly:
+ * 45% the partner, 45% ProCam.
+ */
+export const PARTNER_SHARE_REFERRED = (1 - REFERRER_SHARE) / 2;
+
 export type CostKey = "platform" | "payment" | "kyc";
 
 /** One payment a customer made on a booking (the rental fee, a swap, a late fee), by card or in cash. */
@@ -40,10 +47,12 @@ export type Earnings = {
   costs: Record<CostKey, number>;
   totalCosts: number;
   net: number;
-  /** The partner's 50%. */
+  /** The partner's 50% (45% on a booking that came from a flyer). */
   partner: number;
-  /** ProCam's 50%. */
+  /** ProCam's 50% (45% on a booking that came from a flyer). */
   procam: number;
+  /** The flyer place's 10% of a booking that came from its flyer; 0 on every other booking. */
+  referrer: number;
 };
 
 /** The card fee on one payment: nothing for cash or a QR payment, otherwise a percentage plus the fixed RM1. */
@@ -51,13 +60,13 @@ export function cardFeeFor(payment: Payment): number {
   return payment.method !== "CARD" || payment.amount <= 0 ? 0 : payment.amount * CARD_FEE_RATE + CARD_FEE_FIXED_MYR;
 }
 
-export const ZERO_EARNINGS: Earnings = { income: 0, costs: { platform: 0, payment: 0, kyc: 0 }, totalCosts: 0, net: 0, partner: 0, procam: 0 };
+export const ZERO_EARNINGS: Earnings = { income: 0, costs: { platform: 0, payment: 0, kyc: 0 }, totalCosts: 0, net: 0, partner: 0, procam: 0, referrer: 0 };
 
 /**
  * The earnings from one booking, from the payments made on it. The identity check is charged once per booking, so a shop that only did a
  * battery swap for another shop's customer passes `{ kyc: false }`: it did not do that customer's ID check.
  */
-export function earningsForBooking(payments: Payment[], options: { kyc?: boolean } = {}): Earnings {
+export function earningsForBooking(payments: Payment[], options: { kyc?: boolean; /** The booking came from a flyer: 45 / 45 / 10 instead of 50 / 50. */ referred?: boolean } = {}): Earnings {
   const paid = payments.filter((p) => p.amount > 0);
   if (paid.length === 0) return ZERO_EARNINGS;
   const income = paid.reduce((sum, p) => sum + p.amount, 0);
@@ -68,7 +77,8 @@ export function earningsForBooking(payments: Payment[], options: { kyc?: boolean
   };
   const totalCosts = costs.platform + costs.payment + costs.kyc;
   const net = income - totalCosts;
-  return { income, costs, totalCosts, net, partner: net * PARTNER_SHARE, procam: net * (1 - PARTNER_SHARE) };
+  if (options.referred) return { income, costs, totalCosts, net, partner: net * PARTNER_SHARE_REFERRED, procam: net * PARTNER_SHARE_REFERRED, referrer: net * REFERRER_SHARE };
+  return { income, costs, totalCosts, net, partner: net * PARTNER_SHARE, procam: net * (1 - PARTNER_SHARE), referrer: 0 };
 }
 
 export function addEarnings(a: Earnings, b: Earnings): Earnings {
@@ -83,5 +93,6 @@ export function addEarnings(a: Earnings, b: Earnings): Earnings {
     net: a.net + b.net,
     partner: a.partner + b.partner,
     procam: a.procam + b.procam,
+    referrer: a.referrer + b.referrer,
   };
 }

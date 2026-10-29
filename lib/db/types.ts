@@ -630,6 +630,8 @@ export type DrBatteryRow = {
 };
 
 export type DrBookingRow = {
+  /** The flyer place whose QR this customer scanned in the 7 days before booking (see lib/referral.ts); null for every other booking. */
+  referrer_id: string | null;
   /** Older bookings: the customer ticked "WhatsApp me about my booking" (see lib/whatsapp). New ones use whatsapp_number instead. */
   whatsapp_opt_in: boolean;
   /** When a run last started finishing this booking's card payment (see finishCardBooking); only one run at a time. */
@@ -772,6 +774,8 @@ export type DrDepositAuthorizationRow = {
 export type DrWalkInStatus = "WAITING" | "SUBMITTED" | "ACCEPTED" | "DECLINED" | "CANCELLED";
 
 export type DrWalkInRequestRow = {
+  /** The flyer place this customer scanned (see lib/referral.ts); copied to the booking when the order is confirmed. */
+  referrer_id: string | null;
   whatsapp_opt_in: boolean;
   whatsapp_number: string | null;
   locale: string | null;
@@ -837,6 +841,11 @@ export type DrLocationEventRow = { id: string; session_id: string; shop_id: stri
 /** One step of the drone booking flow reached by one visit (Admin > Drone Funnel). */
 export type DrFunnelEventRow = { id: string; session_id: string; step: string; shop_id: string | null; /** Two-letter country code of the visit; null when not known. */ country: string | null; created_at: string };
 
+/** A flyer place: a business that displays ProCam's flyer with a QR, and gets 10% of the profit on bookings that came from it. */
+export type DrReferrerRow = { id: string; name: string; code: string; access_token: string; contact: string | null; notes: string | null; active: boolean; created_at: string };
+export type DrReferralScanRow = { id: string; referrer_id: string; visitor_id: string; created_at: string };
+export type DrReferralPayoutRow = { id: string; referrer_id: string; amount_myr: number; note: string | null; paid_at: string };
+
 type TableDef<Row> = { Row: Row; Insert: Partial<Row>; Update: Partial<Row>; Relationships: [] };
 
 export interface Database {
@@ -899,6 +908,9 @@ export interface Database {
       dr_deposit_authorizations: TableDef<DrDepositAuthorizationRow>;
       dr_walkin_requests: TableDef<DrWalkInRequestRow>;
       dr_qr_payments: TableDef<DrQrPaymentRow>;
+      dr_referrers: TableDef<DrReferrerRow>;
+      dr_referral_scans: TableDef<DrReferralScanRow>;
+      dr_referral_payouts: TableDef<DrReferralPayoutRow>;
     };
     Views: Record<string, never>;
     Functions: {

@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { PARTNER_SHARE_REFERRED } from "@/lib/droneRental/earnings";
+import { REFERRER_SHARE } from "@/lib/referral";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { controllerProfileFor, includesController, isDailyBooking, modelProfile, storedController } from "@/lib/droneRental/pricingRules";
 import { checklistForRental } from "@/lib/droneRental/checklist";
@@ -9,7 +11,7 @@ export default async function MerchantReturnPage({ params }: { params: Promise<{
   const { bookingId } = await params;
   const supabase = createServiceRoleClient();
 
-  const { data: booking } = await supabase.from("dr_bookings").select("id,status,customer_id,drone_id,batteries_count,drone_model,controller_kind,controller_id").eq("id", bookingId).maybeSingle();
+  const { data: booking } = await supabase.from("dr_bookings").select("id,referrer_id,status,customer_id,drone_id,batteries_count,drone_model,controller_kind,controller_id").eq("id", bookingId).maybeSingle();
   if (!booking) notFound();
   const profile = modelProfile(booking.drone_model);
   const controller = storedController(booking.drone_model, booking.controller_kind);
@@ -31,6 +33,11 @@ export default async function MerchantReturnPage({ params }: { params: Promise<{
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <p className="text-lg font-semibold text-black dark:text-zinc-50">{customer?.name ?? "—"}</p>
         <p className="text-sm text-zinc-500">{customer?.phone ?? "—"}</p>
+        {booking.referrer_id && (
+          <p className="mt-2 inline-block rounded-md bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+            Came from a flyer: you earn {Math.round(PARTNER_SHARE_REFERRED * 100)}% of the profit on it (flyer place {Math.round(REFERRER_SHARE * 100)}%)
+          </p>
+        )}
         <p className="mt-2 inline-block rounded-md bg-zinc-100 px-2 py-1 text-sm font-semibold dark:bg-zinc-800">
           {drone?.human_id ?? "—"} · {profile.shortName}
         </p>

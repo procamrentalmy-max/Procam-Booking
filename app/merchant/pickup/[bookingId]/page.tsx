@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { PARTNER_SHARE_REFERRED } from "@/lib/droneRental/earnings";
+import { REFERRER_SHARE } from "@/lib/referral";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { controllerDepositFor, controllerProfileFor, formatMyr, includesController, isDailyBooking, modelProfile, storedController } from "@/lib/droneRental/pricingRules";
 import { listChargedBatteries } from "@/lib/droneRental/batteries";
@@ -16,7 +18,7 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
 
   const { data: booking } = await supabase
     .from("dr_bookings")
-    .select("id,status,shop_id,customer_id,drone_id,start_time,end_time,deposit_myr,batteries_count,drone_model,controller_kind,controller_id")
+    .select("id,referrer_id,status,shop_id,customer_id,drone_id,start_time,end_time,deposit_myr,batteries_count,drone_model,controller_kind,controller_id")
     .eq("id", bookingId)
     .maybeSingle();
   if (!booking) notFound();
@@ -51,6 +53,11 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <p className="text-lg font-semibold text-black dark:text-zinc-50">{customer?.name ?? "—"}</p>
         <p className="text-sm text-zinc-500">{customer?.phone ?? "—"}</p>
+        {booking.referrer_id && (
+          <p className="mt-2 inline-block rounded-md bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+            Came from a flyer: you earn {Math.round(PARTNER_SHARE_REFERRED * 100)}% of the profit on it (flyer place {Math.round(REFERRER_SHARE * 100)}%)
+          </p>
+        )}
       </div>
 
       <div className="rounded-2xl border-2 border-black bg-white p-4 dark:border-white dark:bg-zinc-900">

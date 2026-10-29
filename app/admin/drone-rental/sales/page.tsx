@@ -54,12 +54,15 @@ const bump = (map: Map<string, Money>, key: string, revenue: number) => {
   map.set(key, entry);
 };
 
+import { loadFlyerBookings } from "@/lib/referralStats";
+import { REFERRER_SHARE } from "@/lib/referral";
+
 export default async function DroneSalesPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   const { range: rangeParam } = await searchParams;
   const range: RangeKey = RANGES.some((r) => r.key === rangeParam) ? (rangeParam as RangeKey) : "30d";
 
   const supabase = await createServerSupabaseClient();
-  const [{ data: bookings }, { data: shops }, { data: drones }, { data: swaps }, { data: lateFees }] = await Promise.all([
+  const [{ data: bookings }, { data: shops }, { data: drones }, { data: swaps }, { data: lateFees }, flyerBookings] = await Promise.all([
     supabase
       .from("dr_bookings")
       .select(
@@ -69,6 +72,7 @@ export default async function DroneSalesPage({ searchParams }: { searchParams: P
     supabase.from("dr_drones").select("id,human_id,shop_id,status,cost_price_myr,model_key"),
     supabase.from("dr_battery_swaps").select("booking_id,fee_myr"),
     supabase.from("dr_payments").select("booking_id,amount_myr").eq("kind", "LATE_FEE").eq("status", "SUCCEEDED"),
+    loadFlyerBookings(),
   ]);
 
   const now = new Date().getTime();
@@ -194,6 +198,21 @@ export default async function DroneSalesPage({ searchParams }: { searchParams: P
   const controllerRows = [...byController.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.revenue - a.revenue);
   const modelRows = [...byModel.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.revenue - a.revenue);
   const sourceRows = [...bySource.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.revenue - a.revenue);
+  // Bookings that came from a flyer in this period, flyer place by flyer place, with the flyer place's 10% of the profit on them.
+  const flyerByPlace = new Map<string, { count: number; revenue: number; commission: number }>();
+  for (const b of paid) {
+    const f = flyerBookings.get(b.id);
+    if (!f) continue;
+    const row = flyerByPlace.get(f.referrerName) ?? { count: 0, revenue: 0, commission: 0 };
+    row.count += 1;
+    row.revenue += parts(b).total;
+    row.commission += f.commission;
+    flyerByPlace.set(f.referrerName, row);
+  }
+  const flyerRows = [...flyerByPlace.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.commission - a.commission);
+  const flyerCount = flyerRows.reduce((n, r) => n + r.count, 0);
+  const flyerRevenue = flyerRows.reduce((n, r) => n + r.revenue, 0);
+  const flyerCommission = flyerRows.reduce((n, r) => n + r.commission, 0);
   const hourRows = Array.from({ length: CLOSE_HOUR - OPEN_HOUR }, (_, i) => OPEN_HOUR + i).map((h) => ({ label: `${String(h).padStart(2, "0")}:00`, value: hourCounts[h] }));
 
   const deposit = depositOutcomes(inRange.filter((b) => b.status === "COMPLETED"));
@@ -309,6 +328,20 @@ export default async function DroneSalesPage({ searchParams }: { searchParams: P
           <DonutChart data={sourceRows.map((r) => ({ label: r.name, value: r.revenue }))} formatValue={myr} />
         </Section>
       </div>
+
+      <Section
+        title="Bookings from flyers"
+        note={`Customers who scanned a flyer's QR code in the 7 days before booking. On these the profit after costs is split 45% merchant, 45% ProCam and ${Math.round(REFERRER_SHARE * 100)}% to the flyer place (the commission below).`}
+      >
+        {flyerRows.length === 0 ? (
+          <p className="text-sm text-zinc-400">No paid bookings from flyers in this period.</p>
+        ) : (
+          <Table
+            columns={["Flyer place", "Bookings", "Revenue", `Commission (${Math.round(REFERRER_SHARE * 100)}%)`]}
+            rows={[...flyerRows.map((r) => [r.name, String(r.count), myr(r.revenue), myr(Math.round(r.commission * 100) / 100)]), ["All flyers", String(flyerCount), myr(flyerRevenue), myr(Math.round(flyerCommission * 100) / 100)]]}
+          />
+        )}
+      </Section>
 
       <Section title="Returns and deposits" note="Completed rentals only. Fine means nothing was taken from the deposit.">
         <Table

@@ -71,3 +71,37 @@ describe("addEarnings", () => {
     expect(sum.partner).toBeCloseTo(a.partner + b.partner, 10);
   });
 });
+
+describe("a booking that came from a flyer: 45 / 45 / 10", () => {
+  const payments = [{ amount: 100, method: "CASH" as const }];
+
+  it("gives the flyer place 10% of what is left after costs and splits the rest evenly", () => {
+    const e = earningsForBooking(payments, { referred: true });
+    // RM100 in cash: platform 18% = 18, no card fee; RM82 left (plus the ID check if it is on)
+    expect(e.referrer).toBeCloseTo(e.net * 0.1, 10);
+    expect(e.partner).toBeCloseTo(e.net * 0.45, 10);
+    expect(e.procam).toBeCloseTo(e.net * 0.45, 10);
+    expect(e.partner + e.procam + e.referrer).toBeCloseTo(e.net, 10);
+  });
+
+  it("is the usual 50 / 50 with nothing for a flyer place on any other booking", () => {
+    const e = earningsForBooking(payments);
+    expect(e.referrer).toBe(0);
+    expect(e.partner).toBeCloseTo(e.net / 2, 10);
+    expect(e.procam).toBeCloseTo(e.net / 2, 10);
+  });
+
+  it("costs are the same either way, only the split changes", () => {
+    const plain = earningsForBooking([{ amount: 40, method: "CARD" }]);
+    const referred = earningsForBooking([{ amount: 40, method: "CARD" }], { referred: true });
+    expect(referred.costs).toEqual(plain.costs);
+    expect(referred.net).toBeCloseTo(plain.net, 10);
+    expect(referred.partner).toBeLessThan(plain.partner);
+  });
+
+  it("adds up across bookings", () => {
+    const total = addEarnings(earningsForBooking(payments, { referred: true }), earningsForBooking(payments));
+    expect(total.referrer).toBeGreaterThan(0);
+    expect(total.partner + total.procam + total.referrer).toBeCloseTo(total.net, 10);
+  });
+});

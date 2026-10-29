@@ -32,6 +32,8 @@ export type IncomeBooking = {
    * check and the booking itself belong to the other shop), and it is not counted as one of this shop's bookings.
    */
   swapOnly?: boolean;
+  /** The booking came from a flyer: the flyer place gets 10% of the profit and the shop 45% instead of 50% (see earnings.ts). */
+  referred?: boolean;
 };
 
 /** Year and month (0-11) of an instant as seen on a clock in Malaysia. */
@@ -66,7 +68,7 @@ export function bookingEarnings(b: IncomeBooking): Earnings & { cashIncome: numb
     ...b.lateFees.filter((x) => x.amountMyr > 0).map((x): Payment => ({ amount: x.amountMyr, method: x.paidBy })),
   ];
   const cashIncome = payments.filter((p) => p.method === "CASH").reduce((sum, p) => sum + p.amount, 0);
-  return { ...earningsForBooking(payments, { kyc: !b.swapOnly }), cashIncome };
+  return { ...earningsForBooking(payments, { kyc: !b.swapOnly, referred: !!b.referred && !b.swapOnly }), cashIncome };
 }
 
 export type IncomeSummary = {
@@ -80,6 +82,8 @@ export type IncomeSummary = {
   /** Sales: everything customers paid this month, including any deposit kept for damage or loss. */
   total: number;
   bookings: number;
+  /** Of those, the ones that came from a flyer (the shop gets 45% of the profit on them, not 50%). */
+  flyerBookings: number;
   average: number;
   /** Total of the whole previous month, for the up/down comparison. */
   previousMonthTotal: number;
@@ -115,6 +119,7 @@ export function summariseIncome(bookings: IncomeBooking[], now: number, modelNam
   const model = new Map<string, number>();
   let total = 0;
   let count = 0;
+  let flyerCount = 0;
   let previousMonthTotal = 0;
 
   for (const b of paid) {
@@ -135,6 +140,7 @@ export function summariseIncome(bookings: IncomeBooking[], now: number, modelNam
 
     if (start < thisStart || start >= nextStart) continue;
     if (!b.swapOnly) count += 1;
+    if (b.referred && !b.swapOnly) flyerCount += 1;
     total += inc.total;
     earnings = addEarnings(earnings, earned);
     cashIncome += earned.cashIncome;
@@ -158,6 +164,7 @@ export function summariseIncome(bookings: IncomeBooking[], now: number, modelNam
     earningsMonths: monthTotals.map((_, i) => ({ label: monthLabel(year, month, monthsShown, i), value: earningsTotals[i] })),
     total,
     bookings: count,
+    flyerBookings: flyerCount,
     average: count ? total / count : 0,
     previousMonthTotal,
     breakdown,
