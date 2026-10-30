@@ -29,12 +29,27 @@ const detailsSchema = z.object({
   name: z.string().trim().min(1, "Enter the name of the business").max(80, "Keep the name to 80 characters or fewer"),
   contact: z.string().trim().max(200).optional(),
   notes: z.string().trim().max(500).optional(),
+  address: z.string().trim().max(200).optional(),
+  map_url: z
+    .string()
+    .trim()
+    .max(500)
+    .optional()
+    .refine((v) => !v || v.toLowerCase().startsWith("http://") || v.toLowerCase().startsWith("https://"),"The Google Maps link must start with https://"),
+});
+
+const detailsFrom = (formData: FormData) => ({
+  name: formData.get("name"),
+  contact: formData.get("contact") ?? undefined,
+  notes: formData.get("notes") ?? undefined,
+  address: formData.get("address") ?? undefined,
+  map_url: formData.get("map_url") ?? undefined,
 });
 
 export async function createFlyerAction(formData: FormData): Promise<FlyerResult> {
   const denied = await requireAdmin();
   if (denied) return denied;
-  const parsed = detailsSchema.safeParse({ name: formData.get("name"), contact: formData.get("contact") ?? undefined, notes: formData.get("notes") ?? undefined });
+  const parsed = detailsSchema.safeParse(detailsFrom(formData));
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
   const db = createServiceRoleClient();
@@ -44,6 +59,8 @@ export async function createFlyerAction(formData: FormData): Promise<FlyerResult
       name: parsed.data.name,
       contact: parsed.data.contact || null,
       notes: parsed.data.notes || null,
+      address: parsed.data.address || null,
+      map_url: parsed.data.map_url || null,
       code: makeFlyerCode((n) => randomBytes(n)),
       access_token: randomBytes(24).toString("base64url"),
     });
@@ -61,14 +78,15 @@ const updateSchema = detailsSchema.extend({ id: uuidSchema });
 export async function updateFlyerAction(formData: FormData): Promise<FlyerResult> {
   const denied = await requireAdmin();
   if (denied) return denied;
-  const parsed = updateSchema.safeParse({ id: formData.get("id"), name: formData.get("name"), contact: formData.get("contact") ?? undefined, notes: formData.get("notes") ?? undefined });
+  const parsed = updateSchema.safeParse({ id: formData.get("id"), ...detailsFrom(formData) });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
   const { error } = await createServiceRoleClient()
     .from("dr_referrers")
-    .update({ name: parsed.data.name, contact: parsed.data.contact || null, notes: parsed.data.notes || null })
+    .update({ name: parsed.data.name, contact: parsed.data.contact || null, notes: parsed.data.notes || null, address: parsed.data.address || null, map_url: parsed.data.map_url || null })
     .eq("id", parsed.data.id);
   if (error) return { ok: false, error: error.message };
   refresh();
+  revalidatePath("/flyer", "layout");
   return { ok: true };
 }
 

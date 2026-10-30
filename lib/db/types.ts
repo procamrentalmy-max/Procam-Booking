@@ -842,7 +842,7 @@ export type DrLocationEventRow = { id: string; session_id: string; shop_id: stri
 export type DrFunnelEventRow = { id: string; session_id: string; step: string; shop_id: string | null; /** Two-letter country code of the visit; null when not known. */ country: string | null; created_at: string };
 
 /** A flyer place: a business that displays ProCam's flyer with a QR, and gets 10% of the profit on bookings that came from it. */
-export type DrReferrerRow = { id: string; name: string; code: string; access_token: string; contact: string | null; notes: string | null; active: boolean; created_at: string };
+export type DrReferrerRow = { id: string; name: string; code: string; access_token: string; contact: string | null; notes: string | null; address: string | null; map_url: string | null; active: boolean; created_at: string };
 export type DrReferralScanRow = { id: string; referrer_id: string; visitor_id: string; created_at: string };
 export type DrReferralPayoutRow = { id: string; referrer_id: string; amount_myr: number; note: string | null; paid_at: string };
 

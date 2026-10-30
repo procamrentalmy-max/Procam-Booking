@@ -35,6 +35,7 @@ export default async function FlyerOwnerPage({ params }: { params: Promise<{ tok
       <div>
         <p className="text-xs uppercase tracking-wide text-zinc-400">ProCam Rental · Flyer partner</p>
         <h1 className="mt-1 text-2xl font-semibold text-black dark:text-zinc-50">{s.referrer.name}</h1>
+        {s.referrer.address && <p className="text-sm text-zinc-500">{s.referrer.address}</p>}
         {!s.referrer.active && <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">Your flyer is stopped, so new bookings are not counted. What you already earned is still owed to you.</p>}
       </div>
 

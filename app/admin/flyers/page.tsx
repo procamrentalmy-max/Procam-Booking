@@ -35,6 +35,7 @@ export default async function FlyersPage() {
           Businesses that display a ProCam flyer with a QR code. Anyone who scans it is remembered for {REFERRAL_DAYS} days (on their phone), and a booking or walk-in order they make in that time is the
           flyer place&apos;s. On those bookings the profit after costs is split 45% merchant, 45% ProCam and {pct}% flyer place, instead of 50 / 50. The scan is counted once per phone; your own scans and test runs are not counted.
         </p>
+        <p className="mt-1 text-sm text-zinc-500">The QR code of a place never changes. To reuse a printed flyer at another shop, change the name, address and Google Maps link under &quot;Change name, address or Google location&quot;; the scans, bookings and what it earned so far stay with it, so pay it out first if the next shop should start from zero.</p>
         {summaries.length > 0 && <p className="mt-2 text-sm font-medium text-black dark:text-zinc-50">Owed to flyer places right now: {formatMyr(Math.round(totalOwed * 100) / 100)}</p>}
       </div>
 
@@ -43,6 +44,8 @@ export default async function FlyersPage() {
         <ActionForm action={createFlyerAction} submitLabel="Add and make its QR" savedText="Added." resetOnSuccess className="mt-3 grid gap-2 sm:grid-cols-2">
           <input name="name" required maxLength={80} placeholder="Business name, e.g. Cafe Pantai" className={inputClass} />
           <input name="contact" maxLength={200} placeholder="Contact (phone or email, optional)" className={inputClass} />
+          <input name="address" maxLength={200} placeholder="Address or landmark (optional)" className={inputClass} />
+          <input name="map_url" maxLength={500} placeholder="Google Maps link (optional)" className={inputClass} />
           <input name="notes" maxLength={500} placeholder="Notes, e.g. bank details (optional)" className={`sm:col-span-2 ${inputClass}`} />
         </ActionForm>
       </details>
@@ -59,6 +62,12 @@ export default async function FlyersPage() {
                   {r.name}
                   <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${r.active ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"}`}>{r.active ? "Active" : "Stopped"}</span>
                 </h2>
+                {r.address && <p className="text-sm text-zinc-500">{r.address}</p>}
+                {r.map_url && (
+                  <a href={r.map_url} target="_blank" rel="noopener noreferrer" className="text-sm underline underline-offset-2">
+                    Open in Google Maps
+                  </a>
+                )}
                 {r.contact && <p className="text-sm text-zinc-500">{r.contact}</p>}
                 {r.notes && <p className="text-sm text-zinc-500">{r.notes}</p>}
               </div>
@@ -131,11 +140,13 @@ export default async function FlyersPage() {
             )}
 
             <details>
-              <summary className="cursor-pointer text-sm text-zinc-600 dark:text-zinc-400">Change name or details</summary>
+              <summary className="cursor-pointer text-sm text-zinc-600 dark:text-zinc-400">Change name, address or Google location</summary>
               <ActionForm action={updateFlyerAction} submitLabel="Save" savedText="Saved." className="mt-2 grid gap-2 sm:grid-cols-2">
                 <input type="hidden" name="id" value={r.id} />
                 <input name="name" required maxLength={80} defaultValue={r.name} aria-label="Business name" className={inputClass} />
                 <input name="contact" maxLength={200} defaultValue={r.contact ?? ""} placeholder="Contact" aria-label="Contact" className={inputClass} />
+                <input name="address" maxLength={200} defaultValue={r.address ?? ""} placeholder="Address or landmark" aria-label="Address" className={inputClass} />
+                <input name="map_url" maxLength={500} defaultValue={r.map_url ?? ""} placeholder="Google Maps link" aria-label="Google Maps link" className={inputClass} />
                 <input name="notes" maxLength={500} defaultValue={r.notes ?? ""} placeholder="Notes" aria-label="Notes" className={`sm:col-span-2 ${inputClass}`} />
               </ActionForm>
             </details>
