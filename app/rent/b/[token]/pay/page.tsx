@@ -19,6 +19,7 @@ import { devBypassDronePaymentAction, devBypassCashChoiceAction, adminSkipPaymen
 import { getAuthContext, isAdmin } from "@/lib/auth/session";
 import { pressableClass } from "@/components/formStyles";
 import { getPayQrUrl } from "@/lib/branding";
+import { SaveQrButton } from "@/components/droneRental/SaveQrButton";
 import { DepositHoldNote } from "@/components/droneRental/DepositHoldNote";
 import { createQrPayment } from "@/lib/droneRental/qrPayments";
 
@@ -182,6 +183,7 @@ export default async function DroneBookingPayPage({
             // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local optimizable asset
             <img src={payQrUrl} alt={t.pay.qrAlt} className="mx-auto h-auto w-full rounded-2xl border border-zinc-200 bg-white object-contain dark:border-zinc-800" />
           )}
+          {payQrUrl && <SaveQrButton locale={locale} />}
         </div>
       ) : cashChosen ? (
         <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-center dark:border-amber-800 dark:bg-amber-950">

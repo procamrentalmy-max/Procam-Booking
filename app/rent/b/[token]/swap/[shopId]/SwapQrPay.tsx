@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
+import { SaveQrButton } from "@/components/droneRental/SaveQrButton";
 import { pressableClass } from "@/components/formStyles";
 import { droneText } from "@/lib/i18n/drone";
 import type { Locale } from "@/lib/i18n/locale";
@@ -62,6 +63,7 @@ export function SwapQrPay({ token, shopId, locale, payQrUrl, held, fees, open }:
         {/* The whole picture, as uploaded: full width, its own height, never cropped. */}
         {/* eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local optimizable asset */}
         <img src={payQrUrl} alt={t.qrAlt} className="mx-auto h-auto w-full rounded-2xl border border-zinc-200 bg-white object-contain dark:border-zinc-800" />
+        <SaveQrButton locale={locale} />
         <button type="button" disabled={busy} onClick={cancel} className="w-full text-center text-sm text-zinc-500 underline underline-offset-2 disabled:opacity-50">
           {t.qrPayAnother}
         </button>

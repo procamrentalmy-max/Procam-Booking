@@ -12,6 +12,8 @@ import { DEFAULT_LOCALE, INTL_TAGS, type Locale } from "./locale";
 export const droneEn = {
   common: {
     back: "← Back",
+    saveQr: "Save QR photo",
+    saveQrHint: "Saves the QR to your phone. Then in your banking app choose scan from gallery or photos.",
     otherShops: "← Other shops",
     step: (n: number) => `Step ${n} of 3`,
     hours: (n: number) => `${n} hour${n === 1 ? "" : "s"}`,
@@ -313,6 +315,8 @@ export type DroneText = typeof droneEn;
 export const droneMs: DroneText = {
   common: {
     back: "← Kembali",
+    saveQr: "Simpan gambar QR",
+    saveQrHint: "Menyimpan QR ke telefon anda. Kemudian dalam aplikasi perbankan, pilih imbas dari galeri atau foto.",
     otherShops: "← Kedai lain",
     step: (n) => `Langkah ${n} daripada 3`,
     hours: (n) => `${n} jam`,
@@ -599,6 +603,8 @@ export const droneMs: DroneText = {
 export const droneZh: DroneText = {
   common: {
     back: "← 返回",
+    saveQr: "保存二维码图片",
+    saveQrHint: "把二维码保存到手机相册。然后在银行应用里选择从相册扫码。",
     otherShops: "← 其他门店",
     step: (n) => `第 ${n} 步，共 3 步`,
     hours: (n) => `${n} 小时`,
