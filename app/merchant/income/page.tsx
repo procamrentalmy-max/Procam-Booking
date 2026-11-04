@@ -127,11 +127,8 @@ export default async function ShopIncomePage() {
         <p className="text-xs font-medium uppercase tracking-wide text-emerald-800 dark:text-emerald-300">Your earnings in {s.monthLabel}</p>
         <p className="mt-1 text-4xl font-bold text-black dark:text-zinc-50">{myr2(e.partner)}</p>
         <p className="mt-2 text-sm text-emerald-900 dark:text-emerald-200">
-          Your share of what&apos;s left after costs ({percent(PARTNER_SHARE)}, or {percent(PARTNER_SHARE_REFERRED)} on a booking that came from a flyer), from {s.bookings} paid {s.bookings === 1 ? "booking" : "bookings"}
-          {s.flyerBookings > 0 && <> ({s.flyerBookings} came from a flyer)</>}.
-        </p>
-        <p className="mt-1 text-sm text-emerald-900 dark:text-emerald-200">
-          Last month: {myr(s.previousEarnings)}
+          {s.bookings} paid {s.bookings === 1 ? "booking" : "bookings"}
+          {s.flyerBookings > 0 && <> ({s.flyerBookings} from a flyer)</>} · last month {myr(s.previousEarnings)}
           {earnedChange !== null && (
             <span className={`ml-2 font-medium ${earnedChange >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-red-600 dark:text-red-400"}`}>
               {earnedChange >= 0 ? "▲" : "▼"} {Math.abs(Math.round(earnedChange * 100))}%
@@ -140,7 +137,7 @@ export default async function ShopIncomePage() {
         </p>
       </div>
 
-      <Section title="How your earnings are worked out" note={`Costs come off what customers paid, and what is left is split 50/50. On a booking that came from a flyer it is split ${percent(PARTNER_SHARE_REFERRED)} you, ${percent(PARTNER_SHARE_REFERRED)} ProCam and ${percent(REFERRER_SHARE)} the flyer place. Tap an i to see what a cost is.`}>
+      <Section title="How your earnings are worked out" note={`Costs come off first, then ${percent(PARTNER_SHARE)} you and ${percent(PARTNER_SHARE)} ProCam (a flyer booking: ${percent(PARTNER_SHARE_REFERRED)} / ${percent(PARTNER_SHARE_REFERRED)} / ${percent(REFERRER_SHARE)} flyer place). Tap an i for what a cost is.`}>
         <div className="overflow-hidden rounded-xl border border-zinc-200 text-sm dark:border-zinc-800">
           <EarningsRow label="Customers paid" value={myr2(e.income)} strong />
           <EarningsRow
@@ -172,9 +169,9 @@ export default async function ShopIncomePage() {
           <EarningsRow label="You" value={myr2(e.partner)} strong highlight />
         </div>
         {e.cashIncome > 0 && (
-          <p className="text-xs text-zinc-500">{myr2(e.cashIncome)} of that was paid in cash. Cash has no card fee, so it leaves you more.</p>
+          <p className="text-xs text-zinc-500">{myr2(e.cashIncome)} was paid in cash (no card fee).</p>
         )}
-        <p className="text-xs text-zinc-400">Counted on the rental, battery swaps and late fees. A deposit kept for damage or loss pays for the repair, so it isn&apos;t shared.</p>
+        <p className="text-xs text-zinc-400">Rentals, swaps and late fees count. A damage deposit isn&apos;t shared.</p>
       </Section>
 
       <Section title="Your earnings, last 6 months">
@@ -186,11 +183,8 @@ export default async function ShopIncomePage() {
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Sales in {s.monthLabel}</p>
           <p className="mt-1 text-3xl font-bold text-black dark:text-zinc-50">{myr(s.total)}</p>
           <p className="mt-2 text-sm text-zinc-500">
-            What customers paid the shop, before costs
-            {s.bookings > 0 && <> · {myr(s.average)} per booking on average</>}
-          </p>
-          <p className="mt-1 text-sm text-zinc-500">
-            Last month: {myr(s.previousMonthTotal)}
+            Paid by customers, before costs
+            {s.bookings > 0 && <> · {myr(s.average)} per booking</>} · last month {myr(s.previousMonthTotal)}
             {salesChange !== null && (
               <span className={`ml-2 font-medium ${salesChange >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
                 {salesChange >= 0 ? "▲" : "▼"} {Math.abs(Math.round(salesChange * 100))}%
@@ -199,7 +193,7 @@ export default async function ShopIncomePage() {
           </p>
         </div>
 
-        <Section title="Sales each day this month" note="By the day the rental starts, Malaysia time. Today is dark.">
+        <Section title="Sales each day this month" note="By rental start day. Today is dark.">
           <DailyColumns days={s.daily} today={s.today} />
         </Section>
 
@@ -207,7 +201,7 @@ export default async function ShopIncomePage() {
           <BarChart data={s.months} formatValue={myr} />
         </Section>
 
-        <Section title="Where the sales come from" note="Rental fees include the battery choice. Deposit kept is only what was actually taken for damaged or lost items.">
+        <Section title="Where the sales come from" note="Deposit kept = only what was taken for damage or loss.">
           <DonutChart
             data={[
               { label: "Rental fees", value: s.breakdown.rental },
@@ -219,7 +213,7 @@ export default async function ShopIncomePage() {
           />
         </Section>
 
-        <Section title="Best days of the week" note="Sales this month added up by weekday.">
+        <Section title="Best days of the week (this month)">
           <BarChart data={s.weekdays} formatValue={myr} />
         </Section>
 
@@ -230,8 +224,6 @@ export default async function ShopIncomePage() {
         <Section title="By drone model">
           <BarChart data={s.byModel} formatValue={myr} />
         </Section>
-
-        <p className="text-xs text-zinc-400">A booking counts once it is paid.</p>
       </div>
     </div>
   );
