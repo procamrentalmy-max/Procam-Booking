@@ -1,4 +1,5 @@
 import { inputClass } from "@/components/formStyles";
+import { FlyerPlaceFields } from "@/components/admin/FlyerPlaceFields";
 import { ActionForm } from "@/components/admin/ActionForm";
 import { formatMyr } from "@/lib/droneRental/pricingRules";
 import { formatMalaysiaTime } from "@/lib/i18n/locale";
@@ -42,11 +43,7 @@ export default async function FlyersPage() {
       <details className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800" open={summaries.length === 0}>
         <summary className="cursor-pointer text-sm font-semibold">Add a flyer place</summary>
         <ActionForm action={createFlyerAction} submitLabel="Add and make its QR" savedText="Added." resetOnSuccess className="mt-3 grid gap-2 sm:grid-cols-2">
-          <input name="name" required maxLength={80} placeholder="Business name, e.g. Cafe Pantai" className={inputClass} />
-          <input name="contact" maxLength={200} placeholder="Contact (phone or email, optional)" className={inputClass} />
-          <input name="address" maxLength={200} placeholder="Address or landmark (optional)" className={inputClass} />
-          <input name="map_url" maxLength={500} placeholder="Google Maps link (optional)" className={inputClass} />
-          <input name="notes" maxLength={500} placeholder="Notes, e.g. bank details (optional)" className={`sm:col-span-2 ${inputClass}`} />
+          <FlyerPlaceFields />
         </ActionForm>
       </details>
 
@@ -143,11 +140,7 @@ export default async function FlyersPage() {
               <summary className="cursor-pointer text-sm text-zinc-600 dark:text-zinc-400">Change name, address or Google location</summary>
               <ActionForm action={updateFlyerAction} submitLabel="Save" savedText="Saved." className="mt-2 grid gap-2 sm:grid-cols-2">
                 <input type="hidden" name="id" value={r.id} />
-                <input name="name" required maxLength={80} defaultValue={r.name} aria-label="Business name" className={inputClass} />
-                <input name="contact" maxLength={200} defaultValue={r.contact ?? ""} placeholder="Contact" aria-label="Contact" className={inputClass} />
-                <input name="address" maxLength={200} defaultValue={r.address ?? ""} placeholder="Address or landmark" aria-label="Address" className={inputClass} />
-                <input name="map_url" maxLength={500} defaultValue={r.map_url ?? ""} placeholder="Google Maps link" aria-label="Google Maps link" className={inputClass} />
-                <input name="notes" maxLength={500} defaultValue={r.notes ?? ""} placeholder="Notes" aria-label="Notes" className={`sm:col-span-2 ${inputClass}`} />
+                <FlyerPlaceFields defaults={{ name: r.name, contact: r.contact, address: r.address, map_url: r.map_url, notes: r.notes }} />
               </ActionForm>
             </details>
           </section>
