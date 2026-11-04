@@ -137,7 +137,7 @@ export default async function ShopIncomePage() {
         </p>
       </div>
 
-      <Section title="How your earnings are worked out" note={`Costs come off first, then ${percent(PARTNER_SHARE)} you and ${percent(PARTNER_SHARE)} ProCam (a flyer booking: ${percent(PARTNER_SHARE_REFERRED)} / ${percent(PARTNER_SHARE_REFERRED)} / ${percent(REFERRER_SHARE)} flyer place). Tap an i for what a cost is.`}>
+      <Section title="How your earnings are worked out" note={`What customers paid, minus the costs below, is split ${percent(PARTNER_SHARE)} / ${percent(PARTNER_SHARE)} between you and ProCam. Tap an i to see what a cost is.`}>
         <div className="overflow-hidden rounded-xl border border-zinc-200 text-sm dark:border-zinc-800">
           <EarningsRow label="Customers paid" value={myr2(e.income)} strong />
           <EarningsRow
@@ -157,13 +157,13 @@ export default async function ShopIncomePage() {
               info={`RM${KYC_PER_BOOKING_MYR.toFixed(2)} for every drone booking, for checking the customer's ID and face before they get a drone.`}
             />
           )}
-          <EarningsRow label="Left after costs" value={myr2(e.net)} strong />
+          <EarningsRow label="Profit after costs" value={myr2(e.net)} strong />
           <EarningsRow label="ProCam" value={myr2(e.procam)} />
           {e.referrer > 0 && (
             <EarningsRow
               label={`Flyer place ${percent(REFERRER_SHARE)}`}
               value={myr2(e.referrer)}
-              info={`On a booking made by someone who scanned a flyer's QR code, the flyer place gets ${percent(REFERRER_SHARE)} of what is left after costs, and the rest is split evenly: ${percent(PARTNER_SHARE_REFERRED)} you and ${percent(PARTNER_SHARE_REFERRED)} ProCam.`}
+              info={`On a booking made by someone who scanned a flyer's QR code, the flyer place gets ${percent(REFERRER_SHARE)} of the profit after costs, and the rest is split evenly: ${percent(PARTNER_SHARE_REFERRED)} you and ${percent(PARTNER_SHARE_REFERRED)} ProCam.`}
             />
           )}
           <EarningsRow label="You" value={myr2(e.partner)} strong highlight />
@@ -171,7 +171,7 @@ export default async function ShopIncomePage() {
         {e.cashIncome > 0 && (
           <p className="text-xs text-zinc-500">{myr2(e.cashIncome)} was paid in cash (no card fee).</p>
         )}
-        <p className="text-xs text-zinc-400">Rentals, swaps and late fees count. A damage deposit isn&apos;t shared.</p>
+        <p className="text-xs text-zinc-400">Includes rentals, battery swaps and late fees. Damage deposits are not shared.</p>
       </Section>
 
       <Section title="Your earnings, last 6 months">
