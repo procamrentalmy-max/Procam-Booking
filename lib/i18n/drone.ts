@@ -10,6 +10,17 @@ import { DEFAULT_LOCALE, INTL_TAGS, type Locale } from "./locale";
  * database), and the orange test-only buttons.
  */
 export const droneEn = {
+  /** The page shown before the payment: where it is safe to fly. Three good and three bad places, in the same order as the pictures. */
+  flightTips: {
+    title: "Choosing a Suitable Flight Environment",
+    sub: "Please read this before you pay.",
+    good: ["Well-lit area", "Fly in open areas", "Clear and breezy weather*"],
+    bad: ["Avoid textureless/reflective ground", "Do not fly off bridge or balcony", "Avoid water"],
+    windNote: "*Winds are stronger at high altitude. Fly with caution.",
+    button: "Got it",
+    ok: "OK to fly",
+    notOk: "Do not",
+  },
   common: {
     back: "← Back",
     saveQr: "Save QR photo",
@@ -313,6 +324,16 @@ export const droneEn = {
 export type DroneText = typeof droneEn;
 
 export const droneMs: DroneText = {
+  flightTips: {
+    title: "Memilih Persekitaran Terbang yang Sesuai",
+    sub: "Sila baca ini sebelum membayar.",
+    good: ["Kawasan yang terang", "Terbang di kawasan lapang", "Cuaca cerah dan berangin sepoi-sepoi*"],
+    bad: ["Elakkan permukaan tanah tanpa tekstur/memantul", "Jangan terbang dari jambatan atau balkoni", "Elakkan air"],
+    windNote: "*Angin lebih kuat di tempat tinggi. Terbang dengan berhati-hati.",
+    button: "Faham",
+    ok: "Sesuai",
+    notOk: "Jangan",
+  },
   common: {
     back: "← Kembali",
     saveQr: "Simpan gambar QR",
@@ -601,6 +622,16 @@ export const droneMs: DroneText = {
 };
 
 export const droneZh: DroneText = {
+  flightTips: {
+    title: "选择合适的飞行环境",
+    sub: "付款前请先看一下。",
+    good: ["光线充足的地方", "在空旷处飞行", "天气晴朗、微风*"],
+    bad: ["避开无纹理/反光的地面", "不要在桥上或阳台上起飞", "避开水面"],
+    windNote: "*高空风更大，请小心飞行。",
+    button: "知道了",
+    ok: "合适",
+    notOk: "不要",
+  },
   common: {
     back: "← 返回",
     saveQr: "保存二维码图片",

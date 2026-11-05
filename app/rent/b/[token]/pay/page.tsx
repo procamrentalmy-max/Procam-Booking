@@ -21,6 +21,7 @@ import { pressableClass } from "@/components/formStyles";
 import { getPayQrUrl } from "@/lib/branding";
 import { SaveQrButton } from "@/components/droneRental/SaveQrButton";
 import { DepositHoldNote } from "@/components/droneRental/DepositHoldNote";
+import { FlightTips } from "@/components/droneRental/FlightTips";
 import { createQrPayment } from "@/lib/droneRental/qrPayments";
 
 /** Only ever a same-origin relative path (e.g. /merchant/pickup/<id> for a walk-in) — never an absolute/protocol-relative URL, so this can't be turned into an open redirect via the `next` query param. */
@@ -35,10 +36,11 @@ export default async function DroneBookingPayPage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ next?: string; method?: string; setup_intent?: string; problem?: string }>;
+  searchParams: Promise<{ next?: string; method?: string; setup_intent?: string; problem?: string; tips?: string }>;
 }) {
   const { token } = await params;
-  const { next, method, setup_intent: setupIntentId, problem } = await searchParams;
+  const { next, method, setup_intent: setupIntentId, problem, tips } = await searchParams;
+  const tipsRead = tips === "1";
   const nextPath = safeNextPath(next);
   const supabase = createServiceRoleClient();
   const locale = await getLocale();
@@ -78,7 +80,8 @@ export default async function DroneBookingPayPage({
   const nextQuery = nextPath ? `next=${encodeURIComponent(nextPath)}` : "";
   const payPath = `/rent/b/${token}/pay`;
   const withQuery = (extra: string) => {
-    const query = [nextQuery, extra].filter(Boolean).join("&");
+    // "tips=1" stays on every link once the customer has pressed Got it on the flight tips page.
+    const query = [nextQuery, tipsRead ? "tips=1" : "", extra].filter(Boolean).join("&");
     return query ? `${payPath}?${query}` : payPath;
   };
 
@@ -104,6 +107,9 @@ export default async function DroneBookingPayPage({
   const payingCash = canPayCash && method === "cash";
   const payingQr = canPayQr && method === "qr";
   const payingOffline = payingCash || payingQr;
+
+  // Before the payment and deposit screen: where it is safe to fly. Not shown again once read, when coming back from the card form, or once the booking waits on the merchant.
+  if (!savedOffline && !tipsRead && !setupIntentId) return <FlightTips locale={locale} continueHref={withQuery("tips=1")} />;
 
   // Stripe may not be configured with a real key in this environment yet —
   // the dev bypass button below still needs the page to render regardless.

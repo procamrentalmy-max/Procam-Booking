@@ -1,6 +1,6 @@
 "use client";
 
-import { DRONE_MODEL_PROFILES, formatMyr, type DroneModel } from "@/lib/droneRental/pricingRules";
+import { DRONE_MODEL_PROFILES, dailyRateFor, formatMyr, type ControllerKind, type DroneModel } from "@/lib/droneRental/pricingRules";
 import { droneText } from "@/lib/i18n/drone";
 import type { Locale } from "@/lib/i18n/locale";
 import { useState } from "react";
@@ -22,7 +22,12 @@ export function DroneChoice({
   label,
   compare,
   unavailableLabel,
+  daily = false,
+  controller = "NONE",
 }: {
+  /** Renting by the day: each drone shows its price a day (with the chosen way of flying) instead of its price per hour. */
+  daily?: boolean;
+  controller?: ControllerKind;
   locale?: Locale;
   /** The landing page is always dark. */
   onDark?: boolean;
@@ -67,7 +72,7 @@ export function DroneChoice({
             >
               <span className="text-sm font-semibold leading-tight">{DRONE_MODEL_PROFILES[m].shortName}</span>
               <span className={`text-xs tabular-nums ${off || value !== m ? "" : "opacity-80"} ${off ? "" : value === m ? "" : st.sub}`}>
-                {t.common.perHour(formatMyr(DRONE_MODEL_PROFILES[m].hourlyRateMyr))}
+                {daily ? (dailyRateFor(m, controller) !== null ? t.wizard.perDay(formatMyr(dailyRateFor(m, controller) ?? 0)) : t.wizard.dailyHourlyOnly) : t.common.perHour(formatMyr(DRONE_MODEL_PROFILES[m].hourlyRateMyr))}
               </span>
             </button>
           );

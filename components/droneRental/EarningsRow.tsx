@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 /** One line of the earnings table. With `info`, a small i button next to the name opens a short explanation under the line. */
-export function EarningsRow({ label, value, strong, highlight, info }: { label: string; value: string; strong?: boolean; highlight?: boolean; info?: string }) {
+export function EarningsRow({ label, value, strong, highlight, info }: { label: string; value: string; strong?: boolean; highlight?: boolean; info?: string | string[] }) {
   const [open, setOpen] = useState(false);
   return (
     <div className={`border-b border-zinc-100 last:border-b-0 dark:border-zinc-800 ${highlight ? "bg-emerald-50 dark:bg-emerald-950" : ""}`}>
@@ -24,7 +24,19 @@ export function EarningsRow({ label, value, strong, highlight, info }: { label: 
         </span>
         <span className={`tabular-nums ${strong ? "font-semibold text-black dark:text-zinc-50" : "text-zinc-700 dark:text-zinc-300"}`}>{value}</span>
       </div>
-      {info && open && <p className="bg-zinc-50 px-3 pb-3 pt-2 text-xs leading-relaxed text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">{info}</p>}
+      {info && open && (
+        <div className="bg-zinc-50 px-3 pb-3 pt-2 text-xs leading-relaxed text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+          {typeof info === "string" ? (
+            <p>{info}</p>
+          ) : (
+            <ul className="list-disc space-y-0.5 pl-4">
+              {info.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }

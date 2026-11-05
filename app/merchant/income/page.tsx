@@ -137,41 +137,54 @@ export default async function ShopIncomePage() {
         </p>
       </div>
 
-      <Section title="How your earnings are worked out" note={`What customers paid, minus the costs below, is split ${percent(PARTNER_SHARE)} / ${percent(PARTNER_SHARE)} between you and ProCam. Tap an i to see what a cost is.`}>
+      <Section title="How your earnings are worked out" note="Tap an i to see what a line is.">
         <div className="overflow-hidden rounded-xl border border-zinc-200 text-sm dark:border-zinc-800">
           <EarningsRow label="Customers paid" value={myr2(e.income)} strong />
           <EarningsRow
             label={`Platform fee ${percent(PLATFORM_RATE)}`}
             value={`− ${myr2(e.costs.platform)}`}
-            info="What it costs ProCam to run the booking system and the app, to find the customers, and to look after the admin and customer service, so you don't have to."
+            info={["Booking system and app", "Finding customers", "Admin and customer service"]}
           />
           <EarningsRow
             label="Payment processing"
             value={`− ${myr2(e.costs.payment)}`}
-            info={`The card fee Stripe charges on each card payment: ${(CARD_FEE_RATE * 100).toFixed(1)}% plus RM${CARD_FEE_FIXED_MYR.toFixed(2)} per payment. (It is 3% + RM1 on a Malaysian card and 4% + RM1 on a foreign one; 3.1% allows for the odd foreign card.) The rental, a battery swap and a late fee are each a separate payment. Cash has no card fee, so a payment in cash costs nothing here.`}
+            info={[
+              `Stripe card fee: ${(CARD_FEE_RATE * 100).toFixed(1)}% + RM${CARD_FEE_FIXED_MYR.toFixed(2)} per payment`,
+              "Rental, battery swap and late fee are each a payment",
+              "Cash has no card fee",
+            ]}
           />
           {KYC_PER_BOOKING_MYR > 0 && (
             <EarningsRow
               label="KYC / verification"
               value={`− ${myr2(e.costs.kyc)}`}
-              info={`RM${KYC_PER_BOOKING_MYR.toFixed(2)} for every drone booking, for checking the customer's ID and face before they get a drone.`}
+              info={[`RM${KYC_PER_BOOKING_MYR.toFixed(2)} per drone booking`, "Checks the customer's ID and face"]}
             />
           )}
           <EarningsRow label="Profit after costs" value={myr2(e.net)} strong />
-          <EarningsRow label="ProCam" value={myr2(e.procam)} />
-          {e.referrer > 0 && (
-            <EarningsRow
-              label={`Flyer place ${percent(REFERRER_SHARE)}`}
-              value={myr2(e.referrer)}
-              info={`On a booking made by someone who scanned a flyer's QR code, the flyer place gets ${percent(REFERRER_SHARE)} of the profit after costs, and the rest is split evenly: ${percent(PARTNER_SHARE_REFERRED)} you and ${percent(PARTNER_SHARE_REFERRED)} ProCam.`}
-            />
-          )}
+          <EarningsRow
+            label="ProCam"
+            value={myr2(e.procam)}
+            info={[`Normal booking: ${percent(PARTNER_SHARE)} you, ${percent(PARTNER_SHARE)} ProCam`, `Flyer booking: ${percent(PARTNER_SHARE_REFERRED)} you, ${percent(PARTNER_SHARE_REFERRED)} ProCam, ${percent(REFERRER_SHARE)} flyer place`]}
+          />
+          {/* Always shown, even at RM0.00, so a merchant can see where flyer bookings would go. */}
+          <EarningsRow
+            label={`Flyer place ${percent(REFERRER_SHARE)}`}
+            value={myr2(e.referrer)}
+            info={[
+              "Only on bookings from a flyer QR scan",
+              `Flyer place gets ${percent(REFERRER_SHARE)} of the profit after costs`,
+              `The rest is split ${percent(PARTNER_SHARE_REFERRED)} you, ${percent(PARTNER_SHARE_REFERRED)} ProCam`,
+              `This month: ${s.flyerBookings} flyer ${s.flyerBookings === 1 ? "booking" : "bookings"}`,
+            ]}
+          />
           <EarningsRow label="You" value={myr2(e.partner)} strong highlight />
         </div>
-        {e.cashIncome > 0 && (
-          <p className="text-xs text-zinc-500">{myr2(e.cashIncome)} was paid in cash (no card fee).</p>
-        )}
-        <p className="text-xs text-zinc-400">Includes rentals, battery swaps and late fees. Damage deposits are not shared.</p>
+        <ul className="list-disc space-y-0.5 pl-4 text-xs text-zinc-500">
+          {e.cashIncome > 0 && <li>{myr2(e.cashIncome)} paid in cash (no card fee)</li>}
+          <li>Includes rentals, battery swaps and late fees</li>
+          <li>Damage deposits are not shared</li>
+        </ul>
       </Section>
 
       <Section title="Your earnings, last 6 months">

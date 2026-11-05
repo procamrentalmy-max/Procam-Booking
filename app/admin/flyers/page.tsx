@@ -32,11 +32,14 @@ export default async function FlyersPage() {
     <div className="max-w-3xl space-y-6 pt-4 pb-10">
       <div>
         <h1 className="text-lg font-semibold">Flyers</h1>
-        <p className="text-sm text-zinc-500">
-          Businesses that display a ProCam flyer with a QR code. Anyone who scans it is remembered for {REFERRAL_DAYS} days (on their phone), and a booking or walk-in order they make in that time is the
-          flyer place&apos;s. On those bookings the profit after costs is split 45% merchant, 45% ProCam and {pct}% flyer place, instead of 50 / 50. The scan is counted once per phone; your own scans and test runs are not counted.
-        </p>
-        <p className="mt-1 text-sm text-zinc-500">The QR code of a place never changes. To reuse a printed flyer at another shop, change the name, address and Google Maps link under &quot;Change name, address or Google location&quot;; the scans, bookings and what it earned so far stay with it, so pay it out first if the next shop should start from zero.</p>
+        <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-zinc-500">
+          <li>A scan is remembered for {REFERRAL_DAYS} days on that phone</li>
+          <li>A booking or walk-in order in that time counts for the flyer place</li>
+          <li>Profit after costs: 45% merchant, 45% ProCam, {pct}% flyer place (normally 50 / 50)</li>
+          <li>One scan per phone; your own scans and tests are not counted</li>
+          <li>A place&apos;s QR never changes, so a printed flyer can move to another shop: use &quot;Change name, address or Google location&quot;</li>
+          <li>Its scans, bookings and earnings stay with it, so pay it out first to start from zero</li>
+        </ul>
         {summaries.length > 0 && <p className="mt-2 text-sm font-medium text-black dark:text-zinc-50">Owed to flyer places right now: {formatMyr(Math.round(totalOwed * 100) / 100)}</p>}
       </div>
 
@@ -147,10 +150,12 @@ export default async function FlyersPage() {
         );
       })}
 
-      <p className="text-xs text-zinc-500">
-        Earned is {pct}% of the profit after costs (the platform fee and card fees come off first, as on the merchants&apos; Shop income) on the paid bookings that came from the flyer: the rental, the battery swaps at the shop it was rented from and late fees. A
-        cancelled or refunded booking drops out. A deposit kept for damage is not counted.
-      </p>
+      <ul className="list-disc space-y-0.5 pl-5 text-xs text-zinc-500">
+        <li>Earned = {pct}% of the profit after costs (platform fee and card fees come off first, as on Shop income)</li>
+        <li>Counts rentals, battery swaps at the rented shop and late fees</li>
+        <li>Cancelled or refunded bookings drop out</li>
+        <li>A deposit kept for damage is not counted</li>
+      </ul>
     </div>
   );
 }

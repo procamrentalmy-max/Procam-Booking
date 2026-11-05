@@ -102,7 +102,7 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false,
       }}
       className="space-y-6"
     >
-      <DroneChoice locale={locale} models={models} value={model} onChange={setModel} unavailable={models.filter((m) => !pickableModels.includes(m))} compare={tables?.drone} />
+      <DroneChoice locale={locale} daily={byDay} controller={controller} models={models} value={model} onChange={setModel} unavailable={models.filter((m) => !pickableModels.includes(m))} compare={tables?.drone} />
 
       <ControllerChoice
         locale={locale}
