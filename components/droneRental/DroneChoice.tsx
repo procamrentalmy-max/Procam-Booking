@@ -1,6 +1,6 @@
 "use client";
 
-import { DRONE_MODEL_PROFILES, dailyRateFor, formatMyr, type ControllerKind, type DroneModel } from "@/lib/droneRental/pricingRules";
+import { DRONE_MODEL_PROFILES, dailyPerDayMyr, formatMyr, type ControllerKind, type DroneModel } from "@/lib/droneRental/pricingRules";
 import { droneText } from "@/lib/i18n/drone";
 import type { Locale } from "@/lib/i18n/locale";
 import { useState } from "react";
@@ -23,8 +23,11 @@ export function DroneChoice({
   compare,
   unavailableLabel,
   daily = false,
+  days = 1,
   controller = "NONE",
 }: {
+  /** How many days are picked: the price a day already has the multi-day discount in it. */
+  days?: number;
   /** Renting by the day: each drone shows its price a day (with the chosen way of flying) instead of its price per hour. */
   daily?: boolean;
   controller?: ControllerKind;
@@ -72,7 +75,7 @@ export function DroneChoice({
             >
               <span className="text-sm font-semibold leading-tight">{DRONE_MODEL_PROFILES[m].shortName}</span>
               <span className={`text-xs tabular-nums ${off || value !== m ? "" : "opacity-80"} ${off ? "" : value === m ? "" : st.sub}`}>
-                {daily ? (dailyRateFor(m, controller) !== null ? t.wizard.perDay(formatMyr(dailyRateFor(m, controller) ?? 0)) : t.wizard.dailyHourlyOnly) : t.common.perHour(formatMyr(DRONE_MODEL_PROFILES[m].hourlyRateMyr))}
+                {daily ? (dailyPerDayMyr(days, m, controller) !== null ? t.wizard.perDay(formatMyr(dailyPerDayMyr(days, m, controller) ?? 0)) : t.wizard.dailyHourlyOnly) : t.common.perHour(formatMyr(DRONE_MODEL_PROFILES[m].hourlyRateMyr))}
               </span>
             </button>
           );

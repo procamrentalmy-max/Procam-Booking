@@ -300,6 +300,12 @@ export function dailyFeeMyr(days: number, model: string | null | undefined, cont
   return round2Fee(days * perDay * (1 - ((days - 1) * MULTI_DAY_DISCOUNT_PERCENT) / 100));
 }
 
+/** What each day costs once the multi-day discount is in (3 days at RM98 is RM235.20 in all, so RM78.40 a day). For one day it is the daily rate. Null when there is no daily rate. */
+export function dailyPerDayMyr(days: number, model: string | null | undefined, controller: ControllerKind = DEFAULT_CONTROLLER): number | null {
+  const fee = dailyFeeMyr(days, model, controller);
+  return fee === null ? null : round2Fee(fee / days);
+}
+
 /** What the extra days save, in ringgit, against paying the full daily rate for each. */
 export function dailySavingMyr(days: number, model: string | null | undefined, controller: ControllerKind = DEFAULT_CONTROLLER): number {
   const perDay = dailyRateFor(model, controller);

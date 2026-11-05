@@ -33,6 +33,7 @@ import {
   formatMyr,
   includesController,
   isDailyMinutes,
+  rentalDays,
   offersDaily,
   rentalFeeMyr,
 } from "@/lib/droneRental/pricingRules";
@@ -286,7 +287,7 @@ export function DroneBookingWizard({
 
         {presetNote && <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">{t.wizard.presetMissed}</p>}
 
-        <DroneChoice locale={locale} daily={byDay} controller={controller} models={models} value={model} onChange={setModel} unavailable={models.filter((m) => !availableModels.includes(m))} compare={tables?.drone} />
+        <DroneChoice locale={locale} daily={byDay} days={rentalDays(durationMinutes)} controller={controller} models={models} value={model} onChange={setModel} unavailable={models.filter((m) => !availableModels.includes(m))} compare={tables?.drone} />
 
         <ControllerChoice
           locale={locale}
@@ -297,6 +298,7 @@ export function DroneBookingWizard({
           unavailable={controllerOptions.filter((o) => !selectableControllers.includes(o))}
           compare={tables?.fly}
           daily={byDay}
+          days={rentalDays(durationMinutes)}
         />
 
         <LengthChoice locale={locale} minutes={durationMinutes} model={model} controller={controller} onChange={setDurationMinutes} />

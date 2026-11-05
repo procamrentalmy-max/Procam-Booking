@@ -1,6 +1,6 @@
 "use client";
 
-import { CONTROLLER_PROFILES, controllerProfileFor, dailyRateFor, formatMyr, offersDaily, type ControllerKind } from "@/lib/droneRental/pricingRules";
+import { CONTROLLER_PROFILES, controllerProfileFor, dailyPerDayMyr, formatMyr, offersDaily, type ControllerKind } from "@/lib/droneRental/pricingRules";
 import { droneText } from "@/lib/i18n/drone";
 import type { Locale } from "@/lib/i18n/locale";
 import { useState } from "react";
@@ -30,6 +30,7 @@ export function ControllerChoice({
   compare,
   unavailableLabel,
   daily = false,
+  days = 1,
 }: {
   locale?: Locale;
   /** The landing page is always dark. */
@@ -48,6 +49,8 @@ export function ControllerChoice({
   unavailable?: readonly ControllerKind[];
   /** The rental is by the day: each way of flying shows what it adds per day, and the one with no daily rate (the goggles set) is greyed out as hourly only. */
   daily?: boolean;
+  /** How many days are picked (by the day only): the price a day already has the multi-day discount in it. */
+  days?: number;
 }) {
   const [comparing, setComparing] = useState(false);
   if (options.length < 2) return null;
@@ -68,7 +71,8 @@ export function ControllerChoice({
         {options.map((o) => {
           const hourlyOnly = daily && !offersDaily(model, o);
           const off = unavailable.includes(o) || hourlyOnly;
-          const dailyExtra = (dailyRateFor(model, o) ?? 0) - (dailyRateFor(model, "NONE") ?? 0);
+          // What this way of flying adds per day on top of phone only, with the multi-day discount in it (RM30 more a day is RM24 more a day over 3 days).
+          const dailyExtra = Math.round(((dailyPerDayMyr(days, model, o) ?? 0) - (dailyPerDayMyr(days, model, "NONE") ?? 0)) * 100) / 100;
           return (
             <button
               key={o}
