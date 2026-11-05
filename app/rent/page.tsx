@@ -48,7 +48,7 @@ export default async function RentLandingPage({ searchParams }: { searchParams: 
           <div>
             <p className="text-xs uppercase tracking-wide text-zinc-400">{t.yourPackage}</p>
             <p className="mt-0.5 font-medium">{summary}</p>
-            <p className="mt-0.5 text-xs text-zinc-500">{text.common.deposit}: {formatMyr(depositMyrFor(preset.model, preset.controller))}</p>
+            <p className="mt-0.5 text-xs text-zinc-500">{text.common.deposit} {text.common.noDeduct}: {formatMyr(depositMyrFor(preset.model, preset.controller))}</p>
           </div>
           <Link href="/#price" className="shrink-0 text-xs underline underline-offset-2">
             {t.changePackage}
