@@ -190,8 +190,14 @@ export const droneEn = {
   },
   kyc: {
     title: "Verify your ID",
-    text: "Before we hold a drone for you, we check it's really you: a photo of your MyKad or passport and a quick selfie. It takes about a minute.",
+    text: "A photo of your MyKad or passport and a quick selfie. It takes about a minute, and only 40% of the deposit is held.",
     button: "Verify my ID",
+    /** The choice on the booking page: verify the identity and hold only 40% of the deposit. */
+    optionTitle: "Verify identity: hold only 40% deposit",
+    optionText: (reduced: string, full: string) => `Verify your ID with a photo of your MyKad or passport and a quick selfie (about a minute). Only ${reduced} is held on your card instead of ${full}.`,
+    optionSaves: (reduced: string) => `Deposit held: ${reduced}`,
+    /** A line under a price that is not yet being booked. */
+    hint: (reduced: string) => `Verify your identity when you book and hold only ${reduced} instead.`,
     notApproved: "We couldn't approve your ID. Please try again with a clear photo of your ID and your face in good light.",
     notFinished: "The ID check didn't finish. Please try again.",
     generic: "Something went wrong. Please try again.",
@@ -492,8 +498,12 @@ export const droneMs: DroneText = {
   },
   kyc: {
     title: "Sahkan identiti anda",
-    text: "Sebelum kami menyimpan dron untuk anda, kami menyemak bahawa ini benar-benar anda: gambar MyKad atau pasport anda dan swafoto ringkas. Ia mengambil masa kira-kira satu minit.",
+    text: "Gambar MyKad atau pasport anda dan swafoto ringkas. Ia mengambil masa kira-kira satu minit, dan hanya 40% deposit ditahan.",
     button: "Sahkan identiti saya",
+    optionTitle: "Sahkan identiti: tahan 40% deposit sahaja",
+    optionText: (reduced, full) => `Sahkan identiti anda dengan gambar MyKad atau pasport dan swafoto ringkas (kira-kira satu minit). Hanya ${reduced} ditahan pada kad anda, bukan ${full}.`,
+    optionSaves: (reduced) => `Deposit ditahan: ${reduced}`,
+    hint: (reduced) => `Sahkan identiti anda semasa menempah dan hanya ${reduced} ditahan.`,
     notApproved: "Kami tidak dapat meluluskan pengenalan diri anda. Sila cuba lagi dengan gambar kad pengenalan yang jelas dan wajah anda dalam cahaya yang baik.",
     notFinished: "Semakan identiti tidak selesai. Sila cuba lagi.",
     generic: "Ada masalah. Sila cuba lagi.",
@@ -791,8 +801,12 @@ export const droneZh: DroneText = {
   },
   kyc: {
     title: "验证您的身份",
-    text: "在为您保留无人机之前，我们需要确认是您本人：拍摄您的 MyKad 或护照，再自拍一张照片。大约需要一分钟。",
+    text: "拍摄您的 MyKad 或护照，再自拍一张照片。大约需要一分钟，押金只冻结 40%。",
     button: "验证我的身份",
+    optionTitle: "验证身份：只冻结 40% 押金",
+    optionText: (reduced, full) => `用 MyKad 或护照照片和一张自拍验证您的身份（约一分钟）。您的卡上只冻结 ${reduced}，而不是 ${full}。`,
+    optionSaves: (reduced) => `冻结押金：${reduced}`,
+    hint: (reduced) => `预订时验证身份，押金只冻结 ${reduced}。`,
     notApproved: "我们无法通过您的身份验证。请在光线充足的地方，拍摄清晰的证件照片和您的脸部后再试一次。",
     notFinished: "身份验证没有完成，请再试一次。",
     generic: "出了点问题，请再试一次。",

@@ -9,8 +9,9 @@ import { EarningsRow } from "@/components/droneRental/EarningsRow";
 import { BarChart, DonutChart } from "@/app/admin/sales/charts";
 
 // The generated types don't know these two relationships, but the foreign keys exist, so PostgREST embeds them.
-type BookingRow = Omit<IncomeBooking, "swaps" | "lateFees" | "swapOnly" | "referred"> & {
+type BookingRow = Omit<IncomeBooking, "swaps" | "lateFees" | "swapOnly" | "referred" | "idChecked"> & {
   shop_id: string;
+  id_checked: boolean;
   referrer_id: string | null;
   dr_battery_swaps: { fee_myr: number | string; paid_by: string; swap_shop_id: string | null }[] | null;
   dr_payments: { amount_myr: number | string; kind: string; status: string; provider: string }[] | null;
@@ -49,7 +50,7 @@ export default async function ShopIncomePage() {
   const bookingsQuery = db
     .from("dr_bookings")
     .select(
-      "id,shop_id,referrer_id,status,source,paid_by,start_time,batteries_count,drone_model,rental_fee_myr,drone_charge_myr,controller_charge_myr,dr_battery_swaps(fee_myr,paid_by,swap_shop_id),dr_payments(amount_myr,kind,status,provider)",
+      "id,shop_id,referrer_id,id_checked,status,source,paid_by,start_time,batteries_count,drone_model,rental_fee_myr,drone_charge_myr,controller_charge_myr,dr_battery_swaps(fee_myr,paid_by,swap_shop_id),dr_payments(amount_myr,kind,status,provider)",
     )
     .in("status", PAID_STATUSES)
     .gte("start_time", new Date(monthStartMs(now, MONTHS_SHOWN - 1)).toISOString());
@@ -71,6 +72,7 @@ export default async function ShopIncomePage() {
     drone_charge_myr: b.drone_charge_myr,
     controller_charge_myr: b.controller_charge_myr,
     referred: !!b.referrer_id,
+    idChecked: b.id_checked,
     // A swap of two batteries is two rows, with the fee on the first only; the zero-fee row is not a payment.
     // A swap done at another shop earns that shop the fee, so only this shop's own swaps (and old ones, with no shop recorded) count here.
     swaps: (b.dr_battery_swaps ?? []).filter((s) => Number(s.fee_myr) > 0 && (!s.swap_shop_id || s.swap_shop_id === b.shop_id)).map((s) => ({ feeMyr: Number(s.fee_myr), paidBy: s.paid_by === "CASH" ? ("CASH" as const) : s.paid_by === "QR" ? ("QR" as const) : ("CARD" as const) })),
@@ -158,7 +160,7 @@ export default async function ShopIncomePage() {
             <EarningsRow
               label="KYC / verification"
               value={`− ${myr2(e.costs.kyc)}`}
-              info={[`RM${KYC_PER_BOOKING_MYR.toFixed(2)} per drone booking`, "Checks the customer's ID and face"]}
+              info={[`RM${KYC_PER_BOOKING_MYR.toFixed(2)} per booking where the customer verified their ID`, "Checks the customer's ID and face", "These customers have a smaller deposit held"]}
             />
           )}
           <EarningsRow label="Profit after costs" value={myr2(e.net)} strong />

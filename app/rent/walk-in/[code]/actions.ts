@@ -22,8 +22,8 @@ const schema = z.object({
   name: z.string().trim().min(1, "Enter your name").max(100),
   phone: z.string().trim().regex(/^[0-9+\-()\s]{6,30}$/, "Enter a valid phone number"),
   email: z.string().trim().email("Enter a valid email").max(200),
-  // Only needed while the online ID check is switched on (lib/features.ts).
-  verificationId: DRONE_ID_CHECK_ENABLED ? uuidSchema : z.string().optional(),
+  // Only sent when the customer chose to pass the ID check for the smaller deposit (lib/features.ts).
+  verificationId: uuidSchema.or(z.literal("")).optional(),
   whatsappNumber: z.string().trim().max(30).optional(),
 });
 
@@ -54,7 +54,8 @@ export async function submitWalkInOrderAction(input: {
   if (d.whatsappNumber && !toWhatsAppNumber(d.whatsappNumber)) return { ok: false, message: text.common.whatsappNumberInvalid };
 
   const customerId = await findOrCreateCustomer({ name: d.name, phone: d.phone, email: d.email });
-  if (DRONE_ID_CHECK_ENABLED && !(await claimVerification(d.verificationId ?? "", customerId))) return { ok: false, message: t.idCheckNeeded };
+  const idChecked = DRONE_ID_CHECK_ENABLED && !!d.verificationId;
+  if (idChecked && !(await claimVerification(d.verificationId ?? "", customerId))) return { ok: false, message: t.idCheckNeeded };
 
   const result = await submitWalkInOrder({
     walkinCode: d.code,
@@ -65,12 +66,13 @@ export async function submitWalkInOrderAction(input: {
     name: d.name,
     phone: d.phone,
     email: d.email,
+    idChecked,
   });
   if (result.ok) {
     // Kept on the order until the staff confirm it and the booking is made (see acceptWalkInRequest).
     await createServiceRoleClient().from("dr_walkin_requests").update({ whatsapp_number: d.whatsappNumber || null, locale: await getLocale(), referrer_id: await referrerIdFromCookie() }).eq("public_token", result.publicToken);
     return { ok: true, token: result.publicToken };
   }
-  if (DRONE_ID_CHECK_ENABLED) await releaseVerification(d.verificationId ?? "");
+  if (idChecked) await releaseVerification(d.verificationId ?? "");
   return { ok: false, message: reasons[result.reason] };
 }

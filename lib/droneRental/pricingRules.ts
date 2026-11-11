@@ -29,7 +29,7 @@ export const BATTERY_PACKAGE_FEE_MYR: Record<BatteryCount, number> = { 1: 8, 2: 
  * The drone models the shop rents out. Everything that differs between them lives in DRONE_MODEL_PROFILES below;
  * the constants above and the DEPOSIT_* ones further down are the DJI Neo 2's. The Neo (the original) is RM1 cheaper
  * on everything but the controllers: RM9 an hour, batteries RM6 for 1 or RM9 for 2 (also the swap prices), a RM9 late
- * fee per hour without a controller. The drone deposits are RM500 (Neo 2) and RM400 (Neo). The GT50 is parked (see ENABLED_DRONE_MODELS).
+ * fee per hour without a controller. The drone deposits are RM600 (Neo 2) and RM500 (Neo). The GT50 is parked (see ENABLED_DRONE_MODELS).
  */
 export const DRONE_MODELS = ["NEO2", "NEO", "GT50"] as const;
 
@@ -117,7 +117,7 @@ export const DRONE_MODEL_PROFILES: Record<DroneModel, DroneModelProfile> = {
     hourlyRateMyr: HOURLY_RATE_MYR,
     dailyRateMyr: { NONE: 98, RC_N3: 128 },
     batteryFeeMyr: BATTERY_PACKAGE_FEE_MYR,
-    depositDroneMyr: 500,
+    depositDroneMyr: 600,
     photosRequired: true,
     maxWindMps: 10.7, // Level 5
     flightMinutes: { 1: "12–15", 2: "25–30" },
@@ -131,7 +131,7 @@ export const DRONE_MODEL_PROFILES: Record<DroneModel, DroneModelProfile> = {
     hourlyRateMyr: HOURLY_RATE_MYR - 1,
     dailyRateMyr: { NONE: 98, RC_N3: 128 },
     batteryFeeMyr: { 1: BATTERY_PACKAGE_FEE_MYR[1] - 1, 2: BATTERY_PACKAGE_FEE_MYR[2] - 1 },
-    depositDroneMyr: 400,
+    depositDroneMyr: 500,
     photosRequired: true,
     maxWindMps: 8, // Level 4, DJI's rating for the original Neo
     flightMinutes: { 1: "12–15", 2: "25–30" },
@@ -204,9 +204,21 @@ export function controllerDepositFor(model: string | null | undefined, controlle
   return controllerProfileFor(model, controller)?.depositMyr ?? 0;
 }
 
-/** Total deposit hold for a model: the drone, plus the controller when one goes out too. */
-export function depositMyrFor(model: string | null | undefined, controller: ControllerKind = DEFAULT_CONTROLLER): number {
-  return modelProfile(model).depositDroneMyr + controllerDepositFor(model, controller);
+/**
+ * A customer who passes the online ID check (see DRONE_ID_CHECK_ENABLED in lib/features.ts) has only this much of the deposit held on their card.
+ * Whoever does not do the check holds the full deposit.
+ */
+export const VERIFIED_DEPOSIT_PERCENT = 40;
+
+/** The share of the full deposit that is held: all of it, or VERIFIED_DEPOSIT_PERCENT with an ID check. */
+export function holdShare(idChecked: boolean): number {
+  return idChecked ? VERIFIED_DEPOSIT_PERCENT / 100 : 1;
+}
+
+/** Total deposit hold for a model: the drone, plus the controller when one goes out too. With an ID check only 40% of that is held. */
+export function depositMyrFor(model: string | null | undefined, controller: ControllerKind = DEFAULT_CONTROLLER, idChecked = false): number {
+  const full = modelProfile(model).depositDroneMyr + controllerDepositFor(model, controller);
+  return idChecked ? Math.round(full * holdShare(true)) : full;
 }
 
 /** A customer can hold at most this many batteries at once — swapping in one more requires returning one first. */
@@ -397,13 +409,18 @@ export function computeDepositCapture(
   controller: ItemReturn,
   model: string | null | undefined = DEFAULT_DRONE_MODEL,
   rented: ControllerKind = DEFAULT_CONTROLLER,
+  /** The booking passed the ID check, so only 40% was held: every limit below is that share of the full deposit. */
+  idChecked = false,
 ): DepositCapture {
   const profile = modelProfile(model);
+  const share = holdShare(idChecked);
+  const droneDepositMyr = Math.round(profile.depositDroneMyr * share);
+  const controllerDepositMyr = Math.round(controllerDepositFor(model, rented) * share);
   // A rental without a controller has nothing held for it, so whatever is said about it counts for nothing.
   const controllerItem: ItemReturn = includesController(model, rented) ? controller : { outcome: "NONE" };
-  const heldMyr = profile.depositDroneMyr + (includesController(model, rented) ? controllerDepositFor(model, rented) : 0);
-  let droneChargeMyr = itemCaptureMyr("drone", profile.depositDroneMyr, drone, heldMyr);
-  let controllerChargeMyr = itemCaptureMyr(controllerProfileFor(model, rented)?.name ?? "controller", controllerDepositFor(model, rented), controllerItem, heldMyr);
+  const heldMyr = droneDepositMyr + (includesController(model, rented) ? controllerDepositMyr : 0);
+  let droneChargeMyr = itemCaptureMyr("drone", droneDepositMyr, drone, heldMyr);
+  let controllerChargeMyr = itemCaptureMyr(controllerProfileFor(model, rented)?.name ?? "controller", controllerDepositMyr, controllerItem, heldMyr);
   let excess = round2(droneChargeMyr + controllerChargeMyr - heldMyr);
   if (excess > 0) {
     if (drone.outcome === "DAMAGED") {

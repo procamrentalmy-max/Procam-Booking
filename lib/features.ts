@@ -35,12 +35,12 @@ export function lockerGate(pathname: string): "pass" | "paused" | "admin-home" |
 }
 
 /**
- * The online ID check (a photo of the MyKad or passport and a live selfie, done on the customer's phone through Didit) before a drone is held.
- * Switched off: the booking and walk-in forms go straight on, nothing is sent to Didit, there is no ID check cost in the earnings, and the legal pages
- * and FAQ say the staff check the photo ID at collection. Setting this back to true brings the check back exactly as it was (the code, the Didit
- * keys and the ID-check texts are all still there).
+ * The optional online ID check (a photo of the MyKad or passport and a live selfie, done on the customer's phone through Didit). On the booking and
+ * walk-in forms a customer can tick "Verify identity" and then only 40% of the deposit is held on their card; without it the full deposit is held and
+ * nothing is sent to Didit. The check costs RM1.30 and is counted in the shop's earnings only on the bookings that did it. Switched off: the choice does
+ * not appear, every booking holds the full deposit, and the legal pages and FAQ say the staff check the photo ID at collection.
  */
-export const DRONE_ID_CHECK_ENABLED = false;
+export const DRONE_ID_CHECK_ENABLED = true;
 
 /**
  * Renting by the day (1 to 3 days, 3 batteries and a charger included). Switched off: customers can only choose hours, on the home page, the booking page and

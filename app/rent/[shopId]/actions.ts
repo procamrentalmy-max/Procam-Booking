@@ -71,8 +71,8 @@ const createBookingSchema = z.object({
   name: z.string().trim().min(1, "Enter your name"),
   phone: z.string().trim().regex(/^[0-9+\-()\s]{6,30}$/, "Enter a valid phone number"),
   email: z.string().trim().email("Enter a valid email"),
-  // Only needed while the online ID check is switched on (lib/features.ts).
-  verificationId: DRONE_ID_CHECK_ENABLED ? uuidSchema : z.string().optional(),
+  // Only sent when the customer chose to pass the ID check for the smaller deposit (lib/features.ts).
+  verificationId: uuidSchema.or(z.literal("")).optional(),
   /** The WhatsApp number to send the booking messages to; empty means they are texted to the phone number. */
   whatsappNumber: z.string().trim().max(30).optional(),
 });
@@ -108,8 +108,9 @@ export async function createDroneBookingAction(input: {
   if (!isWithinOperatingHours(start, data.durationMinutes, await getShopHours(data.shopId))) return { error: t.closed };
 
   const customerId = await findOrCreateCustomer({ name: data.name, phone: data.phone, email: data.email });
-  // Every booking needs its own passed ID check; it is used up here and given back if the booking doesn't go through.
-  if (DRONE_ID_CHECK_ENABLED && !(await claimVerification(data.verificationId ?? "", customerId))) return { error: t.idCheckNeeded };
+  // A customer who chose the ID check (for 40% of the deposit) needs a passed one of their own; it is used up here and given back if the booking doesn't go through.
+  const idChecked = DRONE_ID_CHECK_ENABLED && !!data.verificationId;
+  if (idChecked && !(await claimVerification(data.verificationId ?? "", customerId))) return { error: t.idCheckNeeded };
 
   try {
     const booking = await createPendingDroneBooking({
@@ -120,12 +121,13 @@ export async function createDroneBookingAction(input: {
       batteries: data.batteries,
       model: data.model,
       controller: data.controller,
+      idChecked,
     });
     // Where the messages go (their WhatsApp number, or an SMS to the phone number) and the language they are using (lib/whatsapp).
     await createServiceRoleClient().from("dr_bookings").update({ whatsapp_number: data.whatsappNumber || null, locale: await getLocale(), referrer_id: await referrerIdFromCookie() }).eq("id", booking.id);
     return { secureToken: booking.secure_token, startTime: booking.start_time, endTime: booking.end_time };
   } catch (err) {
-    if (DRONE_ID_CHECK_ENABLED) await releaseVerification(data.verificationId ?? "");
+    if (idChecked) await releaseVerification(data.verificationId ?? "");
     if (err instanceof TooWindyError) return { error: t.tooWindy(formatWind(err.windMps), formatWind(err.limitMps)) };
     // Someone paid for the last drone (or the controller) first: the page shows its popup and keeps everything typed.
     if (err instanceof NoDroneAvailableError || err instanceof NoControllerAvailableError) return { slotTaken: true };

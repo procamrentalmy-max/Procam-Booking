@@ -28,6 +28,7 @@ type BookingRow = {
   id: string;
   shop_id: string;
   referrer_id: string | null;
+  id_checked: boolean;
   status: string;
   source: string;
   paid_by: DrPaidBy;
@@ -59,6 +60,7 @@ function toIncomeBooking(b: BookingRow): IncomeBooking {
     swaps: (b.dr_battery_swaps ?? []).filter((s) => Number(s.fee_myr) > 0 && (!s.swap_shop_id || s.swap_shop_id === b.shop_id)).map((s) => ({ feeMyr: Number(s.fee_myr), paidBy: paidBy(s.paid_by) })),
     lateFees: (b.dr_payments ?? []).filter((p) => p.kind === "LATE_FEE" && p.status === "SUCCEEDED").map((p) => ({ amountMyr: Number(p.amount_myr), paidBy: p.provider === "cash" ? ("CASH" as const) : ("CARD" as const) })),
     referred: true,
+    idChecked: b.id_checked,
   };
 }
 
@@ -78,7 +80,7 @@ export async function loadReferrerSummaries(options: { referrerId?: string; now?
   const payoutsQuery = db.from("dr_referral_payouts").select("*").order("paid_at", { ascending: false });
   const bookingsQuery = db
     .from("dr_bookings")
-    .select("id,shop_id,referrer_id,status,source,paid_by,start_time,batteries_count,drone_model,rental_fee_myr,drone_charge_myr,controller_charge_myr,dr_battery_swaps(fee_myr,paid_by,swap_shop_id),dr_payments(amount_myr,kind,status,provider)")
+    .select("id,shop_id,referrer_id,id_checked,status,source,paid_by,start_time,batteries_count,drone_model,rental_fee_myr,drone_charge_myr,controller_charge_myr,dr_battery_swaps(fee_myr,paid_by,swap_shop_id),dr_payments(amount_myr,kind,status,provider)")
     .not("referrer_id", "is", null)
     .in("status", PAID_STATUSES)
     .order("start_time", { ascending: false })

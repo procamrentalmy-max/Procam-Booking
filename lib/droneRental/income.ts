@@ -34,6 +34,8 @@ export type IncomeBooking = {
   swapOnly?: boolean;
   /** The booking came from a flyer: the flyer place gets 10% of the profit and the shop 45% instead of 50% (see earnings.ts). */
   referred?: boolean;
+  /** The customer did the ID check (for 40% of the deposit held): its cost is counted on this booking only. */
+  idChecked?: boolean;
 };
 
 /** Year and month (0-11) of an instant as seen on a clock in Malaysia. */
@@ -68,7 +70,7 @@ export function bookingEarnings(b: IncomeBooking): Earnings & { cashIncome: numb
     ...b.lateFees.filter((x) => x.amountMyr > 0).map((x): Payment => ({ amount: x.amountMyr, method: x.paidBy })),
   ];
   const cashIncome = payments.filter((p) => p.method === "CASH").reduce((sum, p) => sum + p.amount, 0);
-  return { ...earningsForBooking(payments, { kyc: !b.swapOnly, referred: !!b.referred && !b.swapOnly }), cashIncome };
+  return { ...earningsForBooking(payments, { kyc: !b.swapOnly && !!b.idChecked, referred: !!b.referred && !b.swapOnly }), cashIncome };
 }
 
 export type IncomeSummary = {

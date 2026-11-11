@@ -117,12 +117,12 @@ describe("summariseIncome", () => {
     expect(s.months.map((m) => m.label)).toEqual(["Aug 26", "Sep 26", "Oct 26", "Nov 26", "Dec 26", "Jan 27"]);
   });
 
-  it("works out the merchant's earnings: a card booking pays the card fee, a cash one does not, both pay the KYC", () => {
+  it("works out the merchant's earnings: a card booking pays the card fee, a cash one does not, both pay the KYC when their customer did the ID check", () => {
     const s = summariseIncome(
       [
-        booking({ start_time: "2026-10-02T03:00:00Z", rental_fee_myr: 30 }),
-        booking({ start_time: "2026-10-03T03:00:00Z", rental_fee_myr: 30, paid_by: "CASH" }),
-        booking({ start_time: "2026-09-10T03:00:00Z", rental_fee_myr: 30 }),
+        booking({ start_time: "2026-10-02T03:00:00Z", rental_fee_myr: 30, idChecked: true }),
+        booking({ start_time: "2026-10-03T03:00:00Z", rental_fee_myr: 30, paid_by: "CASH", idChecked: true }),
+        booking({ start_time: "2026-09-10T03:00:00Z", rental_fee_myr: 30, idChecked: true }),
       ],
       NOW,
       model,
@@ -147,6 +147,7 @@ describe("summariseIncome", () => {
           swaps: [{ feeMyr: 7, paidBy: "CARD" }],
           lateFees: [{ amountMyr: 3, paidBy: "CARD" }],
           drone_charge_myr: 100,
+          idChecked: true,
         }),
       ],
       NOW,
@@ -160,7 +161,7 @@ describe("summariseIncome", () => {
 
   it("treats each payment on a booking on its own: rental by card, swap in cash", () => {
     const s = summariseIncome(
-      [booking({ start_time: "2026-10-03T03:00:00Z", rental_fee_myr: 30, swaps: [{ feeMyr: 10, paidBy: "CASH" }] })],
+      [booking({ start_time: "2026-10-03T03:00:00Z", rental_fee_myr: 30, swaps: [{ feeMyr: 10, paidBy: "CASH" }], idChecked: true })],
       NOW,
       model,
     );
@@ -172,7 +173,7 @@ describe("summariseIncome", () => {
 
   it("a cash rental with a late fee on the card: only the late fee pays a card fee", () => {
     const s = summariseIncome(
-      [booking({ start_time: "2026-10-03T03:00:00Z", rental_fee_myr: 30, paid_by: "CASH", lateFees: [{ amountMyr: 10, paidBy: "CARD" }] })],
+      [booking({ start_time: "2026-10-03T03:00:00Z", rental_fee_myr: 30, paid_by: "CASH", lateFees: [{ amountMyr: 10, paidBy: "CARD" }], idChecked: true })],
       NOW,
       model,
     );

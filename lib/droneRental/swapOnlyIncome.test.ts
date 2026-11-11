@@ -29,13 +29,15 @@ describe("a swap done at another shop earns that shop only the swap fee", () => 
   });
 
   it("does not charge the ID check to the shop that only swapped", () => {
-    const swapOnly = bookingEarnings({ ...base, swapOnly: true });
+    const swapOnly = bookingEarnings({ ...base, swapOnly: true, idChecked: true });
     expect(swapOnly.income).toBe(7);
     expect(swapOnly.costs.kyc).toBe(0);
     // a cash swap has no card fee: the platform fee is the only cost
     expect(swapOnly.costs.platform).toBeCloseTo(7 * PLATFORM_RATE, 5);
-    const whole = bookingEarnings(base);
+    const whole = bookingEarnings({ ...base, idChecked: true });
     expect(whole.costs.kyc).toBe(KYC_PER_BOOKING_MYR);
+    // a booking whose customer did not do the check has no ID check cost either
+    expect(bookingEarnings(base).costs.kyc).toBe(0);
   });
 
   it("is not counted as one of the shop's bookings", () => {

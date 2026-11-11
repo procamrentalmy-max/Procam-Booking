@@ -22,7 +22,7 @@ describe("cardFeeFor", () => {
 
 describe("earningsForBooking", () => {
   it("a RM30 booking paid by card: platform 18%, card fee 3.1% + RM1, KYC RM1.30, then 50/50", () => {
-    const e = earningsForBooking([{ amount: 30, method: "CARD" }]);
+    const e = earningsForBooking([{ amount: 30, method: "CARD" }], { kyc: true });
     expect(e.income).toBe(30);
     expect(e.costs.platform).toBeCloseTo(5.4, 10);
     expect(e.costs.payment).toBeCloseTo(1.93, 10);
@@ -34,7 +34,7 @@ describe("earningsForBooking", () => {
   });
 
   it("the same booking paid in cash has no card fee, but still the KYC", () => {
-    const e = earningsForBooking([{ amount: 30, method: "CASH" }]);
+    const e = earningsForBooking([{ amount: 30, method: "CASH" }], { kyc: true });
     expect(e.costs.payment).toBe(0);
     expect(e.costs.kyc).toBeCloseTo(1.3, 10);
     expect(e.net).toBeCloseTo(23.3, 10);
@@ -42,10 +42,13 @@ describe("earningsForBooking", () => {
   });
 
   it("every card payment pays its own RM1: a rental and a swap are two payments, the KYC is only once", () => {
-    const e = earningsForBooking([
-      { amount: 20, method: "CARD" },
-      { amount: 7, method: "CARD" },
-    ]);
+    const e = earningsForBooking(
+      [
+        { amount: 20, method: "CARD" },
+        { amount: 7, method: "CARD" },
+      ],
+      { kyc: true },
+    );
     expect(e.costs.payment).toBeCloseTo(27 * 0.031 + 2, 10);
     expect(e.costs.kyc).toBeCloseTo(1.3, 10);
   });
@@ -63,8 +66,8 @@ describe("earningsForBooking", () => {
 
 describe("addEarnings", () => {
   it("adds every part", () => {
-    const a = earningsForBooking([{ amount: 30, method: "CARD" }]);
-    const b = earningsForBooking([{ amount: 30, method: "CASH" }]);
+    const a = earningsForBooking([{ amount: 30, method: "CARD" }], { kyc: true });
+    const b = earningsForBooking([{ amount: 30, method: "CASH" }], { kyc: true });
     const sum = addEarnings(a, b);
     expect(sum.income).toBe(60);
     expect(sum.costs.kyc).toBeCloseTo(2.6, 10);

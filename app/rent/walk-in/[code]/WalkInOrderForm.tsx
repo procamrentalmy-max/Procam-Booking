@@ -34,6 +34,8 @@ import {
 import type { WalkInOptions } from "@/lib/droneRental/walkInRequests";
 import { submitWalkInOrderAction } from "./actions";
 import { useDroneKyc } from "@/components/droneRental/useDroneKyc";
+import { IdCheckOption } from "@/components/droneRental/IdCheckOption";
+import { DRONE_ID_CHECK_ENABLED } from "@/lib/features";
 import { droneText } from "@/lib/i18n/drone";
 import type { Locale } from "@/lib/i18n/locale";
 
@@ -74,12 +76,15 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false,
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Verify identity: only 40% of the deposit is held (the choice shows only while the ID check is switched on).
+  const [idCheck, setIdCheck] = useState(false);
+  const idChecked = DRONE_ID_CHECK_ENABLED && idCheck;
   const { verifyThen, panel: idCheckPanel, kycBusy, kycMessage } = useDroneKyc({ adminCanSkip, locale });
 
   /** The first thing sending the order does: the ID check. The order is sent once it has passed. */
   function submit() {
     setError(null);
-    void verifyThen({ name, phone, email }, sendOrder);
+    void verifyThen({ name, phone, email }, sendOrder, idChecked);
   }
 
   async function sendOrder(verificationId: string) {
@@ -181,10 +186,11 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false,
       <ComboCard
         locale={locale}
         pictureUrl={pictures[comboKey(model, controller, byDay ? DAILY_BATTERIES : batteries)]}
-        depositMyr={depositMyrFor(model, controller)}
+        depositMyr={depositMyrFor(model, controller, idChecked)}
         alt={`${profile.shortName}, ${controller === "NONE" ? t.common.phoneOnly : controllerLabel(model, controller)}${byDay ? "" : `, ${t.common.batteries(batteries)}`}`}
       />
-      <TotalSummary locale={locale} breakdown={dailyBreakdown(durationMinutes, model, controller)} totalMyr={rentalFeeMyr(durationMinutes, batteries, model, controller)} depositMyr={depositMyrFor(model, controller)} />
+      <TotalSummary locale={locale} breakdown={dailyBreakdown(durationMinutes, model, controller)} totalMyr={rentalFeeMyr(durationMinutes, batteries, model, controller)} depositMyr={depositMyrFor(model, controller, idChecked)} />
+      <IdCheckOption locale={locale} checked={idCheck} onChange={setIdCheck} fullMyr={depositMyrFor(model, controller)} reducedMyr={depositMyrFor(model, controller, true)} />
 
       <div className="space-y-3">
         <p className="text-sm font-medium">{t.walkIn.yourDetails}</p>

@@ -18,7 +18,7 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
 
   const { data: booking } = await supabase
     .from("dr_bookings")
-    .select("id,referrer_id,status,shop_id,customer_id,drone_id,start_time,end_time,deposit_myr,batteries_count,drone_model,controller_kind,controller_id")
+    .select("id,referrer_id,id_checked,status,shop_id,customer_id,drone_id,start_time,end_time,deposit_myr,batteries_count,drone_model,controller_kind,controller_id")
     .eq("id", bookingId)
     .maybeSingle();
   if (!booking) notFound();
@@ -95,7 +95,7 @@ export default async function MerchantPickupPage({ params }: { params: Promise<{
 
       {holdOnFile ? (
         <p className="rounded-xl border border-green-300 bg-green-50 p-3 text-sm text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
-          <span className="font-semibold">Deposit held: {formatMyr(booking.deposit_myr)}</span> ({withController ? <>drone {formatMyr(profile.depositDroneMyr)} + {controllerProfile?.shortName} {formatMyr(controllerDepositFor(booking.drone_model, controller))}</> : <>drone only</>})
+          <span className="font-semibold">Deposit held: {formatMyr(booking.deposit_myr)}</span> ({withController ? <>drone {formatMyr(profile.depositDroneMyr)} + {controllerProfile?.shortName} {formatMyr(controllerDepositFor(booking.drone_model, controller))}</> : <>drone only</>}){booking.id_checked && " ID checked: 40% of the full deposit."}
         </p>
       ) : (
         <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">

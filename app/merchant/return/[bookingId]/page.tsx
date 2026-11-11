@@ -11,7 +11,7 @@ export default async function MerchantReturnPage({ params }: { params: Promise<{
   const { bookingId } = await params;
   const supabase = createServiceRoleClient();
 
-  const { data: booking } = await supabase.from("dr_bookings").select("id,referrer_id,status,customer_id,drone_id,batteries_count,drone_model,controller_kind,controller_id").eq("id", bookingId).maybeSingle();
+  const { data: booking } = await supabase.from("dr_bookings").select("id,referrer_id,id_checked,status,customer_id,drone_id,batteries_count,drone_model,controller_kind,controller_id").eq("id", bookingId).maybeSingle();
   if (!booking) notFound();
   const profile = modelProfile(booking.drone_model);
   const controller = storedController(booking.drone_model, booking.controller_kind);
@@ -57,6 +57,7 @@ export default async function MerchantReturnPage({ params }: { params: Promise<{
         checklistItems={checklistForRental(items ?? [], controller, daily)}
         disabled={booking.status !== "ACTIVE"}
         holdOnFile={hold?.status === "AUTHORIZED"}
+        idChecked={booking.id_checked}
         model={profile.key}
         controller={controller}
         controllerCode={controllerUnit?.human_id ?? null}

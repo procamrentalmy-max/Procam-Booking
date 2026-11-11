@@ -76,10 +76,10 @@ export default async function WalkInCustomerPage({ params }: { params: Promise<{
         </div>
         <div className="flex justify-between gap-4">
           <span className="text-zinc-500">{t.common.depositHold}</span>
-          <span className="font-medium">{formatMyr(depositMyrFor(request.drone_model, controller))}</span>
+          <span className="font-medium">{formatMyr(depositMyrFor(request.drone_model, controller, request.id_checked))}</span>
         </div>
       </div>
-      <DepositHoldNote depositMyr={depositMyrFor(request.drone_model, controller)} locale={locale} />
+      <DepositHoldNote depositMyr={depositMyrFor(request.drone_model, controller, request.id_checked)} locale={locale} />
       <p className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs leading-snug text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">{t.common.damageWarning}</p>
 
       {view === "SUBMITTED" && (

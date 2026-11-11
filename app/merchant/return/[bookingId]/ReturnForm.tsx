@@ -70,6 +70,7 @@ export function ReturnForm({
   checklistItems,
   disabled,
   holdOnFile,
+  idChecked,
   model,
   controllerCode,
   controller,
@@ -83,12 +84,14 @@ export function ReturnForm({
   checklistItems: { item_key: string; label: string }[];
   disabled: boolean;
   holdOnFile: boolean;
+  /** The customer passed the ID check, so only 40% of the deposit is held. */
+  idChecked: boolean;
 }) {
   const router = useRouter();
   const profile = DRONE_MODEL_PROFILES[model];
   const withController = includesController(model, controller);
   const controllerProfile = controllerProfileFor(model, controller);
-  const deposit = depositMyrFor(model, controller);
+  const deposit = depositMyrFor(model, controller, idChecked);
   // A model with no photo pages (the GT50) goes straight to the checklist and the deposit verdict.
   const steps = profile.photosRequired ? dronePhotoSteps(model, controller) : [];
   const [step, setStep] = useState(0); // 0..steps.length-1 are the guided photos; steps.length is the verdict page
@@ -105,7 +108,7 @@ export function ReturnForm({
   // Damage is reviewed by ProCam tonight, who decides the amount; until then the whole deposit stays held. Everything else is settled
   // right now by the same rule the server applies, so what the merchant sees here is exactly what will be captured.
   const anyDamaged = droneOutcome === "DAMAGED" || (withController && controllerOutcome === "DAMAGED");
-  const capture = anyDamaged ? null : computeDepositCapture({ outcome: droneOutcome }, { outcome: withController ? controllerOutcome : "NONE" }, model, controller);
+  const capture = anyDamaged ? null : computeDepositCapture({ outcome: droneOutcome }, { outcome: withController ? controllerOutcome : "NONE" }, model, controller, idChecked);
 
   const anythingWrong = droneOutcome !== "NONE" || controllerOutcome !== "NONE";
   const allPhotos = steps.every((s) => photos[s.key]);

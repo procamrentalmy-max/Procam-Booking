@@ -48,7 +48,7 @@ export async function submitReturnAction(formData: FormData): Promise<ReturnResu
 
   const supabase = createServiceRoleClient();
 
-  const { data: booking } = await supabase.from("dr_bookings").select("id,status,drone_id,end_time,batteries_count,drone_model,controller_kind,shop_id").eq("id", parsed.bookingId).single();
+  const { data: booking } = await supabase.from("dr_bookings").select("id,status,drone_id,end_time,batteries_count,drone_model,controller_kind,shop_id,id_checked").eq("id", parsed.bookingId).single();
   if (!booking) throw new Error("Booking not found.");
   if (booking.status !== "ACTIVE") throw new Error("This booking isn't currently active.");
   const profile = modelProfile(booking.drone_model);
@@ -64,7 +64,7 @@ export async function submitReturnAction(formData: FormData): Promise<ReturnResu
   let capture: DepositCapture | null = null;
   if (!anyDamaged) {
     try {
-      capture = computeDepositCapture({ outcome: parsed.droneOutcome }, { outcome: controllerOutcome }, profile.key, controller);
+      capture = computeDepositCapture({ outcome: parsed.droneOutcome }, { outcome: controllerOutcome }, profile.key, controller, booking.id_checked);
     } catch (err) {
       if (err instanceof DepositCaptureError) throw new Error(err.message);
       throw err;

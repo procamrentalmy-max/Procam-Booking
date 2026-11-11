@@ -72,7 +72,7 @@ export function PackagePicker({ locale, pictures, text, tables }: { locale: Loca
               depositMyr={depositMyrFor(model, controller)}
               alt={`${DRONE_MODEL_PROFILES[model].shortName}, ${controllerName(model, controller)}`}
             />
-            <TotalSummary onDark locale={locale} breakdown={dailyBreakdown(minutes, model, controller)} totalMyr={rentalFeeMyr(minutes, batteries ?? DEFAULT_BATTERIES, model, controller)} depositMyr={depositMyrFor(model, controller)} />
+            <TotalSummary onDark locale={locale} breakdown={dailyBreakdown(minutes, model, controller)} totalMyr={rentalFeeMyr(minutes, batteries ?? DEFAULT_BATTERIES, model, controller)} depositMyr={depositMyrFor(model, controller)} verifiedDepositMyr={depositMyrFor(model, controller, true)} />
             <PendingLink
               href={`/rent?${packageQuery({ model, controller, batteries: batteries ?? DEFAULT_BATTERIES, minutes })}`}
               className="inline-flex h-12 w-full items-center justify-center rounded-full bg-white px-7 text-sm font-semibold text-black transition hover:bg-zinc-200"

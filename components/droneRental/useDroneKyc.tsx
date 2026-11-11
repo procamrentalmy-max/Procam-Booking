@@ -11,7 +11,7 @@ import { DRONE_ID_CHECK_ENABLED } from "@/lib/features";
 type Pending = { verificationId: string; sessionUrl: string };
 
 /**
- * The ID check for a drone rental. `verifyThen` starts it; when it has passed (at once in local development, otherwise after the
+ * The optional ID check for a drone rental (a customer who passes it has only 40% of the deposit held). `verifyThen` starts it, or goes straight on when they did not choose it; when it has passed (at once in local development, otherwise after the
  * customer completes Didit's window), `proceed` is called with the check's id. While the customer still has to do the check,
  * `panel` is what to show instead of the submit button.
  */
@@ -22,10 +22,10 @@ export function useDroneKyc({ adminCanSkip = false, locale = "en" }: { adminCanS
   const [message, setMessage] = useState<string | null>(null);
   const [onPassed, setOnPassed] = useState<((verificationId: string) => Promise<void>) | null>(null);
 
-  async function verifyThen(details: { name: string; phone: string; email: string }, proceed: (verificationId: string) => Promise<void>) {
+  async function verifyThen(details: { name: string; phone: string; email: string }, proceed: (verificationId: string) => Promise<void>, wantsCheck = true) {
     setBusy(true);
-    // The ID check is switched off (lib/features.ts): go straight on, with no check to rely on.
-    if (!DRONE_ID_CHECK_ENABLED) {
+    // No ID check (switched off in lib/features.ts, or the customer did not choose it): go straight on, with no check to rely on.
+    if (!DRONE_ID_CHECK_ENABLED || !wantsCheck) {
       try {
         await proceed("");
       } finally {

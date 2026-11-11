@@ -40,6 +40,8 @@ import {
 import { DEFAULT_SHOP_HOURS, formatSlotTime, generateDaySlots, type ShopHours } from "@/lib/droneRental/hours";
 import { getUnavailableDroneStartsAction, createDroneBookingAction } from "@/app/rent/[shopId]/actions";
 import { useDroneKyc } from "@/components/droneRental/useDroneKyc";
+import { IdCheckOption } from "@/components/droneRental/IdCheckOption";
+import { DRONE_ID_CHECK_ENABLED } from "@/lib/features";
 import { DepositHoldNote } from "@/components/droneRental/DepositHoldNote";
 
 const DAYS_AHEAD = 7;
@@ -160,7 +162,11 @@ export function DroneBookingWizard({
   const asked = effectiveController(model, pickedController);
   const controller = selectableControllers.includes(asked) ? asked : selectableControllers[0];
   const withController = includesController(model, controller);
-  const deposit = depositMyrFor(model, controller);
+  // Verify identity: only 40% of the deposit is held (the choice shows only while the ID check is switched on).
+  const [idCheck, setIdCheck] = useState(false);
+  const idChecked = DRONE_ID_CHECK_ENABLED && idCheck;
+  const fullDeposit = depositMyrFor(model, controller);
+  const deposit = depositMyrFor(model, controller, idChecked);
   const rentalFee = rentalFeeMyr(durationMinutes, batteries, model, controller);
   const breakdown = dailyBreakdown(durationMinutes, model, controller);
   /** "Phone only" in the visitor's language, or the controller's own name (a product name, never translated). */
@@ -240,7 +246,7 @@ export function DroneBookingWizard({
     if (!selectedStart) return;
     setError(null);
     trackStep("ID_CHECK", shopId);
-    void verifyThen({ name, phone, email }, placeBooking);
+    void verifyThen({ name, phone, email }, placeBooking, idChecked);
   }
 
   async function placeBooking(verificationId: string) {
@@ -313,6 +319,7 @@ export function DroneBookingWizard({
         {!byDay && <BatteryChoice locale={locale} model={model} value={batteries} onChange={setBatteries} />}
 
         <TotalSummary locale={locale} totalMyr={rentalFee} depositMyr={deposit} breakdown={breakdown} />
+        <IdCheckOption locale={locale} checked={idCheck} onChange={setIdCheck} fullMyr={fullDeposit} reducedMyr={depositMyrFor(model, controller, true)} />
 
         {canBook && (
           <button
@@ -470,6 +477,7 @@ export function DroneBookingWizard({
             <span className="font-medium">{formatMyr(deposit)}</span>
           </div>
           <DepositHoldNote depositMyr={deposit} locale={locale} />
+          <IdCheckOption locale={locale} checked={idCheck} onChange={setIdCheck} fullMyr={fullDeposit} reducedMyr={depositMyrFor(model, controller, true)} />
           <p className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs leading-snug text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">{t.common.damageWarning}</p>
         </div>
       )}

@@ -632,6 +632,8 @@ export type DrBatteryRow = {
 export type DrBookingRow = {
   /** The flyer place whose QR this customer scanned in the 7 days before booking (see lib/referral.ts); null for every other booking. */
   referrer_id: string | null;
+  /** The customer passed the online ID check, so only 40% of the deposit is held (see VERIFIED_DEPOSIT_PERCENT). */
+  id_checked: boolean;
   /** Older bookings: the customer ticked "WhatsApp me about my booking" (see lib/whatsapp). New ones use whatsapp_number instead. */
   whatsapp_opt_in: boolean;
   /** When a run last started finishing this booking's card payment (see finishCardBooking); only one run at a time. */
@@ -776,6 +778,8 @@ export type DrWalkInStatus = "WAITING" | "SUBMITTED" | "ACCEPTED" | "DECLINED" |
 export type DrWalkInRequestRow = {
   /** The flyer place this customer scanned (see lib/referral.ts); copied to the booking when the order is confirmed. */
   referrer_id: string | null;
+  /** The customer passed the online ID check on this order (carried to the booking when the staff confirm it). */
+  id_checked: boolean;
   whatsapp_opt_in: boolean;
   whatsapp_number: string | null;
   locale: string | null;

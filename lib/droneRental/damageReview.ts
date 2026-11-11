@@ -40,7 +40,7 @@ export async function reviewDroneDamage(params: {
   const supabase = createServiceRoleClient();
   const { data: booking } = await supabase
     .from("dr_bookings")
-    .select("id,status,damage_review,drone_model,controller_kind,drone_outcome,controller_outcome")
+    .select("id,status,damage_review,drone_model,controller_kind,drone_outcome,controller_outcome,id_checked")
     .eq("id", params.bookingId)
     .single();
   if (!booking) throw new DamageReviewError("Booking not found.");
@@ -56,7 +56,8 @@ export async function reviewDroneDamage(params: {
       reviewedItem(booking.drone_outcome, params.droneAmountMyr),
       reviewedItem(withController ? booking.controller_outcome : "NONE", params.controllerAmountMyr),
       profile.key,
-      controller
+      controller,
+      booking.id_checked
     );
   } catch (err) {
     if (err instanceof DepositCaptureError) throw new DamageReviewError(err.message);

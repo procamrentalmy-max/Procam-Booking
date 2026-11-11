@@ -41,7 +41,7 @@ export const legalEn = {
         title: "2. Who can rent",
         blocks: [
           {
-            p: idc("You must be at least 18 years old and able to make a binding agreement. Before we hold a drone for you, you complete an identity check: a photo of your MyKad or passport and a live selfie, done on your phone through our verification provider. Bring the same photo ID when you collect the drone: the shop staff check it against your booking and can refuse the rental if you cannot show it, if it does not match, or if they have good reason to doubt who you are. In that case the rental fee is refunded in full.", "You must be at least 18 years old and able to make a binding agreement. Bring your MyKad or passport when you collect the drone: the shop staff check it against your booking and can refuse the rental if you cannot show it, if it does not match, or if they have good reason to doubt who you are. In that case the rental fee is refunded in full."),
+            p: idc("You must be at least 18 years old and able to make a binding agreement. If you choose to verify your identity (so that only 40% of the deposit is held), you complete an identity check: a photo of your MyKad or passport and a live selfie, done on your phone through our verification provider. Bring your photo ID when you collect the drone: the shop staff check it against your booking and can refuse the rental if you cannot show it, if it does not match, or if they have good reason to doubt who you are. In that case the rental fee is refunded in full.", "You must be at least 18 years old and able to make a binding agreement. Bring your MyKad or passport when you collect the drone: the shop staff check it against your booking and can refuse the rental if you cannot show it, if it does not match, or if they have good reason to doubt who you are. In that case the rental fee is refunded in full."),
           },
         ],
       },
@@ -241,7 +241,7 @@ export const legalEn = {
           {
             ul: [
               "Your name, phone number and email, to make and manage your booking. If you tick \"WhatsApp me about my booking\", we also use your phone number to send WhatsApp messages about that booking (the confirmation, reminders, how to swap a battery and refund notices). You can stop them any time by replying STOP.",
-              idc("An identity check: a photo of your MyKad or passport and a live selfie, taken in the check run by our verification provider, Didit. We receive the result of the check (passed or not) and the reference needed to match it to your booking. We do not keep our own copy of your ID photo or selfie. The shop staff also look at your photo ID when you collect the drone.", "Your photo ID: the shop staff look at your MyKad or passport when you collect the drone, to check it against your booking. We do not take or keep a copy of it."),
+              idc("If you choose the identity check: a photo of your MyKad or passport and a live selfie, taken in the check run by our verification provider, Didit. We receive the result of the check (passed or not) and the reference needed to match it to your booking. We do not keep our own copy of your ID photo or selfie. The shop staff also look at your photo ID when you collect the drone.", "Your photo ID: the shop staff look at your MyKad or passport when you collect the drone, to check it against your booking. We do not take or keep a copy of it."),
               "Payment information. Your card details go straight to our payment processor, Stripe. We never see or store your card number. We keep a Stripe reference to your payment and saved card so we can release your deposit, and charge late fees, battery swaps or damage you agreed to.",
               "Photos of the drone and its accessories at hand-over and return, and notes about their condition. They show equipment, not you.",
               "Booking details: what you rented, when, from which shop, what you paid, and any late fee or damage review.",
@@ -350,7 +350,7 @@ export const legalMs: LegalText = {
         title: "2. Siapa yang boleh menyewa",
         blocks: [
           {
-            p: idc("Anda mestilah berumur sekurang-kurangnya 18 tahun dan mampu membuat perjanjian yang mengikat. Sebelum kami menyimpan dron untuk anda, anda menyelesaikan semakan identiti: gambar MyKad atau pasport anda dan swafoto langsung, dibuat pada telefon anda melalui pembekal pengesahan kami. Bawa kad pengenalan bergambar yang sama apabila anda mengambil dron: kakitangan kedai menyemaknya dengan tempahan anda dan boleh menolak sewaan jika anda tidak dapat menunjukkannya, jika ia tidak sepadan, atau jika mereka mempunyai sebab yang munasabah untuk meragui siapa anda. Dalam keadaan itu yuran sewa dikembalikan sepenuhnya.", "Anda mestilah berumur sekurang-kurangnya 18 tahun dan mampu membuat perjanjian yang mengikat. Bawa MyKad atau pasport anda apabila anda mengambil dron: kakitangan kedai menyemaknya dengan tempahan anda dan boleh menolak sewaan jika anda tidak dapat menunjukkannya, jika ia tidak sepadan, atau jika mereka mempunyai sebab yang munasabah untuk meragui siapa anda. Dalam keadaan itu yuran sewa dikembalikan sepenuhnya."),
+            p: idc("Anda mestilah berumur sekurang-kurangnya 18 tahun dan mampu membuat perjanjian yang mengikat. Jika anda memilih mengesahkan identiti anda (supaya hanya 40% deposit ditahan), anda menyelesaikan semakan identiti: gambar MyKad atau pasport anda dan swafoto langsung, dibuat pada telefon anda melalui pembekal pengesahan kami. Bawa kad pengenalan bergambar anda apabila anda mengambil dron: kakitangan kedai menyemaknya dengan tempahan anda dan boleh menolak sewaan jika anda tidak dapat menunjukkannya, jika ia tidak sepadan, atau jika mereka mempunyai sebab yang munasabah untuk meragui siapa anda. Dalam keadaan itu yuran sewa dikembalikan sepenuhnya.", "Anda mestilah berumur sekurang-kurangnya 18 tahun dan mampu membuat perjanjian yang mengikat. Bawa MyKad atau pasport anda apabila anda mengambil dron: kakitangan kedai menyemaknya dengan tempahan anda dan boleh menolak sewaan jika anda tidak dapat menunjukkannya, jika ia tidak sepadan, atau jika mereka mempunyai sebab yang munasabah untuk meragui siapa anda. Dalam keadaan itu yuran sewa dikembalikan sepenuhnya."),
           },
         ],
       },
@@ -550,7 +550,7 @@ export const legalMs: LegalText = {
           {
             ul: [
               "Nama, nombor telefon dan e-mel anda, untuk membuat dan mengurus tempahan anda. Jika anda menandakan \"WhatsApp saya tentang tempahan saya\", kami juga menggunakan nombor telefon anda untuk menghantar mesej WhatsApp tentang tempahan itu (pengesahan, peringatan, cara menukar bateri dan notis bayaran balik). Anda boleh berhenti pada bila-bila masa dengan membalas STOP.",
-              idc("Semakan identiti: gambar MyKad atau pasport anda dan swafoto langsung, diambil dalam semakan yang dijalankan oleh pembekal pengesahan kami, Didit. Kami menerima keputusan semakan itu (lulus atau tidak) dan rujukan yang diperlukan untuk memadankannya dengan tempahan anda. Kami tidak menyimpan salinan gambar kad pengenalan atau swafoto anda sendiri. Kakitangan kedai juga melihat kad pengenalan bergambar anda apabila anda mengambil dron.", "Kad pengenalan bergambar anda: kakitangan kedai melihat MyKad atau pasport anda apabila anda mengambil dron, untuk menyemaknya dengan tempahan anda. Kami tidak mengambil atau menyimpan salinannya."),
+              idc("Jika anda memilih semakan identiti: gambar MyKad atau pasport anda dan swafoto langsung, diambil dalam semakan yang dijalankan oleh pembekal pengesahan kami, Didit. Kami menerima keputusan semakan itu (lulus atau tidak) dan rujukan yang diperlukan untuk memadankannya dengan tempahan anda. Kami tidak menyimpan salinan gambar kad pengenalan atau swafoto anda sendiri. Kakitangan kedai juga melihat kad pengenalan bergambar anda apabila anda mengambil dron.", "Kad pengenalan bergambar anda: kakitangan kedai melihat MyKad atau pasport anda apabila anda mengambil dron, untuk menyemaknya dengan tempahan anda. Kami tidak mengambil atau menyimpan salinannya."),
               "Maklumat pembayaran. Butiran kad anda terus ke pemproses pembayaran kami, Stripe. Kami tidak pernah melihat atau menyimpan nombor kad anda. Kami menyimpan rujukan Stripe kepada pembayaran dan kad tersimpan anda supaya kami boleh melepaskan deposit anda, dan mengecaj caj lewat, pertukaran bateri atau kerosakan yang anda setujui.",
               "Gambar dron dan aksesorinya semasa penyerahan dan pemulangan, dan catatan tentang keadaannya. Ia menunjukkan peralatan, bukan anda.",
               "Butiran tempahan: apa yang anda sewa, bila, dari kedai mana, berapa yang anda bayar, dan sebarang caj lewat atau semakan kerosakan.",
@@ -657,7 +657,7 @@ export const legalZh: LegalText = {
         title: "2. 谁可以租用",
         blocks: [
           {
-            p: idc("您必须年满 18 岁，并有能力订立具有约束力的协议。在我们为您保留无人机之前，您需要完成身份验证：通过我们的验证服务商，在手机上拍摄您的 MyKad 或护照，并现场自拍。取机时请带上同一份带照片的证件：店员会对照您的预订核对，如果您无法出示、证件与预订不符，或他们有充分理由怀疑您的身份，可以拒绝出租。这种情况下租金将全额退还。", "您必须年满 18 岁，并有能力订立具有约束力的协议。取机时请带上您的 MyKad 或护照：店员会对照您的预订核对，如果您无法出示、证件与预订不符，或他们有充分理由怀疑您的身份，可以拒绝出租。这种情况下租金将全额退还。"),
+            p: idc("您必须年满 18 岁，并有能力订立具有约束力的协议。如果您选择验证身份（这样只冻结 40% 的押金），您需要完成身份验证：通过我们的验证服务商，在手机上拍摄您的 MyKad 或护照，并现场自拍。取机时请带上您带照片的证件：店员会对照您的预订核对，如果您无法出示、证件与预订不符，或他们有充分理由怀疑您的身份，可以拒绝出租。这种情况下租金将全额退还。", "您必须年满 18 岁，并有能力订立具有约束力的协议。取机时请带上您的 MyKad 或护照：店员会对照您的预订核对，如果您无法出示、证件与预订不符，或他们有充分理由怀疑您的身份，可以拒绝出租。这种情况下租金将全额退还。"),
           },
         ],
       },
@@ -855,7 +855,7 @@ export const legalZh: LegalText = {
           {
             ul: [
               "您的姓名、手机号码和电子邮箱，用于办理和管理您的预订。如果您勾选“通过 WhatsApp 通知我预订的情况”，我们还会用您的手机号码发送关于该预订的 WhatsApp 消息（确认、提醒、更换电池的方法和退款通知）。随时回复 STOP 即可停止。",
-              idc("身份验证：由我们的验证服务商 Didit 进行的检查中，拍摄的您的 MyKad 或护照照片和现场自拍。我们会收到验证结果（通过与否）以及与您预订对应所需的参考编号。我们自己不保存您的证件照片或自拍。取机时，店员也会查看您带照片的证件。", "您带照片的证件：取机时，店员会查看您的 MyKad 或护照，对照您的预订核对。我们不会拍照或保存副本。"),
+              idc("如果您选择身份验证：由我们的验证服务商 Didit 进行的检查中，拍摄的您的 MyKad 或护照照片和现场自拍。我们会收到验证结果（通过与否）以及与您预订对应所需的参考编号。我们自己不保存您的证件照片或自拍。取机时，店员也会查看您带照片的证件。", "您带照片的证件：取机时，店员会查看您的 MyKad 或护照，对照您的预订核对。我们不会拍照或保存副本。"),
               "付款信息。您的银行卡资料直接交给我们的支付处理方 Stripe，我们从不查看或保存您的卡号。我们保存一个指向您付款和已保存银行卡的 Stripe 参考编号，以便解除您的押金，并收取您同意的逾期费、电池更换费或损坏费用。",
               "交付和归还时无人机及配件的照片，以及对其状况的记录。照片拍的是设备，不是您。",
               "预订资料：您租了什么、什么时候、在哪家门店、付了多少钱，以及任何逾期费或损坏评估。",

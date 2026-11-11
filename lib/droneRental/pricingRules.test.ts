@@ -17,6 +17,7 @@ import {
   DEPOSIT_CONTROLLER_MYR,
   DRONE_MODEL_PROFILES,
   depositMyrFor,
+  VERIFIED_DEPOSIT_PERCENT,
   hourlyRateFor,
   includesController,
   modelProfile,
@@ -96,10 +97,10 @@ describe("lateFeeMyr (Neo 2, drone only)", () => {
 });
 
 describe("deposit amounts", () => {
-  it("holds RM500 for the drone and RM350 for the controller, RM850 with both", () => {
-    expect(DEPOSIT_DRONE_MYR).toBe(500);
+  it("holds RM600 for the drone and RM350 for the controller, RM950 with both", () => {
+    expect(DEPOSIT_DRONE_MYR).toBe(600);
     expect(DEPOSIT_CONTROLLER_MYR).toBe(350);
-    expect(DEPOSIT_MYR).toBe(850);
+    expect(DEPOSIT_MYR).toBe(950);
   });
 
   it("formats with a thousands separator", () => {
@@ -121,12 +122,12 @@ describe("computeDepositCapture", () => {
   });
 
   it("captures the full item value when it's lost", () => {
-    expect(computeDepositCapture({ outcome: "LOST" }, { outcome: "NONE" })).toMatchObject({ droneChargeMyr: 500, totalMyr: 500, overallOutcome: "LOST" });
+    expect(computeDepositCapture({ outcome: "LOST" }, { outcome: "NONE" })).toMatchObject({ droneChargeMyr: 600, totalMyr: 600, overallOutcome: "LOST" });
     expect(computeDepositCapture({ outcome: "NONE" }, { outcome: "LOST" })).toMatchObject({ controllerChargeMyr: 350, totalMyr: 350, overallOutcome: "LOST" });
   });
 
   it("captures everything when both are lost", () => {
-    expect(computeDepositCapture({ outcome: "LOST" }, { outcome: "LOST" }).totalMyr).toBe(850);
+    expect(computeDepositCapture({ outcome: "LOST" }, { outcome: "LOST" }).totalMyr).toBe(950);
   });
 
   it("captures the assessed damage amount for a damaged item", () => {
@@ -152,19 +153,19 @@ describe("computeDepositCapture", () => {
   });
 
   it("takes at most the whole deposit held when the damage costs more (ProCam absorbs the rest)", () => {
-    // Drone only: the whole RM500 is the limit.
-    expect(computeDepositCapture({ outcome: "DAMAGED", damageMyr: 5000 }, { outcome: "NONE" }, "NEO2", "NONE")).toMatchObject({ droneChargeMyr: 500, totalMyr: 500 });
-    // With a controller: one damaged item may use the whole RM850.
-    expect(computeDepositCapture({ outcome: "DAMAGED", damageMyr: 5000 }, { outcome: "NONE" }, "NEO2", "RC_N3")).toMatchObject({ droneChargeMyr: 850, controllerChargeMyr: 0, totalMyr: 850 });
+    // Drone only: the whole RM600 is the limit.
+    expect(computeDepositCapture({ outcome: "DAMAGED", damageMyr: 6000 }, { outcome: "NONE" }, "NEO2", "NONE")).toMatchObject({ droneChargeMyr: 600, totalMyr: 600 });
+    // With a controller: one damaged item may use the whole RM950.
+    expect(computeDepositCapture({ outcome: "DAMAGED", damageMyr: 5000 }, { outcome: "NONE" }, "NEO2", "RC_N3")).toMatchObject({ droneChargeMyr: 950, controllerChargeMyr: 0, totalMyr: 950 });
     expect(computeDepositCapture({ outcome: "DAMAGED", damageMyr: 800 }, { outcome: "NONE" }, "NEO2", "RC_N3").totalMyr).toBe(800);
   });
 
   it("keeps a lost item in full first and cuts a damaged one back to what is left of the hold", () => {
     const capture = computeDepositCapture({ outcome: "DAMAGED", damageMyr: 5000 }, { outcome: "LOST" }, "NEO2", "RC_N3");
-    expect(capture).toMatchObject({ droneChargeMyr: 500, controllerChargeMyr: 350, totalMyr: 850, overallOutcome: "LOST" });
+    expect(capture).toMatchObject({ droneChargeMyr: 600, controllerChargeMyr: 350, totalMyr: 950, overallOutcome: "LOST" });
     const both = computeDepositCapture({ outcome: "DAMAGED", damageMyr: 900 }, { outcome: "DAMAGED", damageMyr: 600 }, "NEO2", "RC_N3");
-    expect(both.totalMyr).toBe(850);
-    expect(both.droneChargeMyr + both.controllerChargeMyr).toBe(850);
+    expect(both.totalMyr).toBe(950);
+    expect(both.droneChargeMyr + both.controllerChargeMyr).toBe(950);
   });
 
   it("ignores a stray damage amount on an item that isn't damaged", () => {
@@ -196,17 +197,17 @@ describe("the three ways to fly: phone only, the RC-N3 or the Goggles N3 + Motio
   it("is with the RC-N3 unless the booking says otherwise, so older rows keep their price", () => {
     expect(rentalFeeMyr(60, 2)).toBe(rentalFeeMyr(60, 2, "NEO2", "RC_N3"));
     expect(lateFeeMyr(10)).toBe(24);
-    expect(depositMyrFor("NEO2")).toBe(850);
+    expect(depositMyrFor("NEO2")).toBe(950);
     expect(storedController("NEO2", undefined)).toBe("RC_N3");
     expect(storedController("NEO2", "SOMETHING")).toBe("RC_N3");
     expect(storedController("NEO2", "GOGGLES_N3")).toBe("GOGGLES_N3");
     expect(storedController("NEO2", "NONE")).toBe("NONE");
   });
 
-  it("holds RM500 for the drone, RM350 more for the RC-N3 and RM800 more for the goggles set", () => {
-    expect(depositMyrFor("NEO2", "NONE")).toBe(500);
-    expect(depositMyrFor("NEO2", "RC_N3")).toBe(850);
-    expect(depositMyrFor("NEO2", "GOGGLES_N3")).toBe(1300);
+  it("holds RM600 for the drone, RM350 more for the RC-N3 and RM800 more for the goggles set", () => {
+    expect(depositMyrFor("NEO2", "NONE")).toBe(600);
+    expect(depositMyrFor("NEO2", "RC_N3")).toBe(950);
+    expect(depositMyrFor("NEO2", "GOGGLES_N3")).toBe(1400);
     expect(controllerDepositFor("NEO2", "NONE")).toBe(0);
     expect(controllerDepositFor("NEO2", "GOGGLES_N3")).toBe(800);
   });
@@ -222,17 +223,17 @@ describe("the three ways to fly: phone only, the RC-N3 or the Goggles N3 + Motio
   it("holds nothing for a controller that was not rented, whatever the return says about it", () => {
     const capture = computeDepositCapture({ outcome: "NONE" }, { outcome: "LOST" }, "NEO2", "NONE");
     expect(capture).toEqual({ droneChargeMyr: 0, controllerChargeMyr: 0, totalMyr: 0, overallOutcome: "NONE" });
-    expect(computeDepositCapture({ outcome: "LOST" }, { outcome: "LOST" }, "NEO2", "NONE").totalMyr).toBe(500);
-    expect(computeDepositCapture({ outcome: "LOST" }, { outcome: "LOST" }, "NEO2", "RC_N3").totalMyr).toBe(850);
+    expect(computeDepositCapture({ outcome: "LOST" }, { outcome: "LOST" }, "NEO2", "NONE").totalMyr).toBe(600);
+    expect(computeDepositCapture({ outcome: "LOST" }, { outcome: "LOST" }, "NEO2", "RC_N3").totalMyr).toBe(950);
   });
 
   it("captures a lost goggles set at its own RM800 deposit, and caps damage at the whole hold", () => {
     expect(computeDepositCapture({ outcome: "NONE" }, { outcome: "LOST" }, "NEO2", "GOGGLES_N3")).toMatchObject({ controllerChargeMyr: 800, totalMyr: 800, overallOutcome: "LOST" });
-    expect(computeDepositCapture({ outcome: "LOST" }, { outcome: "LOST" }, "NEO2", "GOGGLES_N3").totalMyr).toBe(1300);
+    expect(computeDepositCapture({ outcome: "LOST" }, { outcome: "LOST" }, "NEO2", "GOGGLES_N3").totalMyr).toBe(1400);
     expect(computeDepositCapture({ outcome: "NONE" }, { outcome: "DAMAGED", damageMyr: 800 }, "NEO2", "GOGGLES_N3").totalMyr).toBe(800);
     expect(computeDepositCapture({ outcome: "NONE" }, { outcome: "DAMAGED", damageMyr: 801 }, "NEO2", "GOGGLES_N3").totalMyr).toBe(801);
-    expect(computeDepositCapture({ outcome: "NONE" }, { outcome: "DAMAGED", damageMyr: 9999 }, "NEO2", "GOGGLES_N3").totalMyr).toBe(1300);
-    // The RC-N3's damage may use the drone's part of the hold too, up to RM850.
+    expect(computeDepositCapture({ outcome: "NONE" }, { outcome: "DAMAGED", damageMyr: 9999 }, "NEO2", "GOGGLES_N3").totalMyr).toBe(1400);
+    // The RC-N3's damage may use the drone's part of the hold too, up to RM950.
     expect(computeDepositCapture({ outcome: "NONE" }, { outcome: "DAMAGED", damageMyr: 401 }, "NEO2", "RC_N3").totalMyr).toBe(401);
   });
 
@@ -279,10 +280,10 @@ describe("the DJI Neo (the original)", () => {
     expect(lateFeeMyr(61, "NEO", "RC_N3")).toBe(46);
   });
 
-  it("holds a RM400 drone deposit (RM100 less than the Neo 2), with the controller deposits on top", () => {
-    expect(depositMyrFor("NEO", "NONE")).toBe(400);
-    expect(depositMyrFor("NEO", "RC_N3")).toBe(750);
-    expect(depositMyrFor("NEO", "GOGGLES_N3")).toBe(1200);
+  it("holds a RM500 drone deposit (RM100 less than the Neo 2), with the controller deposits on top", () => {
+    expect(depositMyrFor("NEO", "NONE")).toBe(500);
+    expect(depositMyrFor("NEO", "RC_N3")).toBe(850);
+    expect(depositMyrFor("NEO", "GOGGLES_N3")).toBe(1300);
   });
 
   it("takes the same handover photos, with its own batteries named N1, N2...", () => {
@@ -401,8 +402,8 @@ describe("renting by the day", () => {
   });
 
   it("keeps the same deposit as an hourly rental and bills a late return by the hour", () => {
-    expect(depositMyrFor("NEO2", "NONE")).toBe(500);
-    expect(depositMyrFor("NEO2", "RC_N3")).toBe(850);
+    expect(depositMyrFor("NEO2", "NONE")).toBe(600);
+    expect(depositMyrFor("NEO2", "RC_N3")).toBe(950);
     expect(lateFeeMyr(61, "NEO2", "NONE")).toBe(30);
   });
 });
@@ -417,5 +418,25 @@ describe("dailyBreakdown (the lines above a multi-day total)", () => {
     expect(dailyBreakdown(1440, "NEO2", "NONE")).toBeNull();
     expect(dailyBreakdown(180, "NEO2", "NONE")).toBeNull();
     expect(dailyBreakdown(2 * 1440, "NEO2", "GOGGLES_N3")).toBeNull();
+  });
+});
+
+describe("the 40% deposit for a customer who passes the ID check", () => {
+  it("holds 40% of the full deposit: RM240 phone only and RM380 with the RC-N3 on the Neo 2", () => {
+    expect(VERIFIED_DEPOSIT_PERCENT).toBe(40);
+    expect(depositMyrFor("NEO2", "NONE", true)).toBe(240);
+    expect(depositMyrFor("NEO2", "RC_N3", true)).toBe(380);
+    expect(depositMyrFor("NEO2", "GOGGLES_N3", true)).toBe(560);
+    expect(depositMyrFor("NEO", "NONE", true)).toBe(200);
+    // without the check nothing changes
+    expect(depositMyrFor("NEO2", "NONE", false)).toBe(600);
+    expect(depositMyrFor("NEO2", "RC_N3")).toBe(950);
+  });
+
+  it("keeps a lost drone and the damage limit to what was held", () => {
+    expect(computeDepositCapture({ outcome: "LOST" }, { outcome: "NONE" }, "NEO2", "NONE", true)).toMatchObject({ droneChargeMyr: 240, totalMyr: 240 });
+    expect(computeDepositCapture({ outcome: "LOST" }, { outcome: "LOST" }, "NEO2", "RC_N3", true).totalMyr).toBe(380);
+    expect(computeDepositCapture({ outcome: "DAMAGED", damageMyr: 5000 }, { outcome: "NONE" }, "NEO2", "RC_N3", true)).toMatchObject({ droneChargeMyr: 380, controllerChargeMyr: 0, totalMyr: 380 });
+    expect(computeDepositCapture({ outcome: "DAMAGED", damageMyr: 100 }, { outcome: "NONE" }, "NEO2", "NONE", true).totalMyr).toBe(100);
   });
 });

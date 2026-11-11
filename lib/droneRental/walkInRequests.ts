@@ -109,6 +109,8 @@ export async function submitWalkInOrder(params: {
   name: string;
   phone: string;
   email: string;
+  /** The customer passed the ID check on this order: only 40% of the deposit is held. */
+  idChecked?: boolean;
 }): Promise<SubmitWalkInOrderResult> {
   const model = params.model ?? DEFAULT_DRONE_MODEL;
   const shop = await findShopByWalkInCode(params.walkinCode);
@@ -149,6 +151,7 @@ export async function submitWalkInOrder(params: {
     customer_name: params.name,
     customer_phone: params.phone,
     customer_email: params.email.toLowerCase(),
+    id_checked: !!params.idChecked,
     submitted_at: now.toISOString(),
     expires_at: walkInExpiry(now).toISOString(),
   });
@@ -230,6 +233,7 @@ export async function acceptWalkInRequest(requestId: string, staffId: string): P
       model: isDroneModel(request.drone_model) ? request.drone_model : DEFAULT_DRONE_MODEL,
       controller: requestController(request),
       createdByStaffId: staffId,
+      idChecked: request.id_checked,
     });
     await supabase.from("dr_walkin_requests").update({ booking_id: booking.id }).eq("id", request.id);
     // Where the messages go (the WhatsApp number they gave, or an SMS to their phone number) and their language go with the booking.

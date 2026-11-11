@@ -1,6 +1,7 @@
 import { formatMyr, type DailyBreakdown } from "@/lib/droneRental/pricingRules";
 import { droneText } from "@/lib/i18n/drone";
 import type { Locale } from "@/lib/i18n/locale";
+import { DRONE_ID_CHECK_ENABLED } from "@/lib/features";
 import { DepositHoldNote } from "./DepositHoldNote";
 
 /**
@@ -47,7 +48,7 @@ export function DiscountLines({ breakdown, locale = "en", onDark = false }: { br
 }
 
 /** The bottom line of the order: the total to pay and the deposit held. For 2 or 3 days the days and the discount show above the total. */
-export function TotalSummary({ totalMyr, depositMyr, locale = "en", onDark = false, breakdown = null }: { totalMyr: number; depositMyr: number; locale?: Locale; onDark?: boolean; breakdown?: DailyBreakdown | null }) {
+export function TotalSummary({ totalMyr, depositMyr, locale = "en", onDark = false, breakdown = null, verifiedDepositMyr }: { totalMyr: number; depositMyr: number; locale?: Locale; onDark?: boolean; breakdown?: DailyBreakdown | null; /** Where the choice is not made (the home page), the smaller deposit with an ID check, as a line of text. */ verifiedDepositMyr?: number }) {
   const t = droneText(locale);
   const strong = onDark ? "text-white" : "text-black dark:text-zinc-50";
   return (
@@ -64,6 +65,7 @@ export function TotalSummary({ totalMyr, depositMyr, locale = "en", onDark = fal
         <span className={`text-base font-semibold tabular-nums ${strong}`}>{formatMyr(depositMyr)}</span>
       </div>
       <DepositHoldNote depositMyr={depositMyr} locale={locale} onDark={onDark} />
+      {DRONE_ID_CHECK_ENABLED && verifiedDepositMyr !== undefined && <p className={`text-xs font-medium ${onDark ? "text-emerald-300" : "text-emerald-700 dark:text-emerald-400"}`}>{t.kyc.hint(formatMyr(verifiedDepositMyr))}</p>}
       <p className={`rounded-lg border p-2 text-xs leading-snug ${onDark ? "border-amber-500/40 bg-amber-950/40 text-amber-200" : "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"}`}>{t.common.damageWarning}</p>
     </div>
   );

@@ -40,7 +40,7 @@ export default async function WalkInPage({ params }: { params: Promise<{ request
   const daily = isDailyMinutes(request.duration_minutes);
   const batteries = request.batteries_count === 1 ? 1 : 2;
   const controller = requestController(request);
-  const summary = `${modelProfile(request.drone_model).shortName} · ${droneText("en").common.rentalLength(request.duration_minutes)} · ${daily ? droneText("en").common.batteriesAndCharger(request.batteries_count) : `${batteries} ${batteries === 1 ? "battery" : "batteries"}`}${" · " + controllerLabel(request.drone_model, controller)} · ${formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model, controller))}${booking?.paid_by === "CASH" ? " in cash" : booking?.paid_by === "QR" ? " by QR" : ""} + ${formatMyr(depositMyrFor(request.drone_model, controller))} deposit hold`;
+  const summary = `${modelProfile(request.drone_model).shortName} · ${droneText("en").common.rentalLength(request.duration_minutes)} · ${daily ? droneText("en").common.batteriesAndCharger(request.batteries_count) : `${batteries} ${batteries === 1 ? "battery" : "batteries"}`}${" · " + controllerLabel(request.drone_model, controller)} · ${formatMyr(rentalFeeMyr(request.duration_minutes, batteries, request.drone_model, controller))}${booking?.paid_by === "CASH" ? " in cash" : booking?.paid_by === "QR" ? " by QR" : ""} + ${formatMyr(depositMyrFor(request.drone_model, controller, request.id_checked))} deposit hold${request.id_checked ? " (ID checked, 40%)" : ""}`;
 
   const bookingStatus = booking?.status ?? null;
   const droneOptions = view === "SUBMITTED" ? await eligibleDronesForRequest(request) : [];

@@ -85,6 +85,8 @@ export async function createPendingDroneBooking(params: {
   model?: DroneModel;
   /** How the customer flies it: their own phone, the RC-N3 or the goggles set (default the RC-N3). */
   controller?: ControllerKind;
+  /** The customer passed the ID check, so only 40% of the deposit is held. */
+  idChecked?: boolean;
 }): Promise<DrBookingRow> {
   const supabase = createServiceRoleClient();
   const model = params.model ?? DEFAULT_DRONE_MODEL;
@@ -118,6 +120,7 @@ export async function createPendingDroneBooking(params: {
     batteries: params.batteries,
     model,
     controller,
+    idChecked: params.idChecked,
   });
 }
 
@@ -145,6 +148,8 @@ export async function createMerchantInstantBooking(params: {
   model?: DroneModel;
   controller?: ControllerKind;
   createdByStaffId: string;
+  /** The customer passed the ID check, so only 40% of the deposit is held. */
+  idChecked?: boolean;
 }): Promise<DrBookingRow> {
   if (params.durationMinutes <= 0) {
     throw new InvalidDroneBookingRequestError(`durationMinutes must be positive, got ${params.durationMinutes}`);
@@ -176,6 +181,7 @@ export async function createMerchantInstantBooking(params: {
     batteries: params.batteries,
     model,
     controller,
+    idChecked: params.idChecked,
   });
 }
 
@@ -193,6 +199,7 @@ async function insertBooking(
     batteries: BatteryCount;
     model: DroneModel;
     controller: ControllerKind;
+    idChecked?: boolean;
   }
 ): Promise<DrBookingRow> {
   const durationMinutes = (params.endTime.getTime() - params.startTime.getTime()) / 60_000;
@@ -206,7 +213,7 @@ async function insertBooking(
     p_start_time: params.startTime.toISOString(),
     p_end_time: params.endTime.toISOString(),
     p_rental_fee_myr: rentalFeeMyr(durationMinutes, params.batteries, params.model, params.controller),
-    p_deposit_myr: depositMyrFor(params.model, params.controller),
+    p_deposit_myr: depositMyrFor(params.model, params.controller, !!params.idChecked),
     p_secure_token: generateSecureToken(),
     p_source: params.source,
     p_created_by_staff_id: params.createdByStaffId ?? null,
@@ -223,5 +230,9 @@ async function insertBooking(
     throw new Error(error.message);
   }
   if (!booking) throw new Error("Booking creation did not return a row.");
+  if (params.idChecked) {
+    await supabase.from("dr_bookings").update({ id_checked: true }).eq("id", booking.id);
+    return { ...booking, id_checked: true };
+  }
   return booking;
 }

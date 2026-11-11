@@ -6,7 +6,7 @@
 // The other two are worked out from what they really cost:
 //   - payment processing: Stripe charges a percentage plus a fixed RM1 on every card payment, so it is charged per
 //     payment, and not at all on cash;
-//   - KYC: a flat RM1.30 for every drone booking.
+//   - KYC: a flat RM1.30, only for a drone booking whose customer chose the ID check (for 40% of the deposit held).
 
 import type { DrPaidBy } from "@/lib/db/types";
 import { DRONE_ID_CHECK_ENABLED } from "@/lib/features";
@@ -24,7 +24,7 @@ export const CARD_FEE_FIXED_MYR = 1;
 /** What the identity check costs per drone booking when it is switched on. */
 export const KYC_RATE_MYR = 1.3;
 
-/** The identity check, per drone booking: nothing while the online ID check is switched off (lib/features.ts). */
+/** The identity check, per booking that did it: nothing while the online ID check is switched off (lib/features.ts). */
 export const KYC_PER_BOOKING_MYR = DRONE_ID_CHECK_ENABLED ? KYC_RATE_MYR : 0;
 
 /** The partner's share of what is left after costs. */
@@ -63,8 +63,8 @@ export function cardFeeFor(payment: Payment): number {
 export const ZERO_EARNINGS: Earnings = { income: 0, costs: { platform: 0, payment: 0, kyc: 0 }, totalCosts: 0, net: 0, partner: 0, procam: 0, referrer: 0 };
 
 /**
- * The earnings from one booking, from the payments made on it. The identity check is charged once per booking, so a shop that only did a
- * battery swap for another shop's customer passes `{ kyc: false }`: it did not do that customer's ID check.
+ * The earnings from one booking, from the payments made on it. The identity check is charged once, and only on a booking whose customer did it
+ * (`{ kyc: true }`); a shop that only did a battery swap for another shop's customer did not do that customer's ID check.
  */
 export function earningsForBooking(payments: Payment[], options: { kyc?: boolean; /** The booking came from a flyer: 45 / 45 / 10 instead of 50 / 50. */ referred?: boolean } = {}): Earnings {
   const paid = payments.filter((p) => p.amount > 0);
@@ -73,7 +73,7 @@ export function earningsForBooking(payments: Payment[], options: { kyc?: boolean
   const costs = {
     platform: income * PLATFORM_RATE,
     payment: paid.reduce((sum, p) => sum + cardFeeFor(p), 0),
-    kyc: options.kyc === false ? 0 : KYC_PER_BOOKING_MYR,
+    kyc: options.kyc ? KYC_PER_BOOKING_MYR : 0,
   };
   const totalCosts = costs.platform + costs.payment + costs.kyc;
   const net = income - totalCosts;
