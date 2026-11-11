@@ -46,11 +46,10 @@ function haversineKm(a: LatLng, b: LatLng): number {
   return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
-/** The nearest location that can be booked (the ones that show Too Far are not what "nearest to me" is for). */
+/** The nearest location, whether or not it is open for booking yet (a location that shows Too Far still counts). */
 function nearestShop(shops: ShopMarker[], origin: LatLng): ShopMarker | null {
   let best: { shop: ShopMarker; km: number } | null = null;
   for (const shop of shops) {
-    if (!shop.bookable) continue;
     const km = haversineKm(origin, shop);
     if (!best || km < best.km) best = { shop, km };
   }
