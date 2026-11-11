@@ -29,7 +29,7 @@ export const BATTERY_PACKAGE_FEE_MYR: Record<BatteryCount, number> = { 1: 8, 2: 
  * The drone models the shop rents out. Everything that differs between them lives in DRONE_MODEL_PROFILES below;
  * the constants above and the DEPOSIT_* ones further down are the DJI Neo 2's. The Neo (the original) is RM1 cheaper
  * on everything but the controllers: RM9 an hour, batteries RM6 for 1 or RM9 for 2 (also the swap prices), a RM9 late
- * fee per hour without a controller. The drone deposits are RM700 (Neo 2) and RM600 (Neo). The GT50 is parked (see ENABLED_DRONE_MODELS).
+ * fee per hour without a controller. The drone deposits are RM500 (Neo 2) and RM400 (Neo). The GT50 is parked (see ENABLED_DRONE_MODELS).
  */
 export const DRONE_MODELS = ["NEO2", "NEO", "GT50"] as const;
 
@@ -76,7 +76,7 @@ export type ControllerProfile = {
 };
 
 export const CONTROLLER_PROFILES: Record<ControllerEquipment, ControllerProfile> = {
-  RC_N3: { key: "RC_N3", name: "RC-N3 controller", shortName: "Controller (RC-N3)", hourlyMyr: 9, depositMyr: 400 },
+  RC_N3: { key: "RC_N3", name: "RC-N3 controller", shortName: "Controller (RC-N3)", hourlyMyr: 9, depositMyr: 350 },
   GOGGLES_N3: { key: "GOGGLES_N3", name: "Goggles N3 + Motion 3 controller", shortName: "Goggles N3 + Motion 3", hourlyMyr: 10, depositMyr: 800 },
 };
 
@@ -117,7 +117,7 @@ export const DRONE_MODEL_PROFILES: Record<DroneModel, DroneModelProfile> = {
     hourlyRateMyr: HOURLY_RATE_MYR,
     dailyRateMyr: { NONE: 98, RC_N3: 128 },
     batteryFeeMyr: BATTERY_PACKAGE_FEE_MYR,
-    depositDroneMyr: 700,
+    depositDroneMyr: 500,
     photosRequired: true,
     maxWindMps: 10.7, // Level 5
     flightMinutes: { 1: "12–15", 2: "25–30" },
@@ -131,7 +131,7 @@ export const DRONE_MODEL_PROFILES: Record<DroneModel, DroneModelProfile> = {
     hourlyRateMyr: HOURLY_RATE_MYR - 1,
     dailyRateMyr: { NONE: 98, RC_N3: 128 },
     batteryFeeMyr: { 1: BATTERY_PACKAGE_FEE_MYR[1] - 1, 2: BATTERY_PACKAGE_FEE_MYR[2] - 1 },
-    depositDroneMyr: 600,
+    depositDroneMyr: 400,
     photosRequired: true,
     maxWindMps: 8, // Level 4, DJI's rating for the original Neo
     flightMinutes: { 1: "12–15", 2: "25–30" },
