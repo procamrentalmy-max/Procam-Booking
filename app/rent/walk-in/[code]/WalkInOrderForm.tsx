@@ -43,7 +43,7 @@ import type { Locale } from "@/lib/i18n/locale";
 const selectedClass = "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black";
 const idleClass = pressableClass;
 
-export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false, locale = "en", tables }: { code: string; options: WalkInOptions; pictures: Record<string, string>; adminCanSkip?: boolean; locale?: Locale; /** The comparison tables behind the Compare buttons. */ tables?: CompareTables }) {
+export function WalkInOrderForm({ code, options, pictures, locale = "en", tables }: { code: string; options: WalkInOptions; pictures: Record<string, string>; locale?: Locale; /** The comparison tables behind the Compare buttons. */ tables?: CompareTables }) {
   const t = droneText(locale);
   const router = useRouter();
   // Every drone is listed; only those with a length on offer right now can be picked, the rest are greyed out.
@@ -80,7 +80,7 @@ export function WalkInOrderForm({ code, options, pictures, adminCanSkip = false,
   // Verify identity: only 40% of the deposit is held (the choice shows only while the ID check is switched on).
   const [idCheck, setIdCheck] = useState(false);
   const idChecked = DRONE_ID_CHECK_ENABLED && idCheck;
-  const { verifyThen, panel: idCheckPanel, kycBusy, kycMessage } = useDroneKyc({ adminCanSkip, locale });
+  const { verifyThen, panel: idCheckPanel, kycBusy, kycMessage } = useDroneKyc({ locale });
 
   /** The first thing sending the order does: the ID check. The order is sent once it has passed. */
   function submit() {

@@ -22,7 +22,6 @@ export function WhatsAppNumberField({ value, onChange, locale }: { value: string
         title={t.whatsappNumberInvalid}
         className={`w-full ${inputClass} py-3 text-base`}
       />
-      <span className="block text-xs text-zinc-500">{t.whatsappNumberNote}</span>
     </label>
   );
 }

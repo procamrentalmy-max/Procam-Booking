@@ -15,7 +15,7 @@ type Pending = { verificationId: string; sessionUrl: string };
  * customer completes Didit's window), `proceed` is called with the check's id. While the customer still has to do the check,
  * `panel` is what to show instead of the submit button.
  */
-export function useDroneKyc({ adminCanSkip = false, locale = "en" }: { adminCanSkip?: boolean; locale?: Locale } = {}) {
+export function useDroneKyc({ locale = "en" }: { locale?: Locale } = {}) {
   const t = droneText(locale).kyc;
   const [pending, setPending] = useState<Pending | null>(null);
   const [busy, setBusy] = useState(false);
@@ -111,9 +111,9 @@ export function useDroneKyc({ adminCanSkip = false, locale = "en" }: { adminCanS
       <button type="button" onClick={openDidit} disabled={busy} className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}>
         {t.button}
       </button>
-      {(process.env.NODE_ENV !== "production" || adminCanSkip) && (
+      {process.env.NODE_ENV !== "production" && (
         <button type="button" onClick={skipForTesting} disabled={busy} className="w-full rounded-full border border-dashed border-zinc-400 py-3 text-sm font-medium text-zinc-500">
-          {adminCanSkip && process.env.NODE_ENV === "production" ? "[ADMIN] Skip ID check (test booking)" : "[DEV] Skip ID check"}
+          [DEV] Skip ID check
         </button>
       )}
     </div>

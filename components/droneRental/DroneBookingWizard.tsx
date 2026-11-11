@@ -90,7 +90,6 @@ export function DroneBookingWizard({
   controllers,
   pictures,
   retry = false,
-  adminCanSkip = false,
   locale = "en",
   preset = null,
   shopsHref = "/rent",
@@ -106,7 +105,6 @@ export function DroneBookingWizard({
   /** True when the customer is sent back here because the time they paid for was taken: restore what they had and go to the times. */
   retry?: boolean;
   /** A signed-in admin is testing the live site: show the skip-ID-check button. */
-  adminCanSkip?: boolean;
   /** The visitor's language. */
   locale?: Locale;
   /** A package picked on the landing page. When this shop can supply all of it the booking opens at the times; otherwise at the package step with a note. */
@@ -240,7 +238,7 @@ export function DroneBookingWizard({
     }
   }
 
-  const { verifyThen, panel: idCheckPanel, kycBusy, kycMessage } = useDroneKyc({ adminCanSkip, locale });
+  const { verifyThen, panel: idCheckPanel, kycBusy, kycMessage } = useDroneKyc({ locale });
 
   /** The first thing "Book and pay" does: the ID check. The booking itself is made once it has passed. */
   function submit() {

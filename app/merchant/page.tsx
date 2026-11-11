@@ -181,12 +181,20 @@ export default async function MerchantHomePage() {
       />
       <IncomingQrPayments items={qrPayments} />
 
-      <Link
-        href="/merchant/walk-in-qr"
-        className="flex h-14 items-center justify-center rounded-2xl bg-black text-base font-semibold text-white shadow-sm dark:bg-white dark:text-black"
-      >
-        Walk-in QR
-      </Link>
+      <div className="grid grid-cols-2 gap-2">
+        <Link
+          href="/merchant/scan"
+          className="flex h-14 items-center justify-center rounded-2xl bg-black text-base font-semibold text-white shadow-sm dark:bg-white dark:text-black"
+        >
+          Scan QR
+        </Link>
+        <Link
+          href="/merchant/walk-in-qr"
+          className="flex h-14 items-center justify-center rounded-2xl bg-black text-base font-semibold text-white shadow-sm dark:bg-white dark:text-black"
+        >
+          Walk-in QR
+        </Link>
+      </div>
 
       {walkIns.length > 0 && (
         <section>

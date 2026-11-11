@@ -6,7 +6,6 @@ import { uuidSchema } from "@/lib/zod-helpers";
 import { confirmDroneKyc, DroneKycError, skipDroneKyc, startDroneKyc, type DroneKycStart } from "@/lib/droneRental/kyc";
 import { droneText, fieldError } from "@/lib/i18n/drone";
 import { getLocale } from "@/lib/i18n/getLocale";
-import { getAuthContext, isAdmin } from "@/lib/auth/session";
 
 const detailsSchema = z.object({
   name: z.string().trim().min(1, "Enter your name").max(100),
@@ -43,9 +42,9 @@ export async function confirmDroneKycAction(verificationId: string): Promise<{ v
   }
 }
 
-/** Skips the ID check: local development, or a signed-in admin testing the live site. Nobody else can, whatever they send. */
+/** Skips the ID check in local development only. It refuses in production, whoever asks and whatever they send. */
 export async function skipDroneKycAction(verificationId: string): Promise<{ verified: true }> {
-  if (process.env.NODE_ENV === "production" && !isAdmin(await getAuthContext())) throw new Error("Not available.");
+  if (process.env.NODE_ENV === "production") throw new Error("Not available.");
   await skipDroneKyc(uuidSchema.parse(verificationId));
   return { verified: true };
 }

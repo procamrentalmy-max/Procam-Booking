@@ -5,7 +5,6 @@ import { getComboPictureUrls, getLogoUrl } from "@/lib/branding";
 import { Brand } from "@/components/Brand";
 import { LocationBeacon } from "@/components/FunnelBeacon";
 import { getUnavailableFleet } from "@/lib/droneRental/fleetAvailability";
-import { getAuthContext, isAdmin } from "@/lib/auth/session";
 import { getLocale } from "@/lib/i18n/getLocale";
 import { droneText } from "@/lib/i18n/drone";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -48,7 +47,6 @@ export default async function ShopBookingPage({ params, searchParams }: { params
   }
   const availableModels: DroneModel[] = models.filter((m) => offered.has(m));
   // A signed-in admin gets test-only skip buttons on the live site; nobody else does.
-  const adminCanSkip = isAdmin(await getAuthContext());
   const locale = await getLocale();
   const t = droneText(locale);
 
@@ -61,7 +59,7 @@ export default async function ShopBookingPage({ params, searchParams }: { params
         <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">{shop.name}</h1>
         <p className="mt-0.5 text-sm text-zinc-500">{shop.address}</p>
       </div>
-      <DroneBookingWizard locale={locale} adminCanSkip={adminCanSkip} shopId={shop.id} models={models} availableModels={availableModels.length ? availableModels : ["NEO2"]} controllers={controllers} pictures={pictures} retry={retry === "1"} preset={preset} tables={buildCompareTables(getDictionary(locale).home)} hours={parseShopHours(shop.hours)} canBook={canBook} shopsHref={preset ? `/rent?${packageQuery(preset)}` : "/rent"} />
+      <DroneBookingWizard locale={locale} shopId={shop.id} models={models} availableModels={availableModels.length ? availableModels : ["NEO2"]} controllers={controllers} pictures={pictures} retry={retry === "1"} preset={preset} tables={buildCompareTables(getDictionary(locale).home)} hours={parseShopHours(shop.hours)} canBook={canBook} shopsHref={preset ? `/rent?${packageQuery(preset)}` : "/rent"} />
     </div>
   );
 }
