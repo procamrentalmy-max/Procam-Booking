@@ -9,7 +9,7 @@ import { DepositHoldNote } from "./DepositHoldNote";
  * nothing else: the price is already on the length and battery buttons and in the total below. A combination without an uploaded
  * picture shows just the deposit.
  */
-export function ComboCard({ pictureUrl, depositMyr, alt, locale = "en", onDark = false }: { pictureUrl?: string; depositMyr: number; alt: string; locale?: Locale; onDark?: boolean }) {
+export function ComboCard({ pictureUrl, depositMyr, alt, locale = "en", onDark = false, showDeposit = true }: { pictureUrl?: string; depositMyr: number; alt: string; locale?: Locale; onDark?: boolean; /** False on the home page: the picture only, no deposit under it. */ showDeposit?: boolean }) {
   const t = droneText(locale);
   return (
     <div className={`overflow-hidden rounded-2xl border ${onDark ? "border-slate-700" : "border-zinc-200 dark:border-zinc-800"}`}>
@@ -17,12 +17,14 @@ export function ComboCard({ pictureUrl, depositMyr, alt, locale = "en", onDark =
         // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local optimizable asset
         <img src={pictureUrl} alt={alt} className={`aspect-[4/3] w-full object-cover object-bottom ${onDark ? "bg-zinc-900" : "bg-zinc-100 dark:bg-zinc-900"}`} />
       )}
-      <div className="flex items-baseline justify-between gap-4 px-4 py-3">
-        <span className={`text-xs font-medium uppercase tracking-wider ${onDark ? "text-slate-300" : "text-zinc-500"}`}>
-          {t.common.deposit} <span className="normal-case tracking-normal">{t.common.noDeduct}</span>
-        </span>
-        <span className={`text-lg font-semibold tabular-nums ${onDark ? "text-white" : "text-black dark:text-zinc-50"}`}>{formatMyr(depositMyr)}</span>
-      </div>
+      {showDeposit && (
+        <div className="flex items-baseline justify-between gap-4 px-4 py-3">
+          <span className={`text-xs font-medium uppercase tracking-wider ${onDark ? "text-slate-300" : "text-zinc-500"}`}>
+            {t.common.deposit} <span className="normal-case tracking-normal">{t.common.noDeduct}</span>
+          </span>
+          <span className={`text-lg font-semibold tabular-nums ${onDark ? "text-white" : "text-black dark:text-zinc-50"}`}>{formatMyr(depositMyr)}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -48,7 +50,7 @@ export function DiscountLines({ breakdown, locale = "en", onDark = false }: { br
 }
 
 /** The bottom line of the order: the total to pay and the deposit held. For 2 or 3 days the days and the discount show above the total. */
-export function TotalSummary({ totalMyr, depositMyr, locale = "en", onDark = false, breakdown = null, verifiedDepositMyr }: { totalMyr: number; depositMyr: number; locale?: Locale; onDark?: boolean; breakdown?: DailyBreakdown | null; /** Where the choice is not made (the home page), the smaller deposit with an ID check, as a line of text. */ verifiedDepositMyr?: number }) {
+export function TotalSummary({ totalMyr, depositMyr, locale = "en", onDark = false, breakdown = null, verifiedDepositMyr, showDeposit = true }: { totalMyr: number; depositMyr: number; locale?: Locale; onDark?: boolean; breakdown?: DailyBreakdown | null; /** Where the choice is not made (the home page), the smaller deposit with an ID check, as a line of text. */ verifiedDepositMyr?: number; /** False on the home page: the total only, with no deposit, hold note or damage warning. */ showDeposit?: boolean }) {
   const t = droneText(locale);
   const strong = onDark ? "text-white" : "text-black dark:text-zinc-50";
   return (
@@ -58,6 +60,8 @@ export function TotalSummary({ totalMyr, depositMyr, locale = "en", onDark = fal
         <span className={`text-sm font-medium ${onDark ? "text-slate-300" : "text-zinc-500"}`}>{t.common.total}</span>
         <span className={`text-2xl font-semibold tabular-nums ${strong}`}>{formatMyr(totalMyr)}</span>
       </div>
+      {showDeposit && (
+        <>
       <div className="flex items-baseline justify-between gap-4">
         <span className={`text-sm font-medium ${onDark ? "text-slate-300" : "text-zinc-500"}`}>
           {t.common.deposit} {t.common.noDeduct}
@@ -67,6 +71,8 @@ export function TotalSummary({ totalMyr, depositMyr, locale = "en", onDark = fal
       <DepositHoldNote depositMyr={depositMyr} locale={locale} onDark={onDark} />
       {DRONE_ID_CHECK_ENABLED && verifiedDepositMyr !== undefined && <p className={`text-xs font-medium ${onDark ? "text-emerald-300" : "text-emerald-700 dark:text-emerald-400"}`}>{t.kyc.hint(formatMyr(verifiedDepositMyr))}</p>}
       <p className={`rounded-lg border p-2 text-xs leading-snug ${onDark ? "border-amber-500/40 bg-amber-950/40 text-amber-200" : "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"}`}>{t.common.damageWarning}</p>
+        </>
+      )}
     </div>
   );
 }

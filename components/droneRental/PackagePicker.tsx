@@ -1,6 +1,7 @@
 "use client";
 
 import { PendingLink } from "@/components/PendingLink";
+import { HOME_PRICE_SHOWS_DEPOSIT } from "@/lib/features";
 import { packageQuery } from "@/lib/droneRental/packagePreset";
 import {
   DRONE_MODEL_PROFILES,
@@ -53,7 +54,7 @@ export function PackagePicker({ locale, pictures, text, tables }: { locale: Loca
   return (
     <div className="mt-8 grid gap-8 md:grid-cols-2 md:items-start">
       <div className="space-y-6">
-        <DroneChoice onDark locale={locale} models={ENABLED_DRONE_MODELS} value={model} onChange={setModel} compare={tables.drone} unavailable={unavailableModels} unavailableLabel={t.common.notAvailable} />
+        <DroneChoice onDark locale={locale} daily={byDay} days={rentalDays(minutes ?? 0) || 1} controller={controller ?? "NONE"} models={ENABLED_DRONE_MODELS} value={model} onChange={setModel} compare={tables.drone} unavailable={unavailableModels} unavailableLabel={t.common.notAvailable} />
         {profile && model && <ControllerChoice onDark locale={locale} model={model} options={profile.controllerOptions} value={controller} onChange={setController} compare={tables.fly} unavailable={unavailableControllers} unavailableLabel={t.common.notAvailable} daily={byDay} days={rentalDays(minutes ?? 0) || 1} />}
         {model && controller && <LengthChoice onDark locale={locale} minutes={minutes} model={model} controller={controller} onChange={setMinutes} />}
         {model && controller && minutes && !byDay && <BatteryChoice onDark locale={locale} model={model} value={batteries} onChange={setBatteries} />}
@@ -70,9 +71,10 @@ export function PackagePicker({ locale, pictures, text, tables }: { locale: Loca
               locale={locale}
               pictureUrl={pictures[comboKey(model, controller, byDay ? DAILY_BATTERIES : (batteries ?? DEFAULT_BATTERIES))]}
               depositMyr={depositMyrFor(model, controller)}
+              showDeposit={HOME_PRICE_SHOWS_DEPOSIT}
               alt={`${DRONE_MODEL_PROFILES[model].shortName}, ${controllerName(model, controller)}`}
             />
-            <TotalSummary onDark locale={locale} breakdown={dailyBreakdown(minutes, model, controller)} totalMyr={rentalFeeMyr(minutes, batteries ?? DEFAULT_BATTERIES, model, controller)} depositMyr={depositMyrFor(model, controller)} verifiedDepositMyr={depositMyrFor(model, controller, true)} />
+            <TotalSummary onDark locale={locale} breakdown={dailyBreakdown(minutes, model, controller)} totalMyr={rentalFeeMyr(minutes, batteries ?? DEFAULT_BATTERIES, model, controller)} depositMyr={depositMyrFor(model, controller)} verifiedDepositMyr={depositMyrFor(model, controller, true)} showDeposit={HOME_PRICE_SHOWS_DEPOSIT} />
             <PendingLink
               href={`/rent?${packageQuery({ model, controller, batteries: batteries ?? DEFAULT_BATTERIES, minutes })}`}
               className="inline-flex h-12 w-full items-center justify-center rounded-full bg-white px-7 text-sm font-semibold text-black transition hover:bg-zinc-200"

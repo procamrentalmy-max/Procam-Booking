@@ -43,6 +43,12 @@ export function lockerGate(pathname: string): "pass" | "paused" | "admin-home" |
 export const DRONE_ID_CHECK_ENABLED = true;
 
 /**
+ * Whether the price picker on the home page (Check the price) shows the deposit: under the picture, in the total, the green hold note, the Verify identity
+ * line and the damage warning. Off, the home page shows the price only and the deposit first appears on the booking page. Setting this to true brings it back.
+ */
+export const HOME_PRICE_SHOWS_DEPOSIT = false;
+
+/**
  * Renting by the day (1 to 3 days, 3 batteries and a charger included). Switched off: customers can only choose hours, on the home page, the booking page and
  * the shop QR order page; a daily booking is refused if one is sent anyway; the FAQ and the price line in the Terms say nothing about it. Bookings already
  * made by the day still work to the end (pickup, return, prices), and the daily prices, pictures and texts are all still there. Setting this back to true

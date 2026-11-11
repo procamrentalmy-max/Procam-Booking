@@ -190,7 +190,7 @@ export default async function BrandingPage() {
         {!DAILY_RENTAL_ENABLED && <p className="mt-1 rounded-lg border border-amber-300 bg-amber-50 p-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">Renting by the day is switched off for now, so customers do not see these pictures yet. You can still upload them.</p>}
         <p className="text-sm text-zinc-500">
           The daily rental comes with 3 batteries and a charger, so it has its own pictures: one for each drone and way of flying (the Goggles set is hourly only). It shows on the booking page, the shop QR order page and the price picker on the home page when
-          a customer chooses By the day, with the deposit under it. Show the drone with its 3 batteries and the charger. A combination with no picture shows just the deposit.
+          a customer chooses Day, with the deposit under it. Show the drone with its 3 batteries and the charger. A combination with no picture shows just the deposit.
         </p>
       </div>
 
