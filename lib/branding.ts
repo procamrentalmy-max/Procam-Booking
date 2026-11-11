@@ -43,3 +43,23 @@ export async function getPayQrUrl(): Promise<string | null> {
   if (!data?.pay_qr_path) return null;
   return supabase.storage.from(BRANDING_BUCKET).getPublicUrl(data.pay_qr_path).data.publicUrl;
 }
+
+/** How many pictures the flight tips page has: three places to fly and three to avoid, in rows of two (good on the left, avoid on the right). */
+export const FLIGHT_TIP_COUNT = 6;
+export const FLIGHT_TIP_FOLDER = "flight-tips";
+
+/**
+ * The six pictures of the flight tips page (shown before the payment and deposit page), by position 1 to 6, row by row. They are kept in the branding bucket as
+ * flight-tips/tip-<n>-<time>.<ext>, so a slot with no file is null and the page shows its drawn icon instead.
+ */
+export async function getFlightTipUrls(): Promise<(string | null)[]> {
+  const supabase = createServiceRoleClient();
+  const { data } = await supabase.storage.from(BRANDING_BUCKET).list(FLIGHT_TIP_FOLDER, { limit: 100 });
+  const urls: (string | null)[] = Array.from({ length: FLIGHT_TIP_COUNT }, () => null);
+  for (const file of data ?? []) {
+    const match = /^tip-(\d)-/.exec(file.name);
+    const index = match ? Number(match[1]) - 1 : -1;
+    if (index >= 0 && index < FLIGHT_TIP_COUNT) urls[index] = supabase.storage.from(BRANDING_BUCKET).getPublicUrl(`${FLIGHT_TIP_FOLDER}/${file.name}`).data.publicUrl;
+  }
+  return urls;
+}

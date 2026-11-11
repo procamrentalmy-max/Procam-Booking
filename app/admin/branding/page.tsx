@@ -1,8 +1,9 @@
 import { DAILY_RENTAL_ENABLED } from "@/lib/features";
-import { getComboPictureUrls, getLandingImageUrls, getLogoUrl, getPayQrUrl, type LandingImageSlot } from "@/lib/branding";
+import { getComboPictureUrls, getFlightTipUrls, getLandingImageUrls, getLogoUrl, getPayQrUrl, type LandingImageSlot } from "@/lib/branding";
+import { droneText } from "@/lib/i18n/drone";
 import { BATTERY_OPTIONS, DAILY_BATTERIES, DRONE_MODEL_PROFILES, ENABLED_DRONE_MODELS, comboKey, controllerLabel, hasDailyRate } from "@/lib/droneRental/pricingRules";
 import { inputClass, primaryButtonClass, dangerButtonClass } from "@/components/formStyles";
-import { uploadLogoAction, removeLogoAction, uploadLandingImageAction, removeLandingImageAction, uploadComboPictureAction, removeComboPictureAction, uploadPayQrAction, removePayQrAction } from "./actions";
+import { uploadLogoAction, removeLogoAction, uploadLandingImageAction, removeLandingImageAction, uploadComboPictureAction, removeComboPictureAction, uploadPayQrAction, removePayQrAction, uploadFlightTipAction, removeFlightTipAction } from "./actions";
 
 const PICTURES: { slot: LandingImageSlot; title: string; note: string }[] = [
   { slot: "hero", title: "Picture at the top of the landing page", note: "Shown big in the top part of the home page, beside the headline. A landscape or square picture works best. Until you upload one, the drawn drone is shown." },
@@ -10,7 +11,10 @@ const PICTURES: { slot: LandingImageSlot; title: string; note: string }[] = [
 ];
 
 export default async function BrandingPage() {
-  const [logoUrl, pictureUrls, comboUrls, payQrUrl] = await Promise.all([getLogoUrl(), getLandingImageUrls(), getComboPictureUrls(), getPayQrUrl()]);
+  const [logoUrl, pictureUrls, comboUrls, payQrUrl, tipUrls] = await Promise.all([getLogoUrl(), getLandingImageUrls(), getComboPictureUrls(), getPayQrUrl(), getFlightTipUrls()]);
+  // The six spots of the flight tips page, row by row: a place to fly on the left, a place to avoid on the right.
+  const tipsText = droneText("en").flightTips;
+  const tipSpots = [0, 1, 2].flatMap((i) => [{ title: tipsText.good[i], side: "fly" }, { title: tipsText.bad[i], side: "avoid" }]);
   // Every combination a customer can book: drone x how it is flown x batteries.
   const combos = ENABLED_DRONE_MODELS.flatMap((model) =>
     DRONE_MODEL_PROFILES[model].controllerOptions.flatMap((controller) =>
@@ -140,6 +144,43 @@ export default async function BrandingPage() {
           </form>
         )}
       </div>
+
+      <div className="border-t border-zinc-200 pt-6 dark:border-zinc-800">
+        <h2 className="text-lg font-semibold">Flight tips pictures</h2>
+        <p className="text-sm text-zinc-500">
+          Customers see this page, titled &quot;{tipsText.title}&quot;, before the payment and deposit page. Six spots, in the order they appear: a place to fly on the left and a place to avoid on the right, row by row. A picture is shown as it
+          is (put the tick or the cross in the picture itself). PNG, JPEG or WebP, under 8MB. A spot with no picture shows a drawn icon.
+        </p>
+      </div>
+
+      {tipSpots.map(({ title, side }, i) => (
+        <div key={title} className="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+          <p className="text-sm font-medium">
+            Picture {i + 1}: {title} <span className="font-normal text-zinc-500">({side === "fly" ? "left, a place to fly" : "right, a place to avoid"})</span>
+          </p>
+          {tipUrls[i] ? (
+            // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local optimizable asset
+            <img src={tipUrls[i]!} alt={title} className="max-h-40 w-auto rounded-lg border border-zinc-200 dark:border-zinc-800" />
+          ) : (
+            <p className="text-sm text-zinc-500">No picture uploaded yet (the drawn icon shows).</p>
+          )}
+          <form action={uploadFlightTipAction} className="space-y-3">
+            <input type="hidden" name="tip" value={i + 1} />
+            <input type="file" name="picture" accept="image/png,image/jpeg,image/webp" required className={`w-full ${inputClass}`} />
+            <button type="submit" className={primaryButtonClass}>
+              {tipUrls[i] ? "Replace picture" : "Upload picture"}
+            </button>
+          </form>
+          {tipUrls[i] && (
+            <form action={removeFlightTipAction}>
+              <input type="hidden" name="tip" value={i + 1} />
+              <button type="submit" className={dangerButtonClass}>
+                Remove picture
+              </button>
+            </form>
+          )}
+        </div>
+      ))}
 
       <div className="border-t border-zinc-200 pt-6 dark:border-zinc-800">
         <h2 className="text-lg font-semibold">Landing page pictures</h2>

@@ -12,12 +12,12 @@ import { DEFAULT_LOCALE, INTL_TAGS, type Locale } from "./locale";
 export const droneEn = {
   /** The page shown before the payment: where it is safe to fly. Three good and three bad places, in the same order as the pictures. */
   flightTips: {
-    title: "Choosing a Suitable Flight Environment",
+    title: "Warning------- Important",
     sub: "Please read this before you pay.",
     good: ["Well-lit area", "Fly in open areas", "Clear and breezy weather*"],
     bad: ["Avoid textureless/reflective ground", "Do not fly off bridge or balcony", "Avoid water"],
     windNote: "*Winds are stronger at high altitude. Fly with caution.",
-    button: "Got it",
+    button: "Got It",
     ok: "OK to fly",
     notOk: "Do not",
   },
@@ -59,6 +59,8 @@ export const droneEn = {
     depositHold: "Deposit hold",
     fullName: "Full name",
     phone: "Phone number",
+    countryCode: "Country code",
+    phoneNumberPlaceholder: "12-345 6789",
     email: "Email",
     somethingWrong: "Something went wrong — please try again.",
     /** "42 min", "3h", "3h 12m". */
@@ -308,8 +310,8 @@ export const droneEn = {
   errors: {
     rentalLength: "Choose a rental length of 1 to 6 hours.",
     name: "Enter your name",
-    phone: "Enter a valid phone number",
-    email: "Enter a valid email",
+    phone: "Enter a valid phone number for the country you picked",
+    email: "Enter a valid email address, like name@example.com",
     details: "Check your details and try again.",
     invalidDate: "Invalid date/time.",
     closed: "The shop is closed at that time — pick another slot.",
@@ -333,7 +335,7 @@ export type DroneText = typeof droneEn;
 
 export const droneMs: DroneText = {
   flightTips: {
-    title: "Memilih Persekitaran Terbang yang Sesuai",
+    title: "Amaran------- Penting",
     sub: "Sila baca ini sebelum membayar.",
     good: ["Kawasan yang terang", "Terbang di kawasan lapang", "Cuaca cerah dan berangin sepoi-sepoi*"],
     bad: ["Elakkan permukaan tanah tanpa tekstur/memantul", "Jangan terbang dari jambatan atau balkoni", "Elakkan air"],
@@ -376,6 +378,8 @@ export const droneMs: DroneText = {
     depositHold: "Tahanan deposit",
     fullName: "Nama penuh",
     phone: "Nombor telefon",
+    countryCode: "Kod negara",
+    phoneNumberPlaceholder: "12-345 6789",
     email: "E-mel",
     somethingWrong: "Ada masalah. Sila cuba lagi.",
     duration: (totalMinutes) => {
@@ -613,8 +617,8 @@ export const droneMs: DroneText = {
   errors: {
     rentalLength: "Pilih tempoh sewa 1 hingga 6 jam.",
     name: "Masukkan nama anda",
-    phone: "Masukkan nombor telefon yang sah",
-    email: "Masukkan e-mel yang sah",
+    phone: "Masukkan nombor telefon yang sah untuk negara yang anda pilih",
+    email: "Masukkan alamat e-mel yang sah, seperti nama@contoh.com",
     details: "Semak butiran anda dan cuba lagi.",
     invalidDate: "Tarikh/masa tidak sah.",
     closed: "Kedai tutup pada masa itu — pilih slot lain.",
@@ -636,7 +640,7 @@ export const droneMs: DroneText = {
 
 export const droneZh: DroneText = {
   flightTips: {
-    title: "选择合适的飞行环境",
+    title: "警告------- 重要",
     sub: "付款前请先看一下。",
     good: ["光线充足的地方", "在空旷处飞行", "天气晴朗、微风*"],
     bad: ["避开无纹理/反光的地面", "不要在桥上或阳台上起飞", "避开水面"],
@@ -679,6 +683,8 @@ export const droneZh: DroneText = {
     depositHold: "押金冻结",
     fullName: "姓名",
     phone: "手机号码",
+    countryCode: "国家区号",
+    phoneNumberPlaceholder: "12-345 6789",
     email: "电子邮箱",
     somethingWrong: "出了点问题，请再试一次。",
     duration: (totalMinutes) => {
@@ -916,8 +922,8 @@ export const droneZh: DroneText = {
   errors: {
     rentalLength: "请选择 1 至 6 小时的租用时长。",
     name: "请输入您的姓名",
-    phone: "请输入有效的手机号码",
-    email: "请输入有效的电子邮箱",
+    phone: "请输入所选国家的有效手机号码",
+    email: "请输入有效的电子邮箱地址，例如 name@example.com",
     details: "请检查您的资料后再试一次。",
     invalidDate: "日期或时间无效。",
     closed: "那个时间门店不营业，请选择其他时段。",

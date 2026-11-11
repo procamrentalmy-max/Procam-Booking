@@ -47,7 +47,17 @@ const BAD_ICONS = [
   </g>,
 ];
 
-function Tip({ icon, label, good, aria }: { icon: React.ReactNode; label: string; good: boolean; aria: string }) {
+function Tip({ icon, label, good, aria, image }: { icon: React.ReactNode; label: string; good: boolean; aria: string; image?: string | null }) {
+  // An uploaded picture is shown as it is (it carries its own tick or cross); without one, the drawn icon with its badge.
+  if (image) {
+    return (
+      <div className="flex flex-col items-center gap-2 text-center">
+        {/* eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local optimizable asset */}
+        <img src={image} alt={label} className="h-24 w-auto max-w-full object-contain" />
+        <p className="text-xs leading-snug text-zinc-700 dark:text-zinc-300">{label}</p>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col items-center gap-2 text-center">
       <div className="relative h-16 w-16">
@@ -73,7 +83,7 @@ function Tip({ icon, label, good, aria }: { icon: React.ReactNode; label: string
  * The page a customer sees before the payment and deposit screen: where it is safe to fly (good places on the left, places to avoid on the right).
  * "Got it" carries on to the payment through `continueHref`.
  */
-export function FlightTips({ locale, continueHref }: { locale: Locale; continueHref: string }) {
+export function FlightTips({ locale, continueHref, images = [] }: { locale: Locale; continueHref: string; /** The six uploaded pictures in order (row by row), null where there is none. */ images?: (string | null)[] }) {
   const t = droneText(locale).flightTips;
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-8">
@@ -83,8 +93,8 @@ export function FlightTips({ locale, continueHref }: { locale: Locale; continueH
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-7">
         {GOOD_ICONS.flatMap((good, i) => [
-          <Tip key={`g${i}`} icon={good} label={t.good[i]} good aria={t.ok} />,
-          <Tip key={`b${i}`} icon={BAD_ICONS[i]} label={t.bad[i]} good={false} aria={t.notOk} />,
+          <Tip key={`g${i}`} icon={good} label={t.good[i]} good aria={t.ok} image={images[i * 2]} />,
+          <Tip key={`b${i}`} icon={BAD_ICONS[i]} label={t.bad[i]} good={false} aria={t.notOk} image={images[i * 2 + 1]} />,
         ])}
       </div>
       <p className="mt-auto text-center text-xs text-zinc-500">{t.windNote}</p>

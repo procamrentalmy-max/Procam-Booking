@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { isValidEmail, normalizePhone } from "@/lib/contact";
 import { uuidSchema } from "@/lib/zod-helpers";
 import { confirmDroneKyc, DroneKycError, skipDroneKyc, startDroneKyc, type DroneKycStart } from "@/lib/droneRental/kyc";
 import { droneText, fieldError } from "@/lib/i18n/drone";
@@ -9,8 +10,8 @@ import { getAuthContext, isAdmin } from "@/lib/auth/session";
 
 const detailsSchema = z.object({
   name: z.string().trim().min(1, "Enter your name").max(100),
-  phone: z.string().trim().regex(/^[0-9+\-()\s]{6,30}$/, "Enter a valid phone number"),
-  email: z.string().trim().email("Enter a valid email").max(200),
+  phone: z.string().trim().refine((v) => normalizePhone(v) !== null, "Enter a valid phone number").transform((v) => normalizePhone(v) as string),
+  email: z.string().trim().max(200).refine(isValidEmail, "Enter a valid email"),
 });
 
 /** The refusal text in the visitor's language. Returned, not thrown: a thrown message never reaches the customer on the live site. */

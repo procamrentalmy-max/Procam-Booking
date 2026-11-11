@@ -4,7 +4,7 @@ import sharp from "sharp";
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getAuthContext, isAdmin } from "@/lib/auth/session";
-import { BRANDING_BUCKET, LANDING_IMAGE_COLUMN, LANDING_IMAGE_SLOTS, type LandingImageSlot } from "@/lib/branding";
+import { BRANDING_BUCKET, FLIGHT_TIP_COUNT, FLIGHT_TIP_FOLDER, LANDING_IMAGE_COLUMN, LANDING_IMAGE_SLOTS, type LandingImageSlot } from "@/lib/branding";
 import { DAILY_BATTERIES, ENABLED_DRONE_MODELS, comboKey, hasDailyRate, isControllerKind } from "@/lib/droneRental/pricingRules";
 
 const ALLOWED_TYPES: Record<string, string> = {
@@ -245,5 +245,49 @@ export async function removePayQrAction() {
   if (error) throw new Error(`Failed to remove the picture: ${error.message}`);
   if (current?.pay_qr_path) await supabase.storage.from(BRANDING_BUCKET).remove([current.pay_qr_path]).catch(() => {});
   revalidatePath("/rent", "layout");
+  revalidatePath("/admin/branding");
+}
+
+function tipOf(formData: FormData): number {
+  const n = Number(formData.get("tip"));
+  if (!Number.isInteger(n) || n < 1 || n > FLIGHT_TIP_COUNT) throw new Error("Unknown picture.");
+  return n;
+}
+
+/** Takes the files of one flight tips slot out of the branding bucket (all of them, in case an earlier clean-up missed one). */
+async function clearFlightTip(n: number) {
+  const supabase = createServiceRoleClient();
+  const { data } = await supabase.storage.from(BRANDING_BUCKET).list(FLIGHT_TIP_FOLDER, { limit: 100 });
+  const old = (data ?? []).filter((f) => f.name.startsWith(`tip-${n}-`)).map((f) => `${FLIGHT_TIP_FOLDER}/${f.name}`);
+  if (old.length > 0) await supabase.storage.from(BRANDING_BUCKET).remove(old).catch(() => {});
+}
+
+/** One of the six pictures of the flight tips page that comes before the payment page. Shown as uploaded, so it can carry its own tick or cross. */
+export async function uploadFlightTipAction(formData: FormData) {
+  if (!isAdmin(await getAuthContext())) throw new Error("Not authorized");
+  const n = tipOf(formData);
+  const file = formData.get("picture");
+  if (!(file instanceof File) || file.size === 0) throw new Error("Choose a picture.");
+  const ext = PICTURE_TYPES[file.type];
+  if (!ext) throw new Error("The picture must be a PNG, JPEG or WebP image.");
+  if (file.size > MAX_PICTURE_BYTES) throw new Error("The picture must be under 8MB.");
+  // Shown small, so anything wider than this is shrunk; rotate() applies a phone's orientation tag first.
+  const buffer = await sharp(Buffer.from(await file.arrayBuffer())).rotate().resize({ width: 800, withoutEnlargement: true }).toBuffer();
+
+  const supabase = createServiceRoleClient();
+  const path = `${FLIGHT_TIP_FOLDER}/tip-${n}-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from(BRANDING_BUCKET).upload(path, buffer, { contentType: file.type, upsert: true });
+  if (error) throw new Error(`Failed to upload the picture: ${error.message}`);
+  // The new one is live: take the old file of this slot away.
+  const { data } = await supabase.storage.from(BRANDING_BUCKET).list(FLIGHT_TIP_FOLDER, { limit: 100 });
+  const old = (data ?? []).filter((f) => f.name.startsWith(`tip-${n}-`) && `${FLIGHT_TIP_FOLDER}/${f.name}` !== path).map((f) => `${FLIGHT_TIP_FOLDER}/${f.name}`);
+  if (old.length > 0) await supabase.storage.from(BRANDING_BUCKET).remove(old).catch(() => {});
+  revalidatePath("/admin/branding");
+}
+
+/** Takes a flight tips picture away: that spot goes back to the drawn icon. */
+export async function removeFlightTipAction(formData: FormData) {
+  if (!isAdmin(await getAuthContext())) throw new Error("Not authorized");
+  await clearFlightTip(tipOf(formData));
   revalidatePath("/admin/branding");
 }

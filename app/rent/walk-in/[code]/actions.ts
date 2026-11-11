@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { isValidEmail, normalizePhone } from "@/lib/contact";
 import { submitWalkInOrder } from "@/lib/droneRental/walkInRequests";
 import { findOrCreateCustomer } from "@/lib/droneRental/createBooking";
 import { claimVerification, releaseVerification } from "@/lib/droneRental/kyc";
@@ -20,8 +21,8 @@ const schema = z.object({
   model: z.enum(ENABLED_DRONE_MODELS).default("NEO2"),
   controller: z.enum(CONTROLLER_KINDS).default("NONE"),
   name: z.string().trim().min(1, "Enter your name").max(100),
-  phone: z.string().trim().regex(/^[0-9+\-()\s]{6,30}$/, "Enter a valid phone number"),
-  email: z.string().trim().email("Enter a valid email").max(200),
+  phone: z.string().trim().refine((v) => normalizePhone(v) !== null, "Enter a valid phone number").transform((v) => normalizePhone(v) as string),
+  email: z.string().trim().max(200).refine(isValidEmail, "Enter a valid email"),
   // Only sent when the customer chose to pass the ID check for the smaller deposit (lib/features.ts).
   verificationId: uuidSchema.or(z.literal("")).optional(),
   whatsappNumber: z.string().trim().max(30).optional(),

@@ -41,6 +41,7 @@ import { DEFAULT_SHOP_HOURS, formatSlotTime, generateDaySlots, type ShopHours } 
 import { getUnavailableDroneStartsAction, createDroneBookingAction } from "@/app/rent/[shopId]/actions";
 import { useDroneKyc } from "@/components/droneRental/useDroneKyc";
 import { IdCheckOption } from "@/components/droneRental/IdCheckOption";
+import { EmailField, PhoneField } from "@/components/droneRental/ContactFields";
 import { DRONE_ID_CHECK_ENABLED } from "@/lib/features";
 import { DepositHoldNote } from "@/components/droneRental/DepositHoldNote";
 
@@ -497,25 +498,8 @@ export function DroneBookingWizard({
           required
           className={`w-full ${inputClass} py-3 text-base`}
         />
-        <input
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder={t.common.phone}
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          required
-          className={`w-full ${inputClass} py-3 text-base`}
-        />
-        <input
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder={t.common.email}
-          type="email"
-          autoComplete="email"
-          required
-          className={`w-full ${inputClass} py-3 text-base`}
-        />
+        <PhoneField value={phone} onChange={setPhone} locale={locale} />
+        <EmailField value={email} onChange={setEmail} locale={locale} />
         <WhatsAppNumberField value={whatsappNumber} onChange={setWhatsappNumber} locale={locale} />
         {(error ?? kycMessage) && (
           <p role="alert" className="text-center text-sm text-red-600">

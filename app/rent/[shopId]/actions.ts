@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { isValidEmail, normalizePhone } from "@/lib/contact";
 import { uuidSchema } from "@/lib/zod-helpers";
 import { buildShopFleetSnapshot } from "@/lib/droneRental/snapshot";
 import { computeUnavailableStarts } from "@/lib/droneRental/slots";
@@ -69,8 +70,8 @@ const createBookingSchema = z.object({
   batteries: z.union([z.literal(1), z.literal(2)]),
   controller: controllerSchema,
   name: z.string().trim().min(1, "Enter your name"),
-  phone: z.string().trim().regex(/^[0-9+\-()\s]{6,30}$/, "Enter a valid phone number"),
-  email: z.string().trim().email("Enter a valid email"),
+  phone: z.string().trim().refine((v) => normalizePhone(v) !== null, "Enter a valid phone number").transform((v) => normalizePhone(v) as string),
+  email: z.string().trim().max(200).refine(isValidEmail, "Enter a valid email"),
   // Only sent when the customer chose to pass the ID check for the smaller deposit (lib/features.ts).
   verificationId: uuidSchema.or(z.literal("")).optional(),
   /** The WhatsApp number to send the booking messages to; empty means they are texted to the phone number. */
