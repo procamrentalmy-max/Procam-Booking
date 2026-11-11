@@ -1,7 +1,7 @@
 import { getAuthContext } from "@/lib/auth/session";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { modelProfile } from "@/lib/droneRental/pricingRules";
+import { modelProfile, storedController, wasIdChecked } from "@/lib/droneRental/pricingRules";
 import { PAID_STATUSES, monthStartMs, summariseIncome, type IncomeBooking } from "@/lib/droneRental/income";
 import { REFERRER_SHARE } from "@/lib/referral";
 import { CARD_FEE_FIXED_MYR, CARD_FEE_RATE, KYC_PER_BOOKING_MYR, PARTNER_SHARE, PARTNER_SHARE_REFERRED, PLATFORM_RATE } from "@/lib/droneRental/earnings";
@@ -11,7 +11,8 @@ import { BarChart, DonutChart } from "@/app/admin/sales/charts";
 // The generated types don't know these two relationships, but the foreign keys exist, so PostgREST embeds them.
 type BookingRow = Omit<IncomeBooking, "swaps" | "lateFees" | "swapOnly" | "referred" | "idChecked"> & {
   shop_id: string;
-  id_checked: boolean;
+  controller_kind: string | null;
+  deposit_myr: number | string;
   referrer_id: string | null;
   dr_battery_swaps: { fee_myr: number | string; paid_by: string; swap_shop_id: string | null }[] | null;
   dr_payments: { amount_myr: number | string; kind: string; status: string; provider: string }[] | null;
@@ -50,7 +51,7 @@ export default async function ShopIncomePage() {
   const bookingsQuery = db
     .from("dr_bookings")
     .select(
-      "id,shop_id,referrer_id,id_checked,status,source,paid_by,start_time,batteries_count,drone_model,rental_fee_myr,drone_charge_myr,controller_charge_myr,dr_battery_swaps(fee_myr,paid_by,swap_shop_id),dr_payments(amount_myr,kind,status,provider)",
+      "id,shop_id,referrer_id,controller_kind,deposit_myr,status,source,paid_by,start_time,batteries_count,drone_model,rental_fee_myr,drone_charge_myr,controller_charge_myr,dr_battery_swaps(fee_myr,paid_by,swap_shop_id),dr_payments(amount_myr,kind,status,provider)",
     )
     .in("status", PAID_STATUSES)
     .gte("start_time", new Date(monthStartMs(now, MONTHS_SHOWN - 1)).toISOString());
@@ -72,7 +73,7 @@ export default async function ShopIncomePage() {
     drone_charge_myr: b.drone_charge_myr,
     controller_charge_myr: b.controller_charge_myr,
     referred: !!b.referrer_id,
-    idChecked: b.id_checked,
+    idChecked: wasIdChecked(b.drone_model, storedController(b.drone_model, b.controller_kind), b.deposit_myr),
     // A swap of two batteries is two rows, with the fee on the first only; the zero-fee row is not a payment.
     // A swap done at another shop earns that shop the fee, so only this shop's own swaps (and old ones, with no shop recorded) count here.
     swaps: (b.dr_battery_swaps ?? []).filter((s) => Number(s.fee_myr) > 0 && (!s.swap_shop_id || s.swap_shop_id === b.shop_id)).map((s) => ({ feeMyr: Number(s.fee_myr), paidBy: s.paid_by === "CASH" ? ("CASH" as const) : s.paid_by === "QR" ? ("QR" as const) : ("CARD" as const) })),

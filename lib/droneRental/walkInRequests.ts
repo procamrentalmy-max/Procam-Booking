@@ -25,6 +25,7 @@ import {
   type ControllerKind,
   type DroneModel,
 } from "./pricingRules";
+import { DRONE_ID_CHECK_ENABLED } from "@/lib/features";
 
 export class WalkInError extends Error {
   constructor(message: string) {
@@ -151,12 +152,30 @@ export async function submitWalkInOrder(params: {
     customer_name: params.name,
     customer_phone: params.phone,
     customer_email: params.email.toLowerCase(),
-    id_checked: !!params.idChecked,
     submitted_at: now.toISOString(),
     expires_at: walkInExpiry(now).toISOString(),
   });
   if (error) throw new Error("Could not send your order. Please try again.");
   return { ok: true, publicToken };
+}
+
+/**
+ * Whether this walk-in order was sent with the ID check: the customer's Didit check was used up (marked used) at the moment the order was sent.
+ * The order has no column for it, so it is found from that check; the booking made when the staff confirm it then holds the smaller deposit.
+ */
+export async function requestIdChecked(request: DrWalkInRequestRow): Promise<boolean> {
+  if (!DRONE_ID_CHECK_ENABLED || !request.customer_name || !request.customer_phone || !request.customer_email || !request.submitted_at) return false;
+  const customerId = await findOrCreateCustomer({ name: request.customer_name, phone: request.customer_phone, email: request.customer_email });
+  const sent = new Date(request.submitted_at).getTime();
+  const { data } = await createServiceRoleClient()
+    .from("identity_verifications")
+    .select("id")
+    .eq("customer_id", customerId)
+    .eq("status", "VERIFIED")
+    .gte("used_at", new Date(sent - 2 * 60_000).toISOString())
+    .lte("used_at", new Date(sent + 60_000).toISOString())
+    .limit(1);
+  return (data ?? []).length > 0;
 }
 
 export async function getWalkInRequestByToken(token: string): Promise<DrWalkInRequestRow | null> {
@@ -233,7 +252,7 @@ export async function acceptWalkInRequest(requestId: string, staffId: string): P
       model: isDroneModel(request.drone_model) ? request.drone_model : DEFAULT_DRONE_MODEL,
       controller: requestController(request),
       createdByStaffId: staffId,
-      idChecked: request.id_checked,
+      idChecked: await requestIdChecked(request),
     });
     await supabase.from("dr_walkin_requests").update({ booking_id: booking.id }).eq("id", request.id);
     // Where the messages go (the WhatsApp number they gave, or an SMS to their phone number) and their language go with the booking.

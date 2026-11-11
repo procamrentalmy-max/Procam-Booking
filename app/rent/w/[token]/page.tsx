@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { getWalkInRequestByToken, requestController, viewOf } from "@/lib/droneRental/walkInRequests";
+import { getWalkInRequestByToken, requestController, requestIdChecked, viewOf } from "@/lib/droneRental/walkInRequests";
 import { controllerLabel, depositMyrFor, formatMyr, modelProfile, rentalFeeMyr } from "@/lib/droneRental/pricingRules";
 import { DepositHoldNote } from "@/components/droneRental/DepositHoldNote";
 import { AutoRefresh } from "@/components/droneRental/AutoRefresh";
@@ -30,6 +30,7 @@ export default async function WalkInCustomerPage({ params }: { params: Promise<{
   const locale = await getLocale();
   const t = droneText(locale);
   const request = await getWalkInRequestByToken(token);
+  const idChecked = request ? await requestIdChecked(request) : false;
   if (!request) notFound();
 
   const view = viewOf(request);
@@ -76,10 +77,10 @@ export default async function WalkInCustomerPage({ params }: { params: Promise<{
         </div>
         <div className="flex justify-between gap-4">
           <span className="text-zinc-500">{t.common.depositHold}</span>
-          <span className="font-medium">{formatMyr(depositMyrFor(request.drone_model, controller, request.id_checked))}</span>
+          <span className="font-medium">{formatMyr(depositMyrFor(request.drone_model, controller, idChecked))}</span>
         </div>
       </div>
-      <DepositHoldNote depositMyr={depositMyrFor(request.drone_model, controller, request.id_checked)} locale={locale} />
+      <DepositHoldNote depositMyr={depositMyrFor(request.drone_model, controller, idChecked)} locale={locale} />
       <p className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs leading-snug text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">{t.common.damageWarning}</p>
 
       {view === "SUBMITTED" && (

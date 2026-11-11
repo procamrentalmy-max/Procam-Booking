@@ -8,6 +8,7 @@ import {
   modelProfile,
   storedController,
   type ItemReturn,
+  wasIdChecked,
 } from "./pricingRules";
 
 export class DamageReviewError extends Error {
@@ -40,7 +41,7 @@ export async function reviewDroneDamage(params: {
   const supabase = createServiceRoleClient();
   const { data: booking } = await supabase
     .from("dr_bookings")
-    .select("id,status,damage_review,drone_model,controller_kind,drone_outcome,controller_outcome,id_checked")
+    .select("id,status,damage_review,drone_model,controller_kind,drone_outcome,controller_outcome,deposit_myr")
     .eq("id", params.bookingId)
     .single();
   if (!booking) throw new DamageReviewError("Booking not found.");
@@ -57,7 +58,7 @@ export async function reviewDroneDamage(params: {
       reviewedItem(withController ? booking.controller_outcome : "NONE", params.controllerAmountMyr),
       profile.key,
       controller,
-      booking.id_checked
+      wasIdChecked(profile.key, controller, booking.deposit_myr)
     );
   } catch (err) {
     if (err instanceof DepositCaptureError) throw new DamageReviewError(err.message);

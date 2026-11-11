@@ -18,6 +18,7 @@ import {
   DRONE_MODEL_PROFILES,
   depositMyrFor,
   VERIFIED_DEPOSIT_PERCENT,
+  wasIdChecked,
   hourlyRateFor,
   includesController,
   modelProfile,
@@ -438,5 +439,15 @@ describe("the 40% deposit for a customer who passes the ID check", () => {
     expect(computeDepositCapture({ outcome: "LOST" }, { outcome: "LOST" }, "NEO2", "RC_N3", true).totalMyr).toBe(380);
     expect(computeDepositCapture({ outcome: "DAMAGED", damageMyr: 5000 }, { outcome: "NONE" }, "NEO2", "RC_N3", true)).toMatchObject({ droneChargeMyr: 380, controllerChargeMyr: 0, totalMyr: 380 });
     expect(computeDepositCapture({ outcome: "DAMAGED", damageMyr: 100 }, { outcome: "NONE" }, "NEO2", "NONE", true).totalMyr).toBe(100);
+  });
+});
+
+describe("wasIdChecked", () => {
+  it("is true only when the stored deposit is exactly the 40% one", () => {
+    expect(wasIdChecked("NEO2", "NONE", 240)).toBe(true);
+    expect(wasIdChecked("NEO2", "RC_N3", "380")).toBe(true);
+    expect(wasIdChecked("NEO2", "NONE", 600)).toBe(false);
+    expect(wasIdChecked("NEO2", "RC_N3", 950)).toBe(false);
+    expect(wasIdChecked("NEO2", "NONE", 500)).toBe(false);
   });
 });

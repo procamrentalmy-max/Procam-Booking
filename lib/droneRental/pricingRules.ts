@@ -221,6 +221,14 @@ export function depositMyrFor(model: string | null | undefined, controller: Cont
   return idChecked ? Math.round(full * holdShare(true)) : full;
 }
 
+/**
+ * Whether a booking was made with the ID check: its stored deposit is exactly the smaller one (40% of the full deposit for that drone and way of flying).
+ * No separate record is kept; the amount held says it. A booking made with the full deposit, or an older one, is not an ID-checked booking.
+ */
+export function wasIdChecked(model: string | null | undefined, controller: ControllerKind, depositMyr: number | string): boolean {
+  return Number(depositMyr) === depositMyrFor(model, controller, true) && depositMyrFor(model, controller, true) !== depositMyrFor(model, controller);
+}
+
 /** A customer can hold at most this many batteries at once — swapping in one more requires returning one first. */
 export const MAX_BATTERIES_HELD = 2;
 

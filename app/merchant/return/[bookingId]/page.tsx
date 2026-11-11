@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { PARTNER_SHARE_REFERRED } from "@/lib/droneRental/earnings";
 import { REFERRER_SHARE } from "@/lib/referral";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { controllerProfileFor, includesController, isDailyBooking, modelProfile, storedController } from "@/lib/droneRental/pricingRules";
+import { controllerProfileFor, includesController, isDailyBooking, modelProfile, storedController, wasIdChecked } from "@/lib/droneRental/pricingRules";
 import { checklistForRental } from "@/lib/droneRental/checklist";
 import { batteryLabel } from "@/lib/droneRental/format";
 import { ReturnForm } from "./ReturnForm";
@@ -11,7 +11,7 @@ export default async function MerchantReturnPage({ params }: { params: Promise<{
   const { bookingId } = await params;
   const supabase = createServiceRoleClient();
 
-  const { data: booking } = await supabase.from("dr_bookings").select("id,referrer_id,id_checked,status,customer_id,drone_id,batteries_count,drone_model,controller_kind,controller_id").eq("id", bookingId).maybeSingle();
+  const { data: booking } = await supabase.from("dr_bookings").select("id,referrer_id,deposit_myr,status,customer_id,drone_id,batteries_count,drone_model,controller_kind,controller_id").eq("id", bookingId).maybeSingle();
   if (!booking) notFound();
   const profile = modelProfile(booking.drone_model);
   const controller = storedController(booking.drone_model, booking.controller_kind);
@@ -57,7 +57,7 @@ export default async function MerchantReturnPage({ params }: { params: Promise<{
         checklistItems={checklistForRental(items ?? [], controller, daily)}
         disabled={booking.status !== "ACTIVE"}
         holdOnFile={hold?.status === "AUTHORIZED"}
-        idChecked={booking.id_checked}
+        idChecked={wasIdChecked(profile.key, controller, booking.deposit_myr)}
         model={profile.key}
         controller={controller}
         controllerCode={controllerUnit?.human_id ?? null}

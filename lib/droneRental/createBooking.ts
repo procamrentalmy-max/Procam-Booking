@@ -230,9 +230,5 @@ async function insertBooking(
     throw new Error(error.message);
   }
   if (!booking) throw new Error("Booking creation did not return a row.");
-  if (params.idChecked) {
-    await supabase.from("dr_bookings").update({ id_checked: true }).eq("id", booking.id);
-    return { ...booking, id_checked: true };
-  }
   return booking;
 }
