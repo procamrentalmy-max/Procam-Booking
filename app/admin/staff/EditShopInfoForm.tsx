@@ -44,12 +44,8 @@ export function EditShopInfoForm({ shop }: { shop: ShopInfo }) {
           <input name="name" defaultValue={shop.name} required className={`w-full ${inputClass}`} />
         </label>
         {opened ? (
-          <LocationPicker defaultAddress={shop.needsDetails ? "" : shop.address} defaultLat={shop.needsDetails ? null : shop.lat} defaultLng={shop.needsDetails ? null : shop.lng} />
+          <LocationPicker defaultAddress={shop.needsDetails ? "" : shop.address} defaultLat={shop.needsDetails ? null : shop.lat} defaultLng={shop.needsDetails ? null : shop.lng} defaultMapsUrl={shop.googleMapsUrl} />
         ) : null}
-        <label className="space-y-1 text-sm sm:col-span-2">
-          <span className="text-zinc-500">Google Maps link (optional)</span>
-          <input name="googleMapsUrl" type="url" defaultValue={shop.googleMapsUrl ?? ""} className={`w-full ${inputClass}`} />
-        </label>
 
         <div className="space-y-1.5 sm:col-span-2">
           <p className="text-sm font-medium">Opening hours</p>

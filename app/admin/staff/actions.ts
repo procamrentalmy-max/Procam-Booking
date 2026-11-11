@@ -62,6 +62,9 @@ export async function createStaffAction(formData: FormData): Promise<StaffAction
     if (!located.success) return { ok: false, error: "Give the shop's address and click its position on the map." };
     place = located.data;
   }
+  // The Google Maps link filled in with the address (optional; anything that is not a web link is left out).
+  const rawMapsUrl = String(formData.get("googleMapsUrl") ?? "").trim();
+  const mapsUrl = z.string().url().safeParse(rawMapsUrl).success ? rawMapsUrl : null;
   let shopToLink: string | null = null;
   let shopCreated = false;
 
@@ -90,7 +93,7 @@ export async function createStaffAction(formData: FormData): Promise<StaffAction
     if (!shopToLink) {
       const { data: shop, error: shopError } = await supabase
         .from("dr_shops")
-        .insert({ name: parsed.data.name, address: place!.address, lat: place!.lat, lng: place!.lng, active: false })
+        .insert({ name: parsed.data.name, address: place!.address, lat: place!.lat, lng: place!.lng, google_maps_url: mapsUrl, active: false })
         .select("id")
         .single();
       if (shopError || !shop) {
