@@ -72,7 +72,7 @@ export const faqEn: FaqPage = {
           q: "Can I walk in without booking?",
           blocks: [
             {
-              p: "Yes, if a drone is free. Scan the walk-in QR code at the shop. You can pay the rental fee by card or in cash at the shop. A card is always needed for the deposit.",
+              p: "Yes, if a drone is free and the shop is open. Scan the shop's QR code, or choose Now on the booking page. The shop confirms your order first, and your rental starts when they hand you the drone. You can pay the rental fee by card or in cash at the shop. A card is always needed for the deposit.",
             },
           ],
         },
@@ -148,6 +148,10 @@ export const faqEn: FaqPage = {
     {
       title: "Flying",
       items: [
+        {
+          q: "How long does a battery last?",
+          blocks: [{ p: "About 10 to 15 minutes of flying per battery, depending on the mode you use." }],
+        },
         {
           q: "Phone only, controller or goggles: which should I choose?",
           blocks: [
@@ -285,7 +289,7 @@ export const faqMs: FaqPage = {
           q: "Bolehkah saya datang terus tanpa menempah?",
           blocks: [
             {
-              p: "Boleh, jika ada dron yang kosong. Imbas kod QR walk-in di kedai. Anda boleh membayar yuran sewa dengan kad atau secara tunai di kedai. Kad sentiasa diperlukan untuk deposit.",
+              p: "Boleh, jika ada dron yang kosong dan kedai dibuka. Imbas kod QR kedai, atau pilih Sekarang pada halaman tempahan. Kedai mengesahkan pesanan anda dahulu, dan sewaan bermula apabila mereka serahkan dron kepada anda. Anda boleh membayar yuran sewa dengan kad atau secara tunai di kedai. Kad sentiasa diperlukan untuk deposit.",
             },
           ],
         },
@@ -361,6 +365,10 @@ export const faqMs: FaqPage = {
     {
       title: "Menerbangkan dron",
       items: [
+        {
+          q: "Berapa lama sebiji bateri bertahan?",
+          blocks: [{ p: "Kira-kira 10 hingga 15 minit terbang bagi setiap bateri, bergantung pada mod yang anda gunakan." }],
+        },
         {
           q: "Telefon sahaja, alat kawalan atau goggles: yang mana patut saya pilih?",
           blocks: [
@@ -498,7 +506,7 @@ export const faqZh: FaqPage = {
           q: "可以不预订直接到店租吗？",
           blocks: [
             {
-              p: "可以，只要有空闲的无人机。在门店扫描现场租借二维码。租金可以刷卡，也可以在店里付现金。押金始终需要用信用卡。",
+              p: "可以，只要有空闲的无人机且门店营业。扫描门店的二维码，或在预订页面选择“现在”。门店会先确认您的订单，租用从他们把无人机交给您时开始计时。租金可以刷卡，也可以在店里付现金。押金始终需要用信用卡。",
             },
           ],
         },
@@ -574,6 +582,10 @@ export const faqZh: FaqPage = {
     {
       title: "飞行",
       items: [
+        {
+          q: "一块电池能飞多久？",
+          blocks: [{ p: "每块电池大约可飞行 10 至 15 分钟，视所用模式而定。" }],
+        },
         {
           q: "只用手机、遥控器还是 Goggles：该选哪个？",
           blocks: [

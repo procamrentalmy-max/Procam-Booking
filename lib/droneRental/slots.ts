@@ -30,6 +30,13 @@ export const RETURN_BUFFER_MINUTES = 30;
  */
 export const RETURN_GRACE_MINUTES = 15;
 
+/**
+ * How long after a booking's start time the customer can still collect and have a walk-in rental begin at handover. Past this the
+ * rental has started by itself: the clock runs to the booked end, whenever they turn up (the handover itself is the same as ever),
+ * and they only get the time that is left. If nobody collects before the end, the booking is closed and its deposit hold released.
+ */
+export const PICKUP_GRACE_MINUTES = 20;
+
 export class InvalidDroneBookingRequestError extends Error {
   constructor(reason: string) {
     super(`Invalid drone booking request: ${reason}`);

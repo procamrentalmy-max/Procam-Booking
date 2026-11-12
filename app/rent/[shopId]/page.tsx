@@ -10,7 +10,8 @@ import { droneText } from "@/lib/i18n/drone";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { buildCompareTables } from "@/lib/droneRental/compareTables";
 import { packageQuery, parsePackagePreset } from "@/lib/droneRental/packagePreset";
-import { parseShopHours } from "@/lib/droneRental/hours";
+import { isOpenNow, parseShopHours } from "@/lib/droneRental/hours";
+import { walkInOptionsByModel } from "@/lib/droneRental/walkInRequests";
 import { CONTROLLER_KINDS, ENABLED_DRONE_MODELS, isDroneModel, type ControllerKind, type DroneModel } from "@/lib/droneRental/pricingRules";
 
 export default async function ShopBookingPage({ params, searchParams }: { params: Promise<{ shopId: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -23,7 +24,7 @@ export default async function ShopBookingPage({ params, searchParams }: { params
 
   const { data: shop } = await supabase
     .from("dr_shops")
-    .select("id,name,address,active,hours")
+    .select("id,name,address,active,hours,walkin_code")
     .eq("id", shopId)
     .maybeSingle();
   if (!shop) notFound();
@@ -46,6 +47,10 @@ export default async function ShopBookingPage({ params, searchParams }: { params
     controllers = CONTROLLER_KINDS.filter((k) => k !== "NONE" && !missing.controllers.includes(k));
   }
   const availableModels: DroneModel[] = models.filter((m) => offered.has(m));
+  // "Now": what the shop can hand over right now. Only worked out while the shop is open for booking and inside its opening hours.
+  const shopHours = parseShopHours(shop.hours);
+  const nowOptions = canBook && shop.walkin_code && isOpenNow(shopHours) ? await walkInOptionsByModel(shop.id) : {};
+  const startNow = (Array.isArray(query.now) ? query.now[0] : query.now) === "1";
   // A signed-in admin gets test-only skip buttons on the live site; nobody else does.
   const locale = await getLocale();
   const t = droneText(locale);
@@ -59,7 +64,7 @@ export default async function ShopBookingPage({ params, searchParams }: { params
         <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">{shop.name}</h1>
         <p className="mt-0.5 text-sm text-zinc-500">{shop.address}</p>
       </div>
-      <DroneBookingWizard locale={locale} shopId={shop.id} models={models} availableModels={availableModels.length ? availableModels : ["NEO2"]} controllers={controllers} pictures={pictures} retry={retry === "1"} preset={preset} tables={buildCompareTables(getDictionary(locale).home)} hours={parseShopHours(shop.hours)} canBook={canBook} shopsHref={preset ? `/rent?${packageQuery(preset)}` : "/rent"} />
+      <DroneBookingWizard locale={locale} shopId={shop.id} models={models} availableModels={availableModels.length ? availableModels : ["NEO2"]} controllers={controllers} pictures={pictures} retry={retry === "1"} preset={preset} tables={buildCompareTables(getDictionary(locale).home)} hours={shopHours} canBook={canBook} walkInCode={shop.walkin_code} nowOptions={nowOptions} startNow={startNow} shopsHref={preset ? `/rent?${packageQuery(preset)}` : "/rent"} />
     </div>
   );
 }

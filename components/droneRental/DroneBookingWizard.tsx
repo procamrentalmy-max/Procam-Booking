@@ -39,6 +39,8 @@ import {
 } from "@/lib/droneRental/pricingRules";
 import { DEFAULT_SHOP_HOURS, formatSlotTime, generateDaySlots, type ShopHours } from "@/lib/droneRental/hours";
 import { getUnavailableDroneStartsAction, createDroneBookingAction } from "@/app/rent/[shopId]/actions";
+import { submitWalkInOrderAction } from "@/app/rent/walk-in/[code]/actions";
+import type { WalkInOptions } from "@/lib/droneRental/walkInRequests";
 import { useDroneKyc } from "@/components/droneRental/useDroneKyc";
 import { IdCheckOption } from "@/components/droneRental/IdCheckOption";
 import { EmailField, PhoneField } from "@/components/droneRental/ContactFields";
@@ -96,6 +98,9 @@ export function DroneBookingWizard({
   tables,
   hours = DEFAULT_SHOP_HOURS,
   canBook = true,
+  walkInCode = null,
+  nowOptions = {},
+  startNow = false,
 }: {
   shopId: string;
   models: DroneModel[];
@@ -117,6 +122,12 @@ export function DroneBookingWizard({
   hours?: ShopHours;
   /** False on a location that only shows its rates (Check Rates): everything can be looked at and priced, but there is no button to go on to a time. */
   canBook?: boolean;
+  /** This shop's walk-in code: the "Now" choice sends the shop an order under it (the shop confirms, then the customer pays). */
+  walkInCode?: string | null;
+  /** What can be collected right now at this shop, per drone and way of flying (empty while the shop is closed or has nothing free). */
+  nowOptions?: WalkInOptions;
+  /** Opened from the shop's own QR: "Now" is already chosen on the times page. */
+  startNow?: boolean;
 }) {
   const t = droneText(locale);
   const router = useRouter();
@@ -139,6 +150,8 @@ export function DroneBookingWizard({
   // Set when some of the day's times are too windy for this drone (the forecast is over its limit).
   const [windNote, setWindNote] = useState<{ limit: number; worst: number } | null>(null);
   const [selectedStart, setSelectedStart] = useState<Date | null>(null);
+  // "Now": collect it at the shop right away. It goes in as an order the shop confirms (the walk-in flow), and starts at handover.
+  const [wantsNow, setWantsNow] = useState(startNow);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -161,6 +174,10 @@ export function DroneBookingWizard({
   const asked = effectiveController(model, pickedController);
   const controller = selectableControllers.includes(asked) ? asked : selectableControllers[0];
   const withController = includesController(model, controller);
+  // "Now" is there only while the shop is open with a drone free, and only for a choice (drone, way of flying, length) it can hand over right now.
+  const nowShown = !!walkInCode && Object.keys(nowOptions).length > 0;
+  const nowAvailable = nowShown && (nowOptions[model]?.[controller] ?? []).includes(durationMinutes);
+  const nowChosen = wantsNow && nowAvailable;
   // Verify identity: only 40% of the deposit is held (the choice shows only while the ID check is switched on).
   const [idCheck, setIdCheck] = useState(false);
   const idChecked = DRONE_ID_CHECK_ENABLED && idCheck;
@@ -242,13 +259,32 @@ export function DroneBookingWizard({
 
   /** The first thing "Book and pay" does: the ID check. The booking itself is made once it has passed. */
   function submit() {
-    if (!selectedStart) return;
+    if (!selectedStart && !nowChosen) return;
     setError(null);
     trackStep("ID_CHECK", shopId);
     void verifyThen({ name, phone, email }, placeBooking, idChecked);
   }
 
+  /** "Now": the order goes to the shop to confirm, then the customer pays (card, cash or QR) and collects. */
+  async function sendNowOrder(verificationId: string) {
+    if (!walkInCode) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await submitWalkInOrderAction({ code: walkInCode, durationMinutes, batteries: byDay ? DEFAULT_BATTERIES : batteries, model, controller, name, phone, email, verificationId, whatsappNumber });
+      if (result.ok) {
+        router.push(`/rent/w/${result.token}`);
+        return;
+      }
+      setError(result.message);
+    } catch {
+      setError(t.common.somethingWrong);
+    }
+    setLoading(false);
+  }
+
   async function placeBooking(verificationId: string) {
+    if (nowChosen) return sendNowOrder(verificationId);
     if (!selectedStart) return;
     setLoading(true);
     setError(null);
@@ -346,20 +382,41 @@ export function DroneBookingWizard({
         </p>
 
         <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1" role="group" aria-label={t.wizard.day}>
+          {nowShown && (
+            <button
+              type="button"
+              disabled={!nowAvailable}
+              onClick={() => {
+                setWantsNow(true);
+                setSelectedStart(null);
+              }}
+              aria-pressed={nowChosen}
+              className={`shrink-0 rounded-full border px-4 py-2 text-sm font-semibold ${nowChosen ? selectedClass : nowAvailable ? idleClass : "cursor-not-allowed border-zinc-100 text-zinc-300 dark:border-zinc-900 dark:text-zinc-700"}`}
+            >
+              {t.wizard.now}
+            </button>
+          )}
           {Array.from({ length: DAYS_AHEAD }, (_, i) => (
             <button
               key={i}
               type="button"
-              onClick={() => setDayOffset(i)}
-              aria-pressed={dayOffset === i}
-              className={`shrink-0 rounded-full border px-4 py-2 text-sm font-medium ${dayOffset === i ? selectedClass : idleClass}`}
+              onClick={() => {
+                setWantsNow(false);
+                setDayOffset(i);
+              }}
+              aria-pressed={!nowChosen && dayOffset === i}
+              className={`shrink-0 rounded-full border px-4 py-2 text-sm font-medium ${!nowChosen && dayOffset === i ? selectedClass : idleClass}`}
             >
               {dayLabelFor(now, i, locale)}
             </button>
           ))}
         </div>
 
-        {slots.length === 0 ? (
+        {wantsNow && !nowAvailable && <p className="text-center text-xs text-zinc-500">{t.wizard.nowUnavailable}</p>}
+
+        {nowChosen ? (
+          <p className="rounded-xl border border-zinc-200 p-4 text-center text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">{t.wizard.nowNote}</p>
+        ) : slots.length === 0 ? (
           <p className="rounded-xl border border-dashed border-zinc-300 p-5 text-center text-sm text-zinc-500 dark:border-zinc-700">
             {t.wizard.noMoreTimes(t.common.rentalLength(durationMinutes))}
           </p>
@@ -398,19 +455,19 @@ export function DroneBookingWizard({
             {byDay ? `${t.common.returnBy} ${formatMalaysiaTime(returnTime, locale)}` : `${formatSlotTime(selectedStart)} – ${formatSlotTime(returnTime)}`}
           </p>
         )}
-        {unavailable === null && slots.length > 0 && <p className="text-center text-xs text-zinc-400">{t.wizard.checking}</p>}
-        {windNote && (
+        {!nowChosen && unavailable === null && slots.length > 0 && <p className="text-center text-xs text-zinc-400">{t.wizard.checking}</p>}
+        {!nowChosen && windNote && (
           <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-center text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
             {t.wizard.tooWindy(`${Math.round(windNote.worst * 10) / 10} m/s`, profile.shortName, `${windNote.limit} m/s`)}
           </p>
         )}
-        {unavailable && slots.length > 0 && unavailable.size === slots.length && !windNote && (
+        {!nowChosen && unavailable && slots.length > 0 && unavailable.size === slots.length && !windNote && (
           <p className="text-center text-xs text-zinc-500">{t.wizard.fullyBooked}</p>
         )}
 
         <button
           type="button"
-          disabled={!selectedStart}
+          disabled={!selectedStart && !nowChosen}
           onClick={() => setStep("contact")}
           className={`w-full ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}
         >
@@ -434,7 +491,7 @@ export function DroneBookingWizard({
         />
       )}
 
-      {selectedStart && (
+      {(selectedStart || nowChosen) && (
         <div className="space-y-1 rounded-2xl border border-zinc-200 p-4 text-sm dark:border-zinc-800">
           {models.length > 1 && (
             <div className="flex justify-between gap-4">
@@ -450,7 +507,7 @@ export function DroneBookingWizard({
           )}
           <div className="flex justify-between gap-4">
             <span className="text-zinc-500">{t.common.start}</span>
-            <span className="font-medium">{formatMalaysiaTime(selectedStart, locale)}</span>
+            <span className="font-medium">{selectedStart ? formatMalaysiaTime(selectedStart, locale) : t.wizard.nowStart}</span>
           </div>
           <div className="flex justify-between gap-4">
             <span className="text-zinc-500">{t.common.length}</span>
@@ -511,10 +568,10 @@ export function DroneBookingWizard({
             className={`flex w-full items-center justify-center gap-2 ${primaryButtonClass} h-12 rounded-full disabled:opacity-50`}
           >
             {(loading || kycBusy) && <Spinner />}
-            {loading || kycBusy ? t.wizard.booking : t.wizard.bookAndPay(formatMyr(rentalFee))}
+            {loading || kycBusy ? t.wizard.booking : nowChosen ? t.wizard.sendOrder : t.wizard.bookAndPay(formatMyr(rentalFee))}
           </button>
         )}
-        <p className="text-center text-xs text-zinc-400">{t.wizard.payNext}</p>
+        {!nowChosen && <p className="text-center text-xs text-zinc-400">{t.wizard.payNext}</p>}
         <p className="text-center text-xs text-zinc-400">
           <AgreeLine locale={locale} />
         </p>

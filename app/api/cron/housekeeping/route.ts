@@ -6,6 +6,7 @@ import { expireUncollectedPickups } from "@/lib/photoPrint/expirePickups";
 import { PENDING_PAYMENT_TIMEOUT_MINUTES } from "@/lib/state-machine/booking";
 import { logAudit } from "@/lib/audit";
 import { expireStalePendingDroneBookings } from "@/lib/droneRental/expire";
+import { closeUncollectedDroneBookings } from "@/lib/droneRental/noShow";
 import { sendDueWhatsAppMessages } from "@/lib/whatsapp/notify";
 
 /**
@@ -123,6 +124,16 @@ export async function GET(req: Request) {
     result.errors.push(`expire drone bookings: ${(err as Error).message}`);
   }
 
+  // A drone booking nobody collected by the end of its rental period: closed, and its deposit hold released.
+  let uncollected = { closed: 0, released: 0 };
+  try {
+    const r = await closeUncollectedDroneBookings();
+    uncollected = { closed: r.closed, released: r.released };
+    result.errors.push(...r.errors);
+  } catch (err) {
+    result.errors.push(`close uncollected drone bookings: ${(err as Error).message}`);
+  }
+
   // WhatsApp reminders (pickup, return, late, deposit nudge): only for customers who asked for them, and only when WhatsApp is connected.
   let whatsappChecked = 0;
   try {
@@ -131,5 +142,5 @@ export async function GET(req: Request) {
     result.errors.push(`whatsapp: ${(err as Error).message}`);
   }
 
-  return NextResponse.json({ ...result, expiredDroneBookings, whatsappChecked });
+  return NextResponse.json({ ...result, expiredDroneBookings, uncollectedDroneBookings: uncollected, whatsappChecked });
 }

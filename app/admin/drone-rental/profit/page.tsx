@@ -66,7 +66,7 @@ export default async function DroneProfitPage({ searchParams }: { searchParams: 
 
   const supabase = await createServerSupabaseClient();
   const [{ data: bookings }, { data: drones }, { data: swaps }, { data: lateFees }, { data: messages }, { data: batteries }, flyerBookings] = await Promise.all([
-    supabase.from("dr_bookings").select("id,status,drone_id,start_time,batteries_count,rental_fee_myr,drone_charge_myr,controller_charge_myr"),
+    supabase.from("dr_bookings").select("id,status,drone_id,start_time,actual_return_time,batteries_count,rental_fee_myr,drone_charge_myr,controller_charge_myr"),
     supabase.from("dr_drones").select("id,human_id,status,cost_price_myr"),
     supabase.from("dr_battery_swaps").select("booking_id,fee_myr"),
     supabase.from("dr_payments").select("booking_id,amount_myr").eq("kind", "LATE_FEE").eq("status", "SUCCEEDED"),
@@ -102,7 +102,9 @@ export default async function DroneProfitPage({ searchParams }: { searchParams: 
     const kept = Number(b.drone_charge_myr) + Number(b.controller_charge_myr);
     const sales = rental + swapFees + lateFees + kept;
     const cardFees = cardFeeMyr(rental) + e.swaps.reduce((n, x) => n + cardFeeMyr(x), 0) + e.late.reduce((n, x) => n + cardFeeMyr(x), 0);
-    const uses = (HANDED_OUT_STATUSES.includes(b.status) ? Number(b.batteries_count) : 0) + e.swaps.length;
+    // A completed booking nobody collected (no return time) never had its batteries out.
+    const handedOut = HANDED_OUT_STATUSES.includes(b.status) && (b.status === "ACTIVE" || b.actual_return_time !== null);
+    const uses = (handedOut ? Number(b.batteries_count) : 0) + e.swaps.length;
     const wear = uses * BATTERY_WEAR_MYR_PER_USE;
     const whatsapp = e.messages * WHATSAPP_MYR_PER_MESSAGE;
     // The flyer place's 10% on a booking that came from its flyer is a cost of that booking.

@@ -28,17 +28,29 @@ describe("computeHandoverWindow", () => {
   });
 
   it("leaves a return time that already lands on a 30-minute mark alone", () => {
-    const w = computeHandoverWindow({ ...walkIn, handoverAt: at("04:30"), nextStart: null });
+    const w = computeHandoverWindow({ source: "MERCHANT_INSTANT", start: at("04:15"), end: at("05:15"), handoverAt: at("04:30"), nextStart: null });
     expect(w.end).toEqual(at("05:30"));
   });
 
   it("rounds a just-past-the-mark return up a full step", () => {
-    const w = computeHandoverWindow({ ...walkIn, handoverAt: at("04:31"), nextStart: null });
+    const w = computeHandoverWindow({ source: "MERCHANT_INSTANT", start: at("04:20"), end: at("05:20"), handoverAt: at("04:31"), nextStart: null });
     expect(w.end).toEqual(at("06:00")); // 05:31 -> 06:00
   });
 
   it("treats an instantaneous handover as no change", () => {
     const w = computeHandoverWindow({ ...walkIn, handoverAt: created, nextStart: null });
+    expect(w).toEqual({ start: created, end: reservedEnd, shortenedByMinutes: 0 });
+  });
+
+  it("starts at handover up to 20 minutes after the start, and not a minute later", () => {
+    const onTheLine = computeHandoverWindow({ ...walkIn, handoverAt: at("04:20"), nextStart: null });
+    expect(onTheLine.start).toEqual(at("04:20"));
+    const late = computeHandoverWindow({ ...walkIn, handoverAt: at("04:21"), nextStart: null });
+    expect(late).toEqual({ start: created, end: reservedEnd, shortenedByMinutes: 0 });
+  });
+
+  it("gives a walk-in collected late only the time that is left (the window stays as booked)", () => {
+    const w = computeHandoverWindow({ ...walkIn, handoverAt: at("04:40"), nextStart: null });
     expect(w).toEqual({ start: created, end: reservedEnd, shortenedByMinutes: 0 });
   });
 
@@ -66,7 +78,7 @@ describe("computeHandoverWindow", () => {
   });
 
   it("never ends earlier than what was reserved", () => {
-    const w = computeHandoverWindow({ ...walkIn, handoverAt: at("04:50"), nextStart: at("05:20") });
+    const w = computeHandoverWindow({ ...walkIn, handoverAt: at("04:20"), nextStart: at("05:05") });
     expect(w.end).toEqual(reservedEnd);
   });
 });

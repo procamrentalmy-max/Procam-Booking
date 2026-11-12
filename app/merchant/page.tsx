@@ -14,6 +14,7 @@ import { walkInView } from "@/lib/droneRental/walkIn";
 import { modelProfile } from "@/lib/droneRental/pricingRules";
 import { describeDayHours, parseShopHours } from "@/lib/droneRental/hours";
 import { pressableClass } from "@/components/formStyles";
+import { PICKUP_GRACE_MINUTES } from "@/lib/droneRental/slots";
 
 const NO_SHOPS = "00000000-0000-0000-0000-000000000000";
 
@@ -151,7 +152,8 @@ export default async function MerchantHomePage() {
 
   // Only today's and tomorrow's pickups, soonest first. Later bookings aren't due yet; anything older was never collected.
   const pickups = bookings
-    .filter((b) => b.status === "CONFIRMED" && pickupDay(new Date(b.start_time), now) !== null)
+    // Today's and tomorrow's, plus any whose rental period has started and not run out yet (a late customer can still collect it).
+    .filter((b) => b.status === "CONFIRMED" && (pickupDay(new Date(b.start_time), now) !== null || (new Date(b.start_time) <= now && new Date(b.end_time) > now)))
     .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
   const pickupsToday = pickups.filter((b) => pickupDay(new Date(b.start_time), now) === "today").length;
   const pickupsTomorrow = pickups.length - pickupsToday;
@@ -294,6 +296,12 @@ export default async function MerchantHomePage() {
                         {started ? `Start time passed ${formatDuration(now.getTime() - start.getTime())} ago` : `Starts in ${formatDuration(start.getTime() - now.getTime())}`}
                       </p>
                     </div>
+                  )}
+                  {/* Collected more than PICKUP_GRACE_MINUTES after the start: the rental started by itself, so they only get the time left. */}
+                  {now.getTime() > start.getTime() + PICKUP_GRACE_MINUTES * 60_000 && (
+                    <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                      Rental already started. They only get the time left: return by <span className="font-semibold">{formatClock(new Date(b.end_time))}</span>.
+                    </p>
                   )}
                   <Link
                     href={`/merchant/pickup/${b.id}`}

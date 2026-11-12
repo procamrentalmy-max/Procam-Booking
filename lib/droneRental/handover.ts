@@ -1,4 +1,4 @@
-import { RETURN_BUFFER_MINUTES, alignToNextInterval } from "./slots";
+import { PICKUP_GRACE_MINUTES, RETURN_BUFFER_MINUTES, alignToNextInterval } from "./slots";
 import type { DrBookingSource } from "@/lib/db/types";
 
 export type HandoverWindow = {
@@ -38,6 +38,8 @@ export function computeHandoverWindow(params: {
 }): HandoverWindow {
   const { source, start, end, handoverAt, nextStart } = params;
   if (source !== "MERCHANT_INSTANT") return { start, end, shortenedByMinutes: 0 };
+  // Collected more than PICKUP_GRACE_MINUTES after the start: the rental started by itself, so the window stays as booked and the customer only gets what is left.
+  if (handoverAt.getTime() > start.getTime() + PICKUP_GRACE_MINUTES * 60_000) return { start, end, shortenedByMinutes: 0 };
 
   // At creation a walk-in reserves exactly start + the paid duration, so the paid length is recoverable from the reserved window.
   const paidMs = end.getTime() - start.getTime();
