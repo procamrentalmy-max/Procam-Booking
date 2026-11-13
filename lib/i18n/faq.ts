@@ -150,7 +150,7 @@ export const faqEn: FaqPage = {
       items: [
         {
           q: "How long does a battery last?",
-          blocks: [{ p: "About 10 to 15 minutes of flying per battery, depending on the mode you use." }],
+          blocks: [{ p: "About 12 to 15 minutes of flying per battery, depending on the mode you use." }],
         },
         {
           q: "Phone only, controller or goggles: which should I choose?",
@@ -367,7 +367,7 @@ export const faqMs: FaqPage = {
       items: [
         {
           q: "Berapa lama sebiji bateri bertahan?",
-          blocks: [{ p: "Kira-kira 10 hingga 15 minit terbang bagi setiap bateri, bergantung pada mod yang anda gunakan." }],
+          blocks: [{ p: "Kira-kira 12 hingga 15 minit terbang bagi setiap bateri, bergantung pada mod yang anda gunakan." }],
         },
         {
           q: "Telefon sahaja, alat kawalan atau goggles: yang mana patut saya pilih?",
@@ -584,7 +584,7 @@ export const faqZh: FaqPage = {
       items: [
         {
           q: "一块电池能飞多久？",
-          blocks: [{ p: "每块电池大约可飞行 10 至 15 分钟，视所用模式而定。" }],
+          blocks: [{ p: "每块电池大约可飞行 12 至 15 分钟，视所用模式而定。" }],
         },
         {
           q: "只用手机、遥控器还是 Goggles：该选哪个？",
